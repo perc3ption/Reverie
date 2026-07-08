@@ -1,0 +1,162 @@
+package com.perceptiveus.reverie.data.local.dao
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import androidx.room.Transaction
+import com.perceptiveus.reverie.data.local.entity.AlbumAggregate
+import com.perceptiveus.reverie.data.local.entity.ArtistAggregate
+import com.perceptiveus.reverie.data.local.entity.FolderWithCounts
+import com.perceptiveus.reverie.data.local.entity.MusicFolderEntity
+import com.perceptiveus.reverie.data.local.entity.PlayHistoryEntity
+import com.perceptiveus.reverie.data.local.entity.PlaylistEntity
+import com.perceptiveus.reverie.data.local.entity.PlaylistTrackCrossRef
+import com.perceptiveus.reverie.data.local.entity.PlaylistWithCount
+import com.perceptiveus.reverie.data.local.entity.TrackEntity
+import com.perceptiveus.reverie.data.local.entity.UserSettingsEntity
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface MusicFolderDao {
+
+    @Query(
+        """
+        SELECT f.id, f.name,
+               COUNT(t.id) AS songCount,
+               COUNT(DISTINCT t.album) AS albumCount
+        FROM music_folders f
+        LEFT JOIN tracks t ON t.folderId = f.id
+        GROUP BY f.id
+        ORDER BY f.name ASC
+        """,
+    )
+    fun observeFoldersWithCounts(): Flow<List<FolderWithCounts>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(folders: List<MusicFolderEntity>)
+
+    @Query("SELECT COUNT(*) FROM music_folders")
+    suspend fun count(): Int
+}
+
+@Dao
+interface TrackDao {
+
+    @Query("SELECT COUNT(*) FROM tracks")
+    fun observeSongCount(): Flow<Int>
+
+    @Query("SELECT * FROM tracks ORDER BY title ASC")
+    fun observeAllTracks(): Flow<List<TrackEntity>>
+
+    @Query(
+        """
+        SELECT artist,
+               COUNT(*) AS trackCount,
+               COUNT(DISTINCT album) AS albumCount
+        FROM tracks
+        GROUP BY artist
+        ORDER BY artist ASC
+        """,
+    )
+    fun observeArtists(): Flow<List<ArtistAggregate>>
+
+    @Query(
+        """
+        SELECT album, artist,
+               COUNT(*) AS trackCount
+        FROM tracks
+        GROUP BY album, artist
+        ORDER BY album ASC
+        """,
+    )
+    fun observeAlbums(): Flow<List<AlbumAggregate>>
+
+    @Query(
+        """
+        SELECT t.* FROM tracks t
+        INNER JOIN (
+            SELECT trackId, MAX(playedAt) AS latestPlayed
+            FROM play_history
+            GROUP BY trackId
+        ) recent ON recent.trackId = t.id
+        ORDER BY recent.latestPlayed DESC
+        LIMIT :limit
+        """,
+    )
+    fun observeRecentlyPlayed(limit: Int = 20): Flow<List<TrackEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(tracks: List<TrackEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(track: TrackEntity)
+
+    @Query("SELECT * FROM tracks WHERE id = :id LIMIT 1")
+    suspend fun getById(id: String): TrackEntity?
+}
+
+@Dao
+interface PlayHistoryDao {
+
+    @Insert
+    suspend fun insert(entry: PlayHistoryEntity)
+
+    @Query("DELETE FROM play_history WHERE playedAt < :cutoff")
+    suspend fun deleteOlderThan(cutoff: Long)
+}
+
+@Dao
+interface PlaylistDao {
+
+    @Query(
+        """
+        SELECT p.id, p.name, p.createdAt,
+               COUNT(pt.trackId) AS trackCount
+        FROM playlists p
+        LEFT JOIN playlist_tracks pt ON pt.playlistId = p.id
+        GROUP BY p.id
+        ORDER BY p.createdAt DESC
+        """,
+    )
+    fun observePlaylistsWithCounts(): Flow<List<PlaylistWithCount>>
+
+    @Query("SELECT COUNT(*) FROM playlists")
+    fun observePlaylistCount(): Flow<Int>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(playlist: PlaylistEntity)
+
+    @Query("SELECT COALESCE(MAX(position), -1) FROM playlist_tracks WHERE playlistId = :playlistId")
+    suspend fun maxPositionForPlaylist(playlistId: String): Int
+
+    @Query("DELETE FROM playlists WHERE id = :id")
+    suspend fun deleteById(id: String)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPlaylistTracks(refs: List<PlaylistTrackCrossRef>)
+
+    @Transaction
+    suspend fun insertPlaylistWithTracks(playlist: PlaylistEntity, tracks: List<PlaylistTrackCrossRef>) {
+        insert(playlist)
+        if (tracks.isNotEmpty()) {
+            insertPlaylistTracks(tracks)
+        }
+    }
+
+    @Query("SELECT COUNT(*) FROM playlists")
+    suspend fun count(): Int
+}
+
+@Dao
+interface UserSettingsDao {
+
+    @Query("SELECT * FROM user_settings WHERE id = :id LIMIT 1")
+    fun observeSettings(id: Int = UserSettingsEntity.SETTINGS_ROW_ID): Flow<UserSettingsEntity?>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(settings: UserSettingsEntity)
+
+    @Query("SELECT * FROM user_settings WHERE id = :id LIMIT 1")
+    suspend fun getSettings(id: Int = UserSettingsEntity.SETTINGS_ROW_ID): UserSettingsEntity?
+}

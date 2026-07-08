@@ -1,0 +1,102 @@
+package com.perceptiveus.reverie.data.local.entity
+
+import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
+import androidx.room.PrimaryKey
+
+@Entity(tableName = "music_folders")
+data class MusicFolderEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    /** Content URI from SAF import; populated when file import is implemented. */
+    val sourceUri: String = "",
+    val importedAt: Long = System.currentTimeMillis(),
+)
+
+@Entity(
+    tableName = "tracks",
+    foreignKeys = [
+        ForeignKey(
+            entity = MusicFolderEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["folderId"],
+            onDelete = ForeignKey.SET_NULL,
+        ),
+    ],
+    indices = [Index("folderId"), Index("artist"), Index("album")],
+)
+data class TrackEntity(
+    @PrimaryKey val id: String,
+    val title: String,
+    val artist: String,
+    val album: String,
+    val durationMs: Long = 0L,
+    /** Content URI or file path; populated when import is implemented. */
+    val filePath: String = "",
+    val folderId: String? = null,
+    val dateAdded: Long = System.currentTimeMillis(),
+    val isFavorite: Boolean = false,
+)
+
+@Entity(tableName = "playlists")
+data class PlaylistEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    val createdAt: Long = System.currentTimeMillis(),
+)
+
+@Entity(
+    tableName = "playlist_tracks",
+    primaryKeys = ["playlistId", "trackId"],
+    foreignKeys = [
+        ForeignKey(
+            entity = PlaylistEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["playlistId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+        ForeignKey(
+            entity = TrackEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["trackId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("trackId")],
+)
+data class PlaylistTrackCrossRef(
+    val playlistId: String,
+    val trackId: String,
+    val position: Int,
+)
+
+@Entity(
+    tableName = "play_history",
+    foreignKeys = [
+        ForeignKey(
+            entity = TrackEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["trackId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("trackId"), Index("playedAt")],
+)
+data class PlayHistoryEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val trackId: String,
+    val playedAt: Long = System.currentTimeMillis(),
+)
+
+/** Single-row user preferences table (id is always [SETTINGS_ROW_ID]). */
+@Entity(tableName = "user_settings")
+data class UserSettingsEntity(
+    @PrimaryKey val id: Int = SETTINGS_ROW_ID,
+    val displayName: String = "Listener",
+    val themePreference: String = "SYSTEM",
+) {
+    companion object {
+        const val SETTINGS_ROW_ID = 1
+    }
+}
