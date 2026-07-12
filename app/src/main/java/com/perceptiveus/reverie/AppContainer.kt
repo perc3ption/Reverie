@@ -1,6 +1,7 @@
 package com.perceptiveus.reverie
 
 import android.content.Context
+import android.util.Log
 import com.perceptiveus.reverie.core.entitlement.EntitlementRepository
 import com.perceptiveus.reverie.core.entitlement.FeatureAccessChecker
 import com.perceptiveus.reverie.core.entitlement.MockEntitlementRepository
@@ -12,8 +13,12 @@ import com.perceptiveus.reverie.data.repository.FakePlaybackRepository
 import com.perceptiveus.reverie.data.repository.MusicLibraryRepository
 import com.perceptiveus.reverie.data.repository.PlaybackRepository
 import com.perceptiveus.reverie.data.repository.PlaylistRepository
+import com.perceptiveus.reverie.data.import.AudioMetadataReader
+import com.perceptiveus.reverie.data.import.MusicIndexer
+import com.perceptiveus.reverie.data.import.MusicImportRepository
 import com.perceptiveus.reverie.data.repository.RoomMusicLibraryRepository
 import com.perceptiveus.reverie.data.repository.RoomPlaylistRepository
+import com.perceptiveus.reverie.data.storage.MusicLibraryStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -24,9 +29,13 @@ import kotlinx.coroutines.launch
  */
 class AppContainer(context: Context) {
 
+    private val appContext = context.applicationContext
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private val database: ReverieDatabase = ReverieDatabase.getInstance(context)
+    private val database: ReverieDatabase = ReverieDatabase.getInstance(appContext)
+
+    /** On-disk library at Android/media/<package>/Reverie/ */
+    val musicLibraryStorage: MusicLibraryStorage = MusicLibraryStorage(appContext)
 
     val entitlementRepository: EntitlementRepository = MockEntitlementRepository()
 
@@ -38,10 +47,29 @@ class AppContainer(context: Context) {
         userSettingsDao = database.userSettingsDao(),
         scope = appScope,
     )
+
+    private val musicIndexer: MusicIndexer = MusicIndexer(
+        storage = musicLibraryStorage,
+        folderDao = database.musicFolderDao(),
+        trackDao = database.trackDao(),
+        playHistoryDao = database.playHistoryDao(),
+        metadataReader = AudioMetadataReader(),
+        featureAccessChecker = featureAccessChecker,
+    )
+
     val musicLibraryRepository: MusicLibraryRepository = RoomMusicLibraryRepository(
         folderDao = database.musicFolderDao(),
         trackDao = database.trackDao(),
+        musicIndexer = musicIndexer,
         scope = appScope,
+    )
+
+    val musicImportRepository: MusicImportRepository = MusicImportRepository(
+        context = appContext,
+        storage = musicLibraryStorage,
+        trackDao = database.trackDao(),
+        featureAccessChecker = featureAccessChecker,
+        scanLibrary = { musicLibraryRepository.scanLibrary() },
     )
     val playlistRepository: PlaylistRepository = RoomPlaylistRepository(
         playlistDao = database.playlistDao(),
@@ -53,13 +81,35 @@ class AppContainer(context: Context) {
 
     init {
         appScope.launch {
-            DatabaseSeeder.seedIfEmpty(
-                folderDao = database.musicFolderDao(),
-                trackDao = database.trackDao(),
-                playlistDao = database.playlistDao(),
-                playHistoryDao = database.playHistoryDao(),
-                userSettingsDao = database.userSettingsDao(),
-            )
+            initializeLibraryStorage()
+            DatabaseSeeder.seedSettingsIfNeeded(database.userSettingsDao())
+            runLibraryScan()
         }
+    }
+
+    private suspend fun runLibraryScan() {
+        try {
+            val result = musicLibraryRepository.scanLibrary()
+            Log.i(
+                TAG,
+                "Library scan: indexed=${result.tracksIndexed}, removed=${result.tracksRemoved}, " +
+                    "folders=${result.foldersIndexed}",
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Library scan failed", e)
+        }
+    }
+
+    private fun initializeLibraryStorage() {
+        try {
+            val root = musicLibraryStorage.initialize()
+            Log.i(TAG, "Music library ready at ${root.absolutePath}")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to initialize music library storage", e)
+        }
+    }
+
+    companion object {
+        private const val TAG = "AppContainer"
     }
 }

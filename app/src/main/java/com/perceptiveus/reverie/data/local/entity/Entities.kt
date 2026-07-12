@@ -5,11 +5,16 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "music_folders")
+@Entity(
+    tableName = "music_folders",
+    indices = [Index(value = ["relativePath"], unique = true)],
+)
 data class MusicFolderEntity(
     @PrimaryKey val id: String,
     val name: String,
-    /** Content URI from SAF import; populated when file import is implemented. */
+    /** Path relative to the Reverie library root, e.g. "Rock/Album 1". Empty for root. */
+    val relativePath: String = "",
+    /** Reserved for SAF import source URI. */
     val sourceUri: String = "",
     val importedAt: Long = System.currentTimeMillis(),
 )
@@ -24,7 +29,7 @@ data class MusicFolderEntity(
             onDelete = ForeignKey.SET_NULL,
         ),
     ],
-    indices = [Index("folderId"), Index("artist"), Index("album")],
+    indices = [Index("folderId"), Index("artist"), Index("album"), Index("filePath")],
 )
 data class TrackEntity(
     @PrimaryKey val id: String,

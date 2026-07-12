@@ -4,6 +4,7 @@ import com.perceptiveus.reverie.domain.model.Album
 import com.perceptiveus.reverie.domain.model.Artist
 import com.perceptiveus.reverie.domain.model.MusicFolder
 import com.perceptiveus.reverie.domain.model.Track
+import com.perceptiveus.reverie.domain.model.LibraryScanResult
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -59,11 +60,10 @@ class FakeMusicLibraryRepository : MusicLibraryRepository {
     private val _songCount = MutableStateFlow(42)
     override val songCount: StateFlow<Int> = _songCount.asStateFlow()
 
-    override suspend fun importSongsPlaceholder() {
-        // TODO: Launch SAF picker and persist selections to Room.
-    }
-
-    override suspend fun importFolderPlaceholder() {
-        // TODO: Launch SAF directory picker and index into Room.
-    }
+    override suspend fun scanLibrary(): LibraryScanResult = LibraryScanResult(
+        tracksFound = 0,
+        tracksIndexed = 0,
+        tracksRemoved = 0,
+        foldersIndexed = 0,
+    )
 }

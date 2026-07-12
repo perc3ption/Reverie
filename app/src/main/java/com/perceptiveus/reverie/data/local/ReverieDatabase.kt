@@ -25,7 +25,7 @@ import com.perceptiveus.reverie.data.local.entity.UserSettingsEntity
         PlayHistoryEntity::class,
         UserSettingsEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = false,
 )
 abstract class ReverieDatabase : RoomDatabase() {
@@ -48,7 +48,8 @@ abstract class ReverieDatabase : RoomDatabase() {
                     context.applicationContext,
                     ReverieDatabase::class.java,
                     DATABASE_NAME,
-                ).build().also { instance = it }
+                ).addMigrations(MIGRATION_1_2)
+                    .build().also { instance = it }
             }
         }
     }

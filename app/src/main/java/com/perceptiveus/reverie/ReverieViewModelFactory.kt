@@ -3,6 +3,7 @@ package com.perceptiveus.reverie
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.perceptiveus.reverie.feature.home.HomeViewModel
+import com.perceptiveus.reverie.feature.importmusic.ImportMusicViewModel
 import com.perceptiveus.reverie.feature.library.LibraryViewModel
 import com.perceptiveus.reverie.feature.player.PlayerViewModel
 import com.perceptiveus.reverie.feature.settings.SettingsViewModel
@@ -16,6 +17,12 @@ class ReverieViewModelFactory(
         return when {
             modelClass.isAssignableFrom(HomeViewModel::class.java) -> HomeViewModel(
                 container.musicLibraryRepository,
+                container.featureAccessChecker,
+            )
+            modelClass.isAssignableFrom(ImportMusicViewModel::class.java) -> ImportMusicViewModel(
+                container.musicLibraryRepository,
+                container.musicImportRepository,
+                container.musicLibraryStorage,
                 container.featureAccessChecker,
             )
             modelClass.isAssignableFrom(LibraryViewModel::class.java) -> LibraryViewModel(

@@ -1,10 +1,12 @@
 package com.perceptiveus.reverie.data.repository
 
+import com.perceptiveus.reverie.data.import.MusicIndexer
 import com.perceptiveus.reverie.data.local.dao.MusicFolderDao
 import com.perceptiveus.reverie.data.local.dao.TrackDao
 import com.perceptiveus.reverie.data.local.mapper.toDomain
 import com.perceptiveus.reverie.domain.model.Album
 import com.perceptiveus.reverie.domain.model.Artist
+import com.perceptiveus.reverie.domain.model.LibraryScanResult
 import com.perceptiveus.reverie.domain.model.MusicFolder
 import com.perceptiveus.reverie.domain.model.Track
 import kotlinx.coroutines.CoroutineScope
@@ -16,6 +18,7 @@ import kotlinx.coroutines.flow.stateIn
 class RoomMusicLibraryRepository(
     folderDao: MusicFolderDao,
     private val trackDao: TrackDao,
+    private val musicIndexer: MusicIndexer,
     scope: CoroutineScope,
 ) : MusicLibraryRepository {
 
@@ -38,11 +41,5 @@ class RoomMusicLibraryRepository(
     override val songCount: StateFlow<Int> = trackDao.observeSongCount()
         .stateIn(scope, SharingStarted.WhileSubscribed(5_000), 0)
 
-    override suspend fun importSongsPlaceholder() {
-        // TODO: Launch SAF picker, extract metadata, then call trackDao.insert().
-    }
-
-    override suspend fun importFolderPlaceholder() {
-        // TODO: Launch SAF directory picker, index files, then persist via trackDao + folderDao.
-    }
+    override suspend fun scanLibrary(): LibraryScanResult = musicIndexer.scanLibrary()
 }

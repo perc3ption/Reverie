@@ -36,6 +36,12 @@ interface MusicFolderDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(folders: List<MusicFolderEntity>)
 
+    @Query("SELECT * FROM music_folders")
+    suspend fun getAllFolders(): List<MusicFolderEntity>
+
+    @Query("DELETE FROM music_folders WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<String>)
+
     @Query("SELECT COUNT(*) FROM music_folders")
     suspend fun count(): Int
 }
@@ -45,6 +51,9 @@ interface TrackDao {
 
     @Query("SELECT COUNT(*) FROM tracks")
     fun observeSongCount(): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM tracks")
+    suspend fun countTracks(): Int
 
     @Query("SELECT * FROM tracks ORDER BY title ASC")
     fun observeAllTracks(): Flow<List<TrackEntity>>
@@ -92,6 +101,15 @@ interface TrackDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(track: TrackEntity)
 
+    @Query("SELECT * FROM tracks")
+    suspend fun getAllTracks(): List<TrackEntity>
+
+    @Query("SELECT * FROM tracks WHERE filePath = :path LIMIT 1")
+    suspend fun getByFilePath(path: String): TrackEntity?
+
+    @Query("DELETE FROM tracks WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<String>)
+
     @Query("SELECT * FROM tracks WHERE id = :id LIMIT 1")
     suspend fun getById(id: String): TrackEntity?
 }
@@ -101,6 +119,9 @@ interface PlayHistoryDao {
 
     @Insert
     suspend fun insert(entry: PlayHistoryEntity)
+
+    @Query("DELETE FROM play_history WHERE trackId IN (:trackIds)")
+    suspend fun deleteByTrackIds(trackIds: List<String>)
 
     @Query("DELETE FROM play_history WHERE playedAt < :cutoff")
     suspend fun deleteOlderThan(cutoff: Long)

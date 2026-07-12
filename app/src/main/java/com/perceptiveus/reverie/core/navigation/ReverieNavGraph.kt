@@ -15,6 +15,7 @@ import com.perceptiveus.reverie.ReverieViewModelFactory
 import com.perceptiveus.reverie.feature.home.HomeScreen
 import com.perceptiveus.reverie.feature.home.HomeViewModel
 import com.perceptiveus.reverie.feature.importmusic.ImportMusicScreen
+import com.perceptiveus.reverie.feature.importmusic.ImportMusicViewModel
 import com.perceptiveus.reverie.feature.library.LibraryScreen
 import com.perceptiveus.reverie.feature.library.LibraryViewModel
 import com.perceptiveus.reverie.feature.player.PlayerScreen
@@ -85,16 +86,10 @@ fun ReverieNavGraph(
         }
 
         composable(ReverieDestination.ImportMusic.route) {
-            val songCount by container.musicLibraryRepository.songCount.collectAsState()
+            val viewModel: ImportMusicViewModel = viewModel(factory = factory)
             ImportMusicScreen(
-                currentSongCount = songCount,
+                viewModel = viewModel,
                 onNavigateBack = { navController.popBackStack() },
-                onImportSongs = {
-                    scope.launch { container.musicLibraryRepository.importSongsPlaceholder() }
-                },
-                onImportFolder = {
-                    scope.launch { container.musicLibraryRepository.importFolderPlaceholder() }
-                },
             )
         }
 

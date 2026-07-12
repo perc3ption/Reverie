@@ -6,6 +6,7 @@ import com.perceptiveus.reverie.domain.model.MusicFolder
 import com.perceptiveus.reverie.domain.model.PlaybackState
 import com.perceptiveus.reverie.domain.model.RepeatMode
 import com.perceptiveus.reverie.domain.model.Track
+import com.perceptiveus.reverie.domain.model.LibraryScanResult
 import kotlinx.coroutines.flow.StateFlow
 
 /** Library data sourced from Room. */
@@ -16,9 +17,8 @@ interface MusicLibraryRepository {
     val recentlyPlayed: StateFlow<List<Track>>
     val songCount: StateFlow<Int>
 
-    // TODO: Implement via SAF folder picker + Room persistence.
-    suspend fun importSongsPlaceholder()
-    suspend fun importFolderPlaceholder()
+    /** Scans the on-disk Reverie folder and syncs metadata into Room. */
+    suspend fun scanLibrary(): LibraryScanResult
 }
 
 /** Playback state backed by Media3/ExoPlayer later. */
