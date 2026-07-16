@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.perceptiveus.reverie.core.entitlement.FeatureAccessChecker
 import com.perceptiveus.reverie.data.repository.MusicLibraryRepository
 import com.perceptiveus.reverie.data.repository.PlaybackRepository
+import com.perceptiveus.reverie.domain.model.PlaybackState
 import com.perceptiveus.reverie.domain.model.Track
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -24,6 +25,9 @@ class HomeViewModel(
     val songs: StateFlow<List<Track>> = library.songs
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    val playbackState: StateFlow<PlaybackState> = playbackRepository.playbackState
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PlaybackState())
+
     fun playTrack(track: Track) {
         val queue = recentlyPlayed.value.ifEmpty { songs.value }
         val playQueue = if (queue.any { it.id == track.id }) {
@@ -34,6 +38,11 @@ class HomeViewModel(
         val index = playQueue.indexOfFirst { it.id == track.id }.coerceAtLeast(0)
         playbackRepository.play(playQueue, index)
     }
+
+    fun togglePlayPause() = playbackRepository.togglePlayPause()
+    fun skipToNext() = playbackRepository.skipToNext()
+    fun skipToPrevious() = playbackRepository.skipToPrevious()
+    fun seekTo(positionMs: Long) = playbackRepository.seekTo(positionMs)
 
     fun isPremium(): Boolean = featureAccessChecker.isPremium()
 }

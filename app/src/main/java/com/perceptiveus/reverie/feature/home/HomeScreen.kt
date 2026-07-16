@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.perceptiveus.reverie.core.design.components.AlbumArtPlaceholder
+import com.perceptiveus.reverie.core.design.components.HomeNowPlayingCard
 import com.perceptiveus.reverie.core.design.components.QuickAccessCard
 import com.perceptiveus.reverie.core.design.components.RetroScreenTitle
 import com.perceptiveus.reverie.core.design.components.SectionHeader
@@ -43,11 +44,13 @@ fun HomeScreen(
     viewModel: HomeViewModel,
     onNavigateToImport: () -> Unit,
     onNavigateToLibrary: () -> Unit,
+    onNavigateToPlayer: () -> Unit,
     onNavigateToPremium: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val recentlyPlayed by viewModel.recentlyPlayed.collectAsState()
     val songs by viewModel.songs.collectAsState()
+    val playbackState by viewModel.playbackState.collectAsState()
     val isPremium = viewModel.isPremium()
     val displayTracks = recentlyPlayed.ifEmpty { songs.take(12) }
 
@@ -57,6 +60,19 @@ fun HomeScreen(
     ) {
         item {
             HomeHeader(onSearchClick = { /* TODO: Basic search */ })
+        }
+        item {
+            Spacer(modifier = Modifier.height(4.dp))
+            HomeNowPlayingCard(
+                track = playbackState.currentTrack,
+                isPlaying = playbackState.isPlaying,
+                positionMs = playbackState.positionMs,
+                onPlayPause = viewModel::togglePlayPause,
+                onNext = viewModel::skipToNext,
+                onPrevious = viewModel::skipToPrevious,
+                onSeek = viewModel::seekTo,
+                onClick = onNavigateToPlayer,
+            )
         }
         item {
             Spacer(modifier = Modifier.height(8.dp))

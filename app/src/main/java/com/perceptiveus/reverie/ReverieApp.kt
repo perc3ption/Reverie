@@ -1,5 +1,6 @@
 package com.perceptiveus.reverie
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -32,39 +33,46 @@ fun ReverieApp(container: AppContainer) {
         val currentDestination = navBackStackEntry?.destination
 
         val showBottomBar = currentDestination?.route in ReverieDestination.bottomNavItems.map { it.route }
+        val showMiniPlayer = showBottomBar &&
+            currentDestination?.route != ReverieDestination.Player.route &&
+            playbackState.currentTrack != null
 
         Scaffold(
             containerColor = MaterialTheme.colorScheme.background,
             bottomBar = {
                 if (showBottomBar) {
-                    MiniPlayerBar(
-                        track = playbackState.currentTrack,
-                        isPlaying = playbackState.isPlaying,
-                        onPlayPause = container.playbackRepository::togglePlayPause,
-                        onNext = container.playbackRepository::skipToNext,
-                        onPrevious = container.playbackRepository::skipToPrevious,
-                        onClick = {
-                            navController.navigate(ReverieDestination.Player.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
+                    Column {
+                        if (showMiniPlayer) {
+                            MiniPlayerBar(
+                                track = playbackState.currentTrack,
+                                isPlaying = playbackState.isPlaying,
+                                onPlayPause = container.playbackRepository::togglePlayPause,
+                                onNext = container.playbackRepository::skipToNext,
+                                onPrevious = container.playbackRepository::skipToPrevious,
+                                onClick = {
+                                    navController.navigate(ReverieDestination.Player.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                },
+                            )
+                        }
+                        ReverieBottomBar(
+                            currentRoute = currentDestination?.route,
+                            onNavigate = { destination ->
+                                navController.navigate(destination.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
                                 }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                    )
-                    ReverieBottomBar(
-                        currentRoute = currentDestination?.route,
-                        onNavigate = { destination ->
-                            navController.navigate(destination.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                    )
+                            },
+                        )
+                    }
                 }
             },
         ) { innerPadding ->

@@ -1,12 +1,10 @@
 package com.perceptiveus.reverie.core.navigation
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavGraphBuilder
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -50,6 +48,15 @@ fun ReverieNavGraph(
                 onNavigateToLibrary = {
                     navController.navigate(ReverieDestination.Library.route) {
                         popUpTo(ReverieDestination.Home.route) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+                onNavigateToPlayer = {
+                    navController.navigate(ReverieDestination.Player.route) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
                         launchSingleTop = true
                         restoreState = true
                     }
