@@ -9,7 +9,7 @@ import com.perceptiveus.reverie.core.settings.RoomSettingsRepository
 import com.perceptiveus.reverie.core.settings.SettingsRepository
 import com.perceptiveus.reverie.data.local.DatabaseSeeder
 import com.perceptiveus.reverie.data.local.ReverieDatabase
-import com.perceptiveus.reverie.data.repository.FakePlaybackRepository
+import com.perceptiveus.reverie.data.repository.Media3PlaybackRepository
 import com.perceptiveus.reverie.data.repository.MusicLibraryRepository
 import com.perceptiveus.reverie.data.repository.PlaybackRepository
 import com.perceptiveus.reverie.data.repository.PlaylistRepository
@@ -77,7 +77,11 @@ class AppContainer(context: Context) {
         featureAccessChecker = featureAccessChecker,
         scope = appScope,
     )
-    val playbackRepository: PlaybackRepository = FakePlaybackRepository()
+    val playbackRepository: PlaybackRepository = Media3PlaybackRepository(
+        context = appContext,
+        playHistoryDao = database.playHistoryDao(),
+        scope = appScope,
+    )
 
     init {
         appScope.launch {

@@ -21,6 +21,7 @@ class PlayerViewModel(
     fun togglePlayPause() = playbackRepository.togglePlayPause()
     fun skipToNext() = playbackRepository.skipToNext()
     fun skipToPrevious() = playbackRepository.skipToPrevious()
+    fun seekTo(positionMs: Long) = playbackRepository.seekTo(positionMs)
     fun toggleShuffle() = playbackRepository.toggleShuffle()
     fun cycleRepeatMode() = playbackRepository.cycleRepeatMode()
 

@@ -1,5 +1,6 @@
 package com.perceptiveus.reverie.feature.home
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -46,7 +47,9 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
 ) {
     val recentlyPlayed by viewModel.recentlyPlayed.collectAsState()
+    val songs by viewModel.songs.collectAsState()
     val isPremium = viewModel.isPremium()
+    val displayTracks = recentlyPlayed.ifEmpty { songs.take(12) }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -57,12 +60,18 @@ fun HomeScreen(
         }
         item {
             Spacer(modifier = Modifier.height(8.dp))
-            SectionHeader(title = "Recently Played", action = {
-                TextButton(onClick = onNavigateToLibrary) { Text("View all") }
-            })
+            SectionHeader(
+                title = if (recentlyPlayed.isNotEmpty()) "Recently Played" else "Your Library",
+                action = {
+                    TextButton(onClick = onNavigateToLibrary) { Text("View all") }
+                },
+            )
         }
         item {
-            RecentlyPlayedRow(tracks = recentlyPlayed)
+            RecentlyPlayedRow(
+                tracks = displayTracks,
+                onTrackClick = viewModel::playTrack,
+            )
         }
         item {
             SectionHeader(title = "Quick Access")
@@ -106,7 +115,21 @@ private fun HomeHeader(onSearchClick: () -> Unit) {
 }
 
 @Composable
-private fun RecentlyPlayedRow(tracks: List<Track>) {
+private fun RecentlyPlayedRow(
+    tracks: List<Track>,
+    onTrackClick: (Track) -> Unit,
+) {
+    if (tracks.isEmpty()) {
+        Text(
+            text = "Import music to start listening",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        return
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -115,7 +138,12 @@ private fun RecentlyPlayedRow(tracks: List<Track>) {
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         tracks.forEach { track ->
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .width(88.dp)
+                    .clickable { onTrackClick(track) },
+            ) {
                 AlbumArtPlaceholder(modifier = Modifier.size(80.dp))
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(

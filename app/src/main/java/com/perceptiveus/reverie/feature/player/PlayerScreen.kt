@@ -32,8 +32,10 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -109,6 +111,7 @@ fun PlayerScreen(
             PlaybackProgress(
                 positionMs = playbackState.positionMs,
                 durationMs = track?.durationMs ?: 1L,
+                onSeek = viewModel::seekTo,
             )
         }
         item {
@@ -133,9 +136,9 @@ fun PlayerScreen(
         }
         item {
             MetadataGrid(
-                format = "44.1 kHz FLAC",
-                bitDepth = "16 bit Lossless",
-                nextUp = "Midnight Drive",
+                format = "Local file",
+                bitDepth = track?.let { formatMs(it.durationMs) } ?: "—",
+                nextUp = playbackState.nextTrack?.title ?: "—",
                 queueSize = playbackState.queueSize,
             )
         }
@@ -143,19 +146,40 @@ fun PlayerScreen(
 }
 
 @Composable
-private fun PlaybackProgress(positionMs: Long, durationMs: Long) {
-    val progress = if (durationMs > 0) positionMs.toFloat() / durationMs else 0f
+private fun PlaybackProgress(
+    positionMs: Long,
+    durationMs: Long,
+    onSeek: (Long) -> Unit,
+) {
+    val safeDuration = durationMs.coerceAtLeast(1L)
+    var sliderPosition by remember { mutableFloatStateOf(0f) }
+    var isDragging by remember { mutableStateOf(false) }
+
+    LaunchedEffect(positionMs, durationMs, isDragging) {
+        if (!isDragging) {
+            sliderPosition = (positionMs.toFloat() / safeDuration).coerceIn(0f, 1f)
+        }
+    }
+
     Column(modifier = Modifier.fillMaxWidth()) {
         Slider(
-            value = progress,
-            onValueChange = { /* TODO: Seek via ExoPlayer */ },
+            value = sliderPosition,
+            onValueChange = { value ->
+                isDragging = true
+                sliderPosition = value
+            },
+            onValueChangeFinished = {
+                isDragging = false
+                onSeek((sliderPosition * safeDuration).toLong())
+            },
             modifier = Modifier.fillMaxWidth(),
         )
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text(formatMs(positionMs), style = MaterialTheme.typography.bodySmall)
+            val shownPosition = (sliderPosition * safeDuration).toLong()
+            Text(formatMs(shownPosition), style = MaterialTheme.typography.bodySmall)
             Text(formatMs(durationMs), style = MaterialTheme.typography.bodySmall)
         }
     }

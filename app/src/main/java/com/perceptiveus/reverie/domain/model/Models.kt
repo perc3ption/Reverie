@@ -50,4 +50,5 @@ data class PlaybackState(
     val shuffleEnabled: Boolean = false,
     val repeatMode: RepeatMode = RepeatMode.OFF,
     val queueSize: Int = 0,
+    val nextTrack: Track? = null,
 )

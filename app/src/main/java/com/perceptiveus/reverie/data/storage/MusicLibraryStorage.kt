@@ -141,8 +141,7 @@ class MusicLibraryStorage(
             - Use Import Music to copy or move files from elsewhere on your device
               into this folder.
 
-            Supported formats will include common audio types (MP3, FLAC, AAC, etc.)
-            once playback is implemented.
+            Supported formats include common audio types (MP3, FLAC, AAC, WAV, OGG, etc.).
             """.trimIndent() + "\n",
         )
     }

@@ -14,6 +14,7 @@ interface MusicLibraryRepository {
     val folders: StateFlow<List<MusicFolder>>
     val artists: StateFlow<List<Artist>>
     val albums: StateFlow<List<Album>>
+    val songs: StateFlow<List<Track>>
     val recentlyPlayed: StateFlow<List<Track>>
     val songCount: StateFlow<Int>
 
@@ -21,14 +22,15 @@ interface MusicLibraryRepository {
     suspend fun scanLibrary(): LibraryScanResult
 }
 
-/** Playback state backed by Media3/ExoPlayer later. */
+/** Playback state backed by Media3 ExoPlayer via [com.perceptiveus.reverie.playback.PlaybackService]. */
 interface PlaybackRepository {
     val playbackState: StateFlow<PlaybackState>
 
-    // TODO: Wire to Media3 ExoPlayer service.
+    fun play(tracks: List<Track>, startIndex: Int = 0)
     fun togglePlayPause()
     fun skipToNext()
     fun skipToPrevious()
+    fun seekTo(positionMs: Long)
     fun toggleShuffle()
     fun cycleRepeatMode()
 }

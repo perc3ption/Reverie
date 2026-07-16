@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Tune
@@ -38,6 +39,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.perceptiveus.reverie.core.design.components.LockedFeatureCard
 import com.perceptiveus.reverie.core.design.components.RetroScreenTitle
@@ -46,6 +48,7 @@ import com.perceptiveus.reverie.core.entitlement.AppFeature
 import com.perceptiveus.reverie.domain.model.Album
 import com.perceptiveus.reverie.domain.model.Artist
 import com.perceptiveus.reverie.domain.model.MusicFolder
+import com.perceptiveus.reverie.domain.model.Track
 import com.perceptiveus.reverie.feature.premium.UpgradeDialog
 
 @Composable
@@ -54,10 +57,11 @@ fun LibraryScreen(
     onPremiumFeatureClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var selectedTab by rememberSaveable { mutableStateOf(LibraryTab.FOLDERS) }
+    var selectedTab by rememberSaveable { mutableStateOf(LibraryTab.SONGS) }
     var showUpgradeDialog by remember { mutableStateOf(false) }
     var lockedFeature by remember { mutableStateOf<AppFeature?>(null) }
 
+    val songs by viewModel.songs.collectAsState()
     val folders by viewModel.folders.collectAsState()
     val artists by viewModel.artists.collectAsState()
     val albums by viewModel.albums.collectAsState()
@@ -98,6 +102,25 @@ fun LibraryScreen(
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             when (selectedTab) {
+                LibraryTab.SONGS -> {
+                    if (songs.isEmpty()) {
+                        item {
+                            Text(
+                                text = "No songs yet. Import music to build your library.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(16.dp),
+                            )
+                        }
+                    } else {
+                        items(songs, key = { it.id }) { track ->
+                            SongListItem(
+                                track = track,
+                                onClick = { viewModel.playSong(track) },
+                            )
+                        }
+                    }
+                }
                 LibraryTab.FOLDERS -> {
                     items(folders) { folder ->
                         FolderListItem(folder = folder)
@@ -196,6 +219,52 @@ fun LibraryScreen(
                         },
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SongListItem(
+    track: Track,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 2.dp),
+        color = MaterialTheme.colorScheme.surface,
+        shape = MaterialTheme.shapes.medium,
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Default.MusicNote,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(32.dp),
+            )
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 12.dp),
+            ) {
+                Text(
+                    track.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    "${track.artist} · ${track.album}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }
