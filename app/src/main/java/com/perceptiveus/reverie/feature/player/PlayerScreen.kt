@@ -41,7 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.perceptiveus.reverie.core.design.components.AlbumArtPlaceholder
+import com.perceptiveus.reverie.core.design.components.AlbumArt
 import com.perceptiveus.reverie.core.design.components.RetroScreenTitle
 import com.perceptiveus.reverie.core.entitlement.AppFeature
 import com.perceptiveus.reverie.domain.model.RepeatMode
@@ -89,6 +89,8 @@ fun PlayerScreen(
         }
         item {
             PlayerMediaDisplay(
+                artworkPath = track?.artworkPath,
+                trackTitle = track?.title,
                 selectedView = mediaView,
                 onViewSelected = { mediaView = it },
                 audioSessionId = playbackState.audioSessionId,
@@ -151,6 +153,8 @@ fun PlayerScreen(
 
 @Composable
 private fun PlayerMediaDisplay(
+    artworkPath: String?,
+    trackTitle: String?,
     selectedView: PlayerMediaView,
     onViewSelected: (PlayerMediaView) -> Unit,
     audioSessionId: Int,
@@ -179,9 +183,10 @@ private fun PlayerMediaDisplay(
                         .height(242.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    AlbumArtPlaceholder(
+                    AlbumArt(
+                        artworkPath = artworkPath,
                         modifier = Modifier.size(220.dp),
-                        label = "♪",
+                        contentDescription = trackTitle,
                     )
                 }
             }

@@ -13,6 +13,7 @@ import com.perceptiveus.reverie.data.repository.Media3PlaybackRepository
 import com.perceptiveus.reverie.data.repository.MusicLibraryRepository
 import com.perceptiveus.reverie.data.repository.PlaybackRepository
 import com.perceptiveus.reverie.data.repository.PlaylistRepository
+import com.perceptiveus.reverie.data.import.AlbumArtCache
 import com.perceptiveus.reverie.data.import.AudioMetadataReader
 import com.perceptiveus.reverie.data.import.MusicIndexer
 import com.perceptiveus.reverie.data.import.MusicImportRepository
@@ -54,6 +55,7 @@ class AppContainer(context: Context) {
         trackDao = database.trackDao(),
         playHistoryDao = database.playHistoryDao(),
         metadataReader = AudioMetadataReader(),
+        albumArtCache = AlbumArtCache(appContext),
         featureAccessChecker = featureAccessChecker,
     )
 

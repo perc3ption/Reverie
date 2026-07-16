@@ -39,6 +39,8 @@ data class TrackEntity(
     val durationMs: Long = 0L,
     /** Content URI or file path; populated when import is implemented. */
     val filePath: String = "",
+    /** Absolute path to cached album art JPEG/PNG; empty if none. */
+    val artworkPath: String = "",
     val folderId: String? = null,
     val dateAdded: Long = System.currentTimeMillis(),
     val isFavorite: Boolean = false,

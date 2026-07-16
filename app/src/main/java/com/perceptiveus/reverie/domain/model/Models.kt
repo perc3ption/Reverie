@@ -7,6 +7,8 @@ data class Track(
     val album: String,
     val durationMs: Long = 0L,
     val filePath: String = "",
+    /** Absolute path to cached cover art; empty when unavailable. */
+    val artworkPath: String = "",
 )
 
 data class Album(

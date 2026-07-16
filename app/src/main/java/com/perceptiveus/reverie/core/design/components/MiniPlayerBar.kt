@@ -48,7 +48,11 @@ fun MiniPlayerBar(
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            AlbumArtPlaceholder(modifier = Modifier.size(48.dp), label = "♪")
+            AlbumArt(
+                artworkPath = track.artworkPath,
+                modifier = Modifier.size(48.dp),
+                contentDescription = track.title,
+            )
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(

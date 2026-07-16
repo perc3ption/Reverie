@@ -69,9 +69,10 @@ fun HomeNowPlayingCard(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.Top) {
-                    AlbumArtPlaceholder(
+                    AlbumArt(
+                        artworkPath = track?.artworkPath,
                         modifier = Modifier.size(88.dp),
-                        label = "♪",
+                        contentDescription = track?.title,
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {

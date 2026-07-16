@@ -24,10 +24,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.perceptiveus.reverie.core.design.ReveriePremiumGold
 import com.perceptiveus.reverie.core.design.ReveriePurple
+import java.io.File
 
 @Composable
 fun SectionHeader(
@@ -189,6 +194,39 @@ fun AlbumArtPlaceholder(
             style = MaterialTheme.typography.displaySmall,
             color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
         )
+    }
+}
+
+/**
+ * Loads cached album art when [artworkPath] points to a file; otherwise shows [AlbumArtPlaceholder].
+ */
+@Composable
+fun AlbumArt(
+    artworkPath: String?,
+    modifier: Modifier = Modifier,
+    contentDescription: String? = null,
+) {
+    val hasArt = !artworkPath.isNullOrBlank()
+    Box(modifier = modifier) {
+        AlbumArtPlaceholder(modifier = Modifier.matchParentSize())
+        if (hasArt) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(File(artworkPath!!))
+                    .crossfade(true)
+                    .build(),
+                contentDescription = contentDescription,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .matchParentSize()
+                    .clip(RoundedCornerShape(12.dp))
+                    .border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                        shape = RoundedCornerShape(12.dp),
+                    ),
+            )
+        }
     }
 }
 

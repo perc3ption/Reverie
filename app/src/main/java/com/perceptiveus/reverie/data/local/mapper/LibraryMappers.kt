@@ -20,6 +20,7 @@ fun TrackEntity.toDomain(): Track = Track(
     album = album,
     durationMs = durationMs,
     filePath = filePath,
+    artworkPath = artworkPath,
 )
 
 fun FolderWithCounts.toDomain(): MusicFolder = MusicFolder(

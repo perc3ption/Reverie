@@ -32,7 +32,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.perceptiveus.reverie.core.design.components.AlbumArtPlaceholder
+import com.perceptiveus.reverie.core.design.components.AlbumArt
 import com.perceptiveus.reverie.core.design.components.HomeNowPlayingCard
 import com.perceptiveus.reverie.core.design.components.QuickAccessCard
 import com.perceptiveus.reverie.core.design.components.RetroScreenTitle
@@ -160,7 +160,11 @@ private fun RecentlyPlayedRow(
                     .width(88.dp)
                     .clickable { onTrackClick(track) },
             ) {
-                AlbumArtPlaceholder(modifier = Modifier.size(80.dp))
+                AlbumArt(
+                    artworkPath = track.artworkPath,
+                    modifier = Modifier.size(80.dp),
+                    contentDescription = track.title,
+                )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = track.title,

@@ -8,10 +8,12 @@ data class AudioMetadata(
     val artist: String,
     val album: String,
     val durationMs: Long,
+    /** Embedded cover bytes when present (JPEG/PNG/etc.). */
+    val artworkBytes: ByteArray? = null,
 )
 
 /**
- * Reads embedded audio tags from local files.
+ * Reads embedded audio tags (and cover art) from local files.
  * Used by [MusicIndexer] when scanning the Reverie library folder.
  */
 class AudioMetadataReader {
@@ -26,12 +28,14 @@ class AudioMetadataReader {
             val duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
                 ?.toLongOrNull()
                 ?: 0L
+            val artwork = runCatching { retriever.embeddedPicture }.getOrNull()?.takeIf { it.isNotEmpty() }
 
             AudioMetadata(
                 title = title.ifBlank { file.nameWithoutExtension },
                 artist = artist.ifBlank { UNKNOWN_ARTIST },
                 album = album.ifBlank { UNKNOWN_ALBUM },
                 durationMs = duration.coerceAtLeast(0L),
+                artworkBytes = artwork,
             )
         } finally {
             retriever.release()

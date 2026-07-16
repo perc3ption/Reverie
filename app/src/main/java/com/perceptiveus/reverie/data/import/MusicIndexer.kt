@@ -22,6 +22,7 @@ class MusicIndexer(
     private val trackDao: TrackDao,
     private val playHistoryDao: PlayHistoryDao,
     private val metadataReader: AudioMetadataReader,
+    private val albumArtCache: AlbumArtCache,
     private val featureAccessChecker: FeatureAccessChecker,
 ) {
 
@@ -46,6 +47,19 @@ class MusicIndexer(
                 val relativeFolderPath = parentRelativePath(file, libraryRoot)
                 val existing = trackDao.getByFilePath(absolutePath)
                 val metadata = metadataReader.read(file)
+                val artworkPath = when {
+                    existing != null &&
+                        existing.artist == metadata.artist &&
+                        existing.album == metadata.album &&
+                        existing.artworkPath.isNotBlank() &&
+                        File(existing.artworkPath).exists() -> existing.artworkPath
+                    else -> albumArtCache.resolveOrCache(
+                        artist = metadata.artist,
+                        album = metadata.album,
+                        audioFile = file,
+                        embeddedBytes = metadata.artworkBytes,
+                    )
+                }
 
                 TrackEntity(
                     id = existing?.id ?: LibraryIds.trackId(absolutePath),
@@ -54,6 +68,7 @@ class MusicIndexer(
                     album = metadata.album,
                     durationMs = metadata.durationMs,
                     filePath = absolutePath,
+                    artworkPath = artworkPath,
                     folderId = LibraryIds.folderId(relativeFolderPath),
                     dateAdded = existing?.dateAdded ?: now,
                     isFavorite = existing?.isFavorite ?: false,
@@ -87,6 +102,10 @@ class MusicIndexer(
         if (staleFolders.isNotEmpty()) {
             folderDao.deleteByIds(staleFolders.map { it.id })
         }
+
+        albumArtCache.deleteOrphans(
+            keepPaths = trackDao.getAllTracks().map { it.artworkPath }.toSet(),
+        )
 
         LibraryScanResult(
             tracksFound = audioFiles.size,

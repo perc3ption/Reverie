@@ -26,7 +26,7 @@ Status key: **Done** · **Partial** · **Planned**
 | Theme (system / light / dark) | Done | Settings |
 | Free-tier limits | Done | Max **500** songs, **3** playlists |
 | Search | Planned | Basic search TODOs on Home / Library |
-| Album art display | Planned | Placeholders in UI today |
+| Album art display | Done | Embedded + folder covers cached on disk; Coil in UI |
 | Play from album / artist / folder | Planned | |
 | Queue UI (“next up” management) | Planned | Queue exists in player; no dedicated editor |
 
