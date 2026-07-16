@@ -225,6 +225,7 @@ class Media3PlaybackRepository(
                 repeatMode = player.repeatMode.toDomain(),
                 queueSize = player.mediaItemCount.takeIf { it > 0 } ?: queue.size,
                 nextTrack = next,
+                audioSessionId = player.audioSessionId,
             )
         }
     }

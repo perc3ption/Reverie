@@ -19,8 +19,9 @@ Status key: **Done** · **Partial** · **Planned**
 | Mini player (bottom, all main tabs) | Done | Shown when a track is active |
 | Playback controls | Done | Play/pause, seek, next/prev, shuffle, repeat |
 | Background playback + media notification | Done | Media3 `MediaSessionService` |
-| Full Now Playing screen | Done | Visualizer is still a placeholder |
-| Basic spectrum visualizer | Partial | UI placeholder; not driven by real audio FFT |
+| Full Now Playing screen | Done | Switchable Album Art / Visualizer media view |
+| Basic spectrum visualizer | Done | Classic CRT spectrum (free) |
+| Visualizer style picker | Done | SPECTRUM free; SCOPE, RADIAL, VU, STARBURST premium |
 | Playlists | Partial | Room + repository ready; no playlist UI yet |
 | Theme (system / light / dark) | Done | Settings |
 | Free-tier limits | Done | Max **500** songs, **3** playlists |
@@ -42,7 +43,7 @@ Gated via `AppFeature` / `FeatureAccessChecker`. Entitlements are currently a **
 | Collections | Planned | Custom listening collections |
 | Smart Playlists | Planned | Rule-based playlists that update automatically |
 | Playback Scope | Planned | Control what plays and shuffles across the library |
-| Advanced Visualizers | Planned | Spectrum / waveform / premium effects |
+| Advanced Visualizers | Done | Scope, Radial, VU, Starburst skins |
 | Advanced Search | Planned | Filters and saved searches |
 | Lyrics | Planned | Synced lyrics while listening |
 | Metadata Editing | Planned | Edit title, artist, album, etc. |

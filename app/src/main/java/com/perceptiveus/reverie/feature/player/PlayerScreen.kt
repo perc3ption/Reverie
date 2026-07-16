@@ -1,6 +1,5 @@
 package com.perceptiveus.reverie.feature.player
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,12 +11,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
@@ -38,16 +36,23 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.perceptiveus.reverie.core.design.components.AlbumArtPlaceholder
 import com.perceptiveus.reverie.core.design.components.RetroScreenTitle
 import com.perceptiveus.reverie.core.entitlement.AppFeature
 import com.perceptiveus.reverie.domain.model.RepeatMode
+import com.perceptiveus.reverie.feature.player.visualizer.MusicVisualizer
+import com.perceptiveus.reverie.feature.player.visualizer.VisualizerStyle
 import com.perceptiveus.reverie.feature.premium.UpgradeDialog
+
+private enum class PlayerMediaView {
+    ALBUM_ART,
+    VISUALIZER,
+}
 
 @Composable
 fun PlayerScreen(
@@ -58,6 +63,9 @@ fun PlayerScreen(
     val playbackState by viewModel.playbackState.collectAsState()
     val track = playbackState.currentTrack
     var showUpgradeDialog by remember { mutableStateOf(false) }
+    var selectedStyle by remember { mutableStateOf(VisualizerStyle.SPECTRUM) }
+    var mediaView by rememberSaveable { mutableStateOf(PlayerMediaView.ALBUM_ART) }
+    val canAccessPremium = viewModel.canAccessAdvancedVisualizers()
 
     if (showUpgradeDialog) {
         UpgradeDialog(
@@ -80,12 +88,16 @@ fun PlayerScreen(
             RetroScreenTitle(title = "Now Playing")
         }
         item {
-            // Placeholder for CD jewel-case artwork; replace with loaded album art later.
-            AlbumArtPlaceholder(
-                modifier = Modifier
-                    .size(280.dp)
-                    .padding(vertical = 8.dp),
-                label = "♪",
+            PlayerMediaDisplay(
+                selectedView = mediaView,
+                onViewSelected = { mediaView = it },
+                audioSessionId = playbackState.audioSessionId,
+                isPlaying = playbackState.isPlaying,
+                positionMs = playbackState.positionMs,
+                selectedStyle = selectedStyle,
+                canAccessPremium = canAccessPremium,
+                onStyleSelected = { selectedStyle = it },
+                onPremiumStyleLocked = { showUpgradeDialog = true },
             )
         }
         item {
@@ -127,14 +139,6 @@ fun PlayerScreen(
             )
         }
         item {
-            BasicSpectrumVisualizer()
-        }
-        item {
-            if (!viewModel.canAccessAdvancedVisualizers()) {
-                AdvancedVisualizerLockedCard(onClick = { showUpgradeDialog = true })
-            }
-        }
-        item {
             MetadataGrid(
                 format = "Local file",
                 bitDepth = track?.let { formatMs(it.durationMs) } ?: "—",
@@ -142,6 +146,111 @@ fun PlayerScreen(
                 queueSize = playbackState.queueSize,
             )
         }
+    }
+}
+
+@Composable
+private fun PlayerMediaDisplay(
+    selectedView: PlayerMediaView,
+    onViewSelected: (PlayerMediaView) -> Unit,
+    audioSessionId: Int,
+    isPlaying: Boolean,
+    positionMs: Long,
+    selectedStyle: VisualizerStyle,
+    canAccessPremium: Boolean,
+    onStyleSelected: (VisualizerStyle) -> Unit,
+    onPremiumStyleLocked: () -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        MediaViewToggle(
+            selectedView = selectedView,
+            onViewSelected = onViewSelected,
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+
+        when (selectedView) {
+            PlayerMediaView.ALBUM_ART -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(242.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    AlbumArtPlaceholder(
+                        modifier = Modifier.size(220.dp),
+                        label = "♪",
+                    )
+                }
+            }
+
+            PlayerMediaView.VISUALIZER -> {
+                MusicVisualizer(
+                    audioSessionId = audioSessionId,
+                    isPlaying = isPlaying,
+                    positionMs = positionMs,
+                    selectedStyle = selectedStyle,
+                    canAccessPremium = canAccessPremium,
+                    onStyleSelected = onStyleSelected,
+                    onPremiumStyleLocked = onPremiumStyleLocked,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MediaViewToggle(
+    selectedView: PlayerMediaView,
+    onViewSelected: (PlayerMediaView) -> Unit,
+) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+    ) {
+        Row(modifier = Modifier.padding(4.dp)) {
+            MediaViewToggleButton(
+                label = "ALBUM ART",
+                selected = selectedView == PlayerMediaView.ALBUM_ART,
+                onClick = { onViewSelected(PlayerMediaView.ALBUM_ART) },
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            MediaViewToggleButton(
+                label = "VISUALIZER",
+                selected = selectedView == PlayerMediaView.VISUALIZER,
+                onClick = { onViewSelected(PlayerMediaView.VISUALIZER) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun MediaViewToggleButton(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(9.dp),
+        color = if (selected) {
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant
+        },
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            style = MaterialTheme.typography.labelLarge,
+            color = if (selected) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+        )
     }
 }
 
@@ -237,74 +346,6 @@ private fun PlaybackControls(
                 contentDescription = "Repeat",
                 tint = if (repeatMode != RepeatMode.OFF) MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-private fun BasicSpectrumVisualizer() {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "BASIC SPECTRUM",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            // Placeholder bars; replace with real audio FFT from ExoPlayer visualizer.
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(64.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.Bottom,
-            ) {
-                val barHeights = listOf(0.3f, 0.7f, 0.5f, 0.9f, 0.4f, 0.8f, 0.6f, 0.5f, 0.75f, 0.35f)
-                barHeights.forEach { fraction ->
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(horizontal = 2.dp)
-                            .fillMaxWidth()
-                            .height((64 * fraction).dp)
-                            .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)),
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun AdvancedVisualizerLockedCard(onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Advanced Visualizers", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    "Upgrade for waveform, particle, and retro VU modes",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Icon(
-                Icons.Default.Lock,
-                contentDescription = "Locked",
-                tint = MaterialTheme.colorScheme.primary,
             )
         }
     }

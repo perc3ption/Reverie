@@ -51,4 +51,6 @@ data class PlaybackState(
     val repeatMode: RepeatMode = RepeatMode.OFF,
     val queueSize: Int = 0,
     val nextTrack: Track? = null,
+    /** ExoPlayer audio session id for [android.media.audiofx.Visualizer]; 0 when unset. */
+    val audioSessionId: Int = 0,
 )
