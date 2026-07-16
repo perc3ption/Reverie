@@ -1,7 +1,7 @@
 package com.perceptiveus.reverie.feature.player.visualizer
 
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,12 +9,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -89,21 +89,13 @@ fun MusicVisualizer(
                     style = MaterialTheme.typography.labelLarge,
                     color = ReveriePurple,
                 )
-                Text(
-                    text = selectedStyle.label,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                StylePickerButton(
+                    selected = selectedStyle,
+                    canAccessPremium = canAccessPremium,
+                    onSelect = onStyleSelected,
+                    onPremiumLocked = onPremiumStyleLocked,
                 )
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            StylePickerRow(
-                selected = selectedStyle,
-                canAccessPremium = canAccessPremium,
-                onSelect = onStyleSelected,
-                onPremiumLocked = onPremiumStyleLocked,
-            )
 
             Spacer(modifier = Modifier.height(10.dp))
 
@@ -114,7 +106,7 @@ fun MusicVisualizer(
                 waveform = waveform,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(168.dp)
+                    .height(200.dp)
                     .clip(RoundedCornerShape(12.dp)),
             )
         }
@@ -122,48 +114,74 @@ fun MusicVisualizer(
 }
 
 @Composable
-private fun StylePickerRow(
+private fun StylePickerButton(
     selected: VisualizerStyle,
     canAccessPremium: Boolean,
     onSelect: (VisualizerStyle) -> Unit,
     onPremiumLocked: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        VisualizerStyle.entries.forEach { style ->
-            val locked = style.isPremium && !canAccessPremium
-            FilterChip(
-                selected = selected == style,
-                onClick = {
-                    if (locked) onPremiumLocked() else onSelect(style)
-                },
-                label = {
-                    Text(
-                        text = style.label,
-                        style = MaterialTheme.typography.labelMedium,
-                    )
-                },
-                leadingIcon = if (locked) {
-                    {
-                        Icon(
-                            Icons.Default.Lock,
-                            contentDescription = "Premium",
-                            modifier = Modifier.size(14.dp),
+    var menuExpanded by remember { mutableStateOf(false) }
+
+    Box {
+        Surface(
+            onClick = { menuExpanded = true },
+            shape = RoundedCornerShape(8.dp),
+            color = MaterialTheme.colorScheme.surface,
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    text = selected.label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Icon(
+                    imageVector = Icons.Default.ArrowDropDown,
+                    contentDescription = "Choose visualizer style",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+        }
+
+        DropdownMenu(
+            expanded = menuExpanded,
+            onDismissRequest = { menuExpanded = false },
+        ) {
+            VisualizerStyle.entries.forEach { style ->
+                val locked = style.isPremium && !canAccessPremium
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = style.label,
+                            color = if (style == selected) {
+                                ReveriePurple
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
                         )
-                    }
-                } else {
-                    null
-                },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = ReveriePurple.copy(alpha = 0.25f),
-                    selectedLabelColor = ReveriePurple,
-                    selectedLeadingIconColor = ReveriePurple,
-                ),
-            )
+                    },
+                    leadingIcon = if (locked) {
+                        {
+                            Icon(
+                                Icons.Default.Lock,
+                                contentDescription = "Premium",
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    } else {
+                        null
+                    },
+                    onClick = {
+                        menuExpanded = false
+                        if (locked) onPremiumLocked() else onSelect(style)
+                    },
+                )
+            }
         }
     }
 }
