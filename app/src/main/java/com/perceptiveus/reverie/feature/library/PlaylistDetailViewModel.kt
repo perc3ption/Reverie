@@ -10,6 +10,7 @@ import com.perceptiveus.reverie.data.repository.MusicLibraryRepository
 import com.perceptiveus.reverie.data.repository.PlaybackRepository
 import com.perceptiveus.reverie.data.repository.PlaylistRepository
 import com.perceptiveus.reverie.domain.model.Playlist
+import com.perceptiveus.reverie.domain.model.QueueSource
 import com.perceptiveus.reverie.domain.model.Track
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -51,14 +52,22 @@ class PlaylistDetailViewModel(
     fun playAll() {
         val all = tracks.value
         if (all.isEmpty()) return
-        playbackRepository.play(all, 0)
+        playbackRepository.play(all, 0, playlistSource())
     }
 
     fun playFrom(track: Track) {
         val all = tracks.value
         val index = all.indexOfFirst { it.id == track.id }.coerceAtLeast(0)
         if (all.isEmpty()) return
-        playbackRepository.play(all, index)
+        playbackRepository.play(all, index, playlistSource())
+    }
+
+    private fun playlistSource(): QueueSource {
+        val current = playlist.value
+        return QueueSource.Playlist(
+            name = current?.name ?: "Playlist",
+            description = current?.description.orEmpty(),
+        )
     }
 
     fun addTrack(track: Track) {

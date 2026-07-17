@@ -19,6 +19,7 @@ import com.perceptiveus.reverie.data.repository.SongTagRepository
 import com.perceptiveus.reverie.data.repository.TagAccessException
 import com.perceptiveus.reverie.domain.model.LyricsDocument
 import com.perceptiveus.reverie.domain.model.Playlist
+import com.perceptiveus.reverie.domain.model.QueueSource
 import com.perceptiveus.reverie.domain.model.Tag
 import com.perceptiveus.reverie.domain.model.Track
 import kotlinx.coroutines.Dispatchers
@@ -97,7 +98,7 @@ class SongDetailViewModel(
         val allSongs = songs.value
         val index = allSongs.indexOfFirst { it.id == trackId }.coerceAtLeast(0)
         if (allSongs.isEmpty()) return
-        playbackRepository.play(allSongs, index)
+        playbackRepository.play(allSongs, index, QueueSource.Library)
     }
 
     fun canAccessTags(): Boolean = featureAccessChecker.canAccess(AppFeature.TAGS)

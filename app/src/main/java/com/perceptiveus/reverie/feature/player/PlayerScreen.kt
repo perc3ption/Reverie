@@ -56,6 +56,7 @@ import com.perceptiveus.reverie.core.design.components.AlbumArt
 import com.perceptiveus.reverie.core.design.components.RetroScreenTitle
 import com.perceptiveus.reverie.core.entitlement.AppFeature
 import com.perceptiveus.reverie.domain.model.LyricsDocument
+import com.perceptiveus.reverie.domain.model.QueueSource
 import com.perceptiveus.reverie.domain.model.RepeatMode
 import com.perceptiveus.reverie.domain.model.Track
 import com.perceptiveus.reverie.feature.player.lyrics.LyricsPanel
@@ -137,10 +138,14 @@ fun PlayerScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
             ) {
-                RetroScreenTitle(
-                    title = "Now Playing",
-                    modifier = Modifier.padding(top = 12.dp, bottom = 8.dp),
-                )
+                Column(modifier = Modifier.padding(top = 12.dp, bottom = 6.dp)) {
+                    RetroScreenTitle(title = "Now Playing")
+                    QueueSourceLabel(
+                        source = playbackState.queueSource,
+                        queueSize = playbackState.queueSize,
+                        modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
 
                 PlayerMediaDisplay(
                     artworkPath = track?.artworkPath,
@@ -267,6 +272,53 @@ fun PlayerScreen(
                 nextTrack = playbackState.nextTrack,
                 queueSize = playbackState.queueSize,
                 onClick = { showQueueSheet = true },
+            )
+        }
+    }
+}
+
+@Composable
+private fun QueueSourceLabel(
+    source: QueueSource,
+    queueSize: Int,
+    modifier: Modifier = Modifier,
+) {
+    if (source is QueueSource.Unknown && queueSize <= 0) return
+
+    val title = when (source) {
+        QueueSource.Library -> "Playing all songs"
+        is QueueSource.Playlist -> "Playlist · ${source.name}"
+        is QueueSource.Album -> buildString {
+            append("Album · ${source.title}")
+            if (source.year > 0) append(" · ${source.year}")
+        }
+        is QueueSource.Artist -> "Artist · ${source.name}"
+        is QueueSource.Folder -> "Folder · ${source.name}"
+        QueueSource.RecentlyPlayed -> "Recently played"
+        QueueSource.Unknown -> if (queueSize > 0) "Queue" else return
+    }
+    val subtitle = when (source) {
+        is QueueSource.Playlist -> source.description.trim().takeIf { it.isNotEmpty() }
+        is QueueSource.Album -> source.artist.takeIf { it.isNotBlank() }
+        QueueSource.Library -> if (queueSize > 0) "$queueSize songs" else null
+        else -> null
+    }
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        if (subtitle != null) {
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }

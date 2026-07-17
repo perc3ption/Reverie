@@ -14,6 +14,7 @@ import androidx.media3.session.SessionToken
 import com.perceptiveus.reverie.data.local.dao.PlayHistoryDao
 import com.perceptiveus.reverie.data.local.entity.PlayHistoryEntity
 import com.perceptiveus.reverie.domain.model.PlaybackState
+import com.perceptiveus.reverie.domain.model.QueueSource
 import com.perceptiveus.reverie.domain.model.RepeatMode
 import com.perceptiveus.reverie.domain.model.Track
 import com.perceptiveus.reverie.playback.PlaybackService
@@ -48,6 +49,7 @@ class Media3PlaybackRepository(
     private var controller: MediaController? = null
 
     private var queue: List<Track> = emptyList()
+    private var queueSource: QueueSource = QueueSource.Unknown
     private var positionJob: Job? = null
     private var lastRecordedTrackId: String? = null
     private val connecting = AtomicBoolean(false)
@@ -97,7 +99,11 @@ class Media3PlaybackRepository(
         )
     }
 
-    override fun play(tracks: List<Track>, startIndex: Int) {
+    override fun play(
+        tracks: List<Track>,
+        startIndex: Int,
+        source: QueueSource,
+    ) {
         val intended = tracks.getOrNull(startIndex.coerceIn(0, tracks.lastIndex.coerceAtLeast(0)))
         val playable = tracks.filter { it.filePath.isNotBlank() && File(it.filePath).exists() }
         if (playable.isEmpty()) return
@@ -107,6 +113,7 @@ class Media3PlaybackRepository(
 
         runWhenReady {
             queue = playable
+            queueSource = source
             lastRecordedTrackId = null
             val mediaItems = playable.map { it.toMediaItem() }
             val player = controller ?: return@runWhenReady
@@ -240,6 +247,7 @@ class Media3PlaybackRepository(
                 queue = queue,
                 queueIndex = queueIndex,
                 audioSessionId = player.audioSessionId,
+                queueSource = queueSource,
             )
         }
     }

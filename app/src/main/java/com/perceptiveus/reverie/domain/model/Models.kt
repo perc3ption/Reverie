@@ -62,6 +62,27 @@ enum class RepeatMode {
     ALL,
 }
 
+/**
+ * Describes where the current playback queue came from
+ * (library, playlist, album, artist, etc.).
+ */
+sealed class QueueSource {
+    data object Library : QueueSource()
+    data class Playlist(
+        val name: String,
+        val description: String = "",
+    ) : QueueSource()
+    data class Album(
+        val title: String,
+        val artist: String,
+        val year: Int = 0,
+    ) : QueueSource()
+    data class Artist(val name: String) : QueueSource()
+    data class Folder(val name: String) : QueueSource()
+    data object RecentlyPlayed : QueueSource()
+    data object Unknown : QueueSource()
+}
+
 data class PlaybackState(
     val currentTrack: Track? = null,
     val isPlaying: Boolean = false,
@@ -76,4 +97,6 @@ data class PlaybackState(
     val queueIndex: Int = -1,
     /** ExoPlayer audio session id for [android.media.audiofx.Visualizer]; 0 when unset. */
     val audioSessionId: Int = 0,
+    /** Origin of the active queue. */
+    val queueSource: QueueSource = QueueSource.Unknown,
 )

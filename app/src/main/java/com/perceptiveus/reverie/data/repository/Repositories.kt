@@ -4,6 +4,7 @@ import com.perceptiveus.reverie.domain.model.Album
 import com.perceptiveus.reverie.domain.model.Artist
 import com.perceptiveus.reverie.domain.model.MusicFolder
 import com.perceptiveus.reverie.domain.model.PlaybackState
+import com.perceptiveus.reverie.domain.model.QueueSource
 import com.perceptiveus.reverie.domain.model.RepeatMode
 import com.perceptiveus.reverie.domain.model.Track
 import com.perceptiveus.reverie.domain.model.LibraryScanResult
@@ -26,7 +27,11 @@ interface MusicLibraryRepository {
 interface PlaybackRepository {
     val playbackState: StateFlow<PlaybackState>
 
-    fun play(tracks: List<Track>, startIndex: Int = 0)
+    fun play(
+        tracks: List<Track>,
+        startIndex: Int = 0,
+        source: QueueSource = QueueSource.Unknown,
+    )
     /** Jump to an item already in the active queue and start playback. */
     fun playQueueIndex(index: Int)
     fun togglePlayPause()

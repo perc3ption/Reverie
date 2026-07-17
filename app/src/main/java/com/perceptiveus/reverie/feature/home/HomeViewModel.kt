@@ -6,6 +6,7 @@ import com.perceptiveus.reverie.core.entitlement.FeatureAccessChecker
 import com.perceptiveus.reverie.data.repository.MusicLibraryRepository
 import com.perceptiveus.reverie.data.repository.PlaybackRepository
 import com.perceptiveus.reverie.domain.model.PlaybackState
+import com.perceptiveus.reverie.domain.model.QueueSource
 import com.perceptiveus.reverie.domain.model.Track
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -29,14 +30,18 @@ class HomeViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PlaybackState())
 
     fun playTrack(track: Track) {
-        val queue = recentlyPlayed.value.ifEmpty { songs.value }
+        val recent = recentlyPlayed.value
+        val librarySongs = songs.value
+        val usingRecent = recent.isNotEmpty()
+        val queue = recent.ifEmpty { librarySongs }
         val playQueue = if (queue.any { it.id == track.id }) {
             queue
         } else {
             listOf(track) + queue
         }
         val index = playQueue.indexOfFirst { it.id == track.id }.coerceAtLeast(0)
-        playbackRepository.play(playQueue, index)
+        val source = if (usingRecent) QueueSource.RecentlyPlayed else QueueSource.Library
+        playbackRepository.play(playQueue, index, source)
     }
 
     fun togglePlayPause() = playbackRepository.togglePlayPause()

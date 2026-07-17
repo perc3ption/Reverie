@@ -12,6 +12,7 @@ import com.perceptiveus.reverie.domain.model.Album
 import com.perceptiveus.reverie.domain.model.Artist
 import com.perceptiveus.reverie.domain.model.MusicFolder
 import com.perceptiveus.reverie.domain.model.Playlist
+import com.perceptiveus.reverie.domain.model.QueueSource
 import com.perceptiveus.reverie.domain.model.Track
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -145,7 +146,7 @@ class LibraryViewModel(
     fun playAllSongs() {
         val all = songs.value
         if (all.isEmpty()) return
-        playbackRepository.play(all, 0)
+        playbackRepository.play(all, 0, QueueSource.Library)
     }
 
     fun createPlaylist(name: String) {
@@ -199,40 +200,44 @@ class LibraryViewModel(
     fun playSong(track: Track) {
         val allSongs = songs.value
         val index = allSongs.indexOfFirst { it.id == track.id }.coerceAtLeast(0)
-        playbackRepository.play(allSongs, index)
+        playbackRepository.play(allSongs, index, QueueSource.Library)
     }
 
     fun playSongInFolder(track: Track) {
-        val folderSongs = folderBrowser.value.songs
+        val folder = folderBrowser.value
+        val folderSongs = folder.songs
         if (folderSongs.isEmpty()) {
             playSong(track)
             return
         }
         val index = folderSongs.indexOfFirst { it.id == track.id }.coerceAtLeast(0)
-        playbackRepository.play(folderSongs, index)
+        playbackRepository.play(folderSongs, index, QueueSource.Folder(folder.title))
     }
 
     fun playAllInCurrentFolder(): Boolean {
-        val queue = folderBrowser.value.subtreeSongs
+        val folder = folderBrowser.value
+        val queue = folder.subtreeSongs
         if (queue.isEmpty()) return false
-        playbackRepository.play(queue, 0)
+        playbackRepository.play(queue, 0, QueueSource.Folder(folder.title))
         return true
     }
 
     fun playSongByArtist(track: Track) {
+        val artistName = artistBrowser.value.selectedArtist ?: track.artist
         val artistSongs = artistBrowser.value.songs
         if (artistSongs.isEmpty()) {
             playSong(track)
             return
         }
         val index = artistSongs.indexOfFirst { it.id == track.id }.coerceAtLeast(0)
-        playbackRepository.play(artistSongs, index)
+        playbackRepository.play(artistSongs, index, QueueSource.Artist(artistName))
     }
 
     fun playAllArtistSongs(): Boolean {
+        val artistName = artistBrowser.value.selectedArtist ?: return false
         val queue = artistBrowser.value.songs
         if (queue.isEmpty()) return false
-        playbackRepository.play(queue, 0)
+        playbackRepository.play(queue, 0, QueueSource.Artist(artistName))
         return true
     }
 
@@ -241,24 +246,30 @@ class LibraryViewModel(
             .filter { it.artist.equals(artistName, ignoreCase = true) }
             .sortedBy { it.title.lowercase() }
         if (queue.isEmpty()) return false
-        playbackRepository.play(queue, 0)
+        playbackRepository.play(queue, 0, QueueSource.Artist(artistName))
         return true
     }
 
     fun playSongInAlbum(track: Track) {
+        val album = albumBrowser.value.selectedAlbum
         val albumSongs = albumBrowser.value.songs
         if (albumSongs.isEmpty()) {
             playSong(track)
             return
         }
         val index = albumSongs.indexOfFirst { it.id == track.id }.coerceAtLeast(0)
-        playbackRepository.play(albumSongs, index)
+        playbackRepository.play(
+            albumSongs,
+            index,
+            albumSource(album?.title ?: track.album, album?.artist ?: track.artist, albumSongs),
+        )
     }
 
     fun playAllAlbumSongs(): Boolean {
+        val album = albumBrowser.value.selectedAlbum ?: return false
         val queue = albumBrowser.value.songs
         if (queue.isEmpty()) return false
-        playbackRepository.play(queue, 0)
+        playbackRepository.play(queue, 0, albumSource(album.title, album.artist, queue))
         return true
     }
 
@@ -270,13 +281,20 @@ class LibraryViewModel(
             }
             .sortedBy { it.title.lowercase() }
         if (queue.isEmpty()) return false
-        playbackRepository.play(queue, 0)
+        playbackRepository.play(queue, 0, albumSource(album.title, album.artist, queue))
         return true
     }
 
     fun canAccess(feature: AppFeature): Boolean = featureAccessChecker.canAccess(feature)
 
     fun isPremium(): Boolean = featureAccessChecker.isPremium()
+
+    private fun albumSource(title: String, artist: String, tracks: List<Track>): QueueSource.Album {
+        val year = tracks.map { it.year }.filter { it > 0 }.distinct().let { years ->
+            years.singleOrNull() ?: years.maxOrNull() ?: 0
+        }
+        return QueueSource.Album(title = title, artist = artist, year = year)
+    }
 
     private fun buildFolderBrowserState(
         allFolders: List<MusicFolder>,
