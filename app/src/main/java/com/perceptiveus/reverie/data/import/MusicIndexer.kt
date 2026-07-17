@@ -69,6 +69,8 @@ class MusicIndexer(
                     durationMs = metadata.durationMs,
                     filePath = absolutePath,
                     artworkPath = artworkPath,
+                    year = metadata.year,
+                    genre = metadata.genre,
                     folderId = LibraryIds.folderId(relativeFolderPath),
                     dateAdded = existing?.dateAdded ?: now,
                     isFavorite = existing?.isFavorite ?: false,

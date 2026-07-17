@@ -7,7 +7,9 @@ import com.perceptiveus.reverie.data.local.entity.PlaylistEntity
 import com.perceptiveus.reverie.data.local.entity.PlaylistTrackCrossRef
 import com.perceptiveus.reverie.data.local.mapper.toDomain
 import com.perceptiveus.reverie.domain.model.Playlist
+import com.perceptiveus.reverie.domain.model.Track
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -27,6 +29,18 @@ class RoomPlaylistRepository(
 
     override val playlistCount: StateFlow<Int> = playlistDao.observePlaylistCount()
         .stateIn(scope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    override fun observePlaylistsForTrack(trackId: String): Flow<List<Playlist>> =
+        playlistDao.observePlaylistsForTrack(trackId)
+            .map { rows -> rows.map { it.toDomain() } }
+
+    override fun observePlaylist(playlistId: String): Flow<Playlist?> =
+        playlistDao.observePlaylist(playlistId)
+            .map { it?.toDomain() }
+
+    override fun observePlaylistTracks(playlistId: String): Flow<List<Track>> =
+        playlistDao.observeTracksForPlaylist(playlistId)
+            .map { rows -> rows.map { it.toDomain() } }
 
     override suspend fun createPlaylist(name: String): Result<Playlist> {
         val currentCount = playlistDao.count()
@@ -54,10 +68,15 @@ class RoomPlaylistRepository(
 
     override suspend fun addTrackToPlaylist(playlistId: String, trackId: String) {
         if (trackDao.getById(trackId) == null) return
+        if (playlistDao.trackCountInPlaylist(playlistId, trackId) > 0) return
         val nextPosition = playlistDao.maxPositionForPlaylist(playlistId) + 1
         playlistDao.insertPlaylistTracks(
             listOf(PlaylistTrackCrossRef(playlistId, trackId, nextPosition)),
         )
+    }
+
+    override suspend fun removeTrackFromPlaylist(playlistId: String, trackId: String) {
+        playlistDao.deletePlaylistTrack(playlistId, trackId)
     }
 }
 

@@ -13,7 +13,9 @@ import com.perceptiveus.reverie.data.local.entity.PlayHistoryEntity
 import com.perceptiveus.reverie.data.local.entity.PlaylistEntity
 import com.perceptiveus.reverie.data.local.entity.PlaylistTrackCrossRef
 import com.perceptiveus.reverie.data.local.entity.PlaylistWithCount
+import com.perceptiveus.reverie.data.local.entity.TagEntity
 import com.perceptiveus.reverie.data.local.entity.TrackEntity
+import com.perceptiveus.reverie.data.local.entity.TrackTagCrossRef
 import com.perceptiveus.reverie.data.local.entity.UserSettingsEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -142,6 +144,44 @@ interface PlaylistDao {
     )
     fun observePlaylistsWithCounts(): Flow<List<PlaylistWithCount>>
 
+    @Query(
+        """
+        SELECT p.id, p.name, p.createdAt,
+               COUNT(all_pt.trackId) AS trackCount
+        FROM playlists p
+        INNER JOIN playlist_tracks selected_pt ON selected_pt.playlistId = p.id
+        LEFT JOIN playlist_tracks all_pt ON all_pt.playlistId = p.id
+        WHERE selected_pt.trackId = :trackId
+        GROUP BY p.id
+        ORDER BY p.createdAt DESC
+        """,
+    )
+    fun observePlaylistsForTrack(trackId: String): Flow<List<PlaylistWithCount>>
+
+    @Query(
+        """
+        SELECT p.id, p.name, p.createdAt,
+               (SELECT COUNT(*) FROM playlist_tracks WHERE playlistId = p.id) AS trackCount
+        FROM playlists p
+        WHERE p.id = :playlistId
+        LIMIT 1
+        """,
+    )
+    fun observePlaylist(playlistId: String): Flow<PlaylistWithCount?>
+
+    @Query(
+        """
+        SELECT t.* FROM tracks t
+        INNER JOIN playlist_tracks pt ON pt.trackId = t.id
+        WHERE pt.playlistId = :playlistId
+        ORDER BY pt.position ASC
+        """,
+    )
+    fun observeTracksForPlaylist(playlistId: String): Flow<List<TrackEntity>>
+
+    @Query("DELETE FROM playlist_tracks WHERE playlistId = :playlistId AND trackId = :trackId")
+    suspend fun deletePlaylistTrack(playlistId: String, trackId: String)
+
     @Query("SELECT COUNT(*) FROM playlists")
     fun observePlaylistCount(): Flow<Int>
 
@@ -150,6 +190,9 @@ interface PlaylistDao {
 
     @Query("SELECT COALESCE(MAX(position), -1) FROM playlist_tracks WHERE playlistId = :playlistId")
     suspend fun maxPositionForPlaylist(playlistId: String): Int
+
+    @Query("SELECT COUNT(*) FROM playlist_tracks WHERE playlistId = :playlistId AND trackId = :trackId")
+    suspend fun trackCountInPlaylist(playlistId: String, trackId: String): Int
 
     @Query("DELETE FROM playlists WHERE id = :id")
     suspend fun deleteById(id: String)
@@ -167,6 +210,35 @@ interface PlaylistDao {
 
     @Query("SELECT COUNT(*) FROM playlists")
     suspend fun count(): Int
+}
+
+@Dao
+interface SongTagDao {
+
+    @Query("SELECT * FROM tags ORDER BY name COLLATE NOCASE ASC")
+    fun observeAllTags(): Flow<List<TagEntity>>
+
+    @Query(
+        """
+        SELECT t.* FROM tags t
+        INNER JOIN track_tags tt ON tt.tagId = t.id
+        WHERE tt.trackId = :trackId
+        ORDER BY t.name COLLATE NOCASE ASC
+        """,
+    )
+    fun observeTagsForTrack(trackId: String): Flow<List<TagEntity>>
+
+    @Query("SELECT * FROM tags WHERE name = :name COLLATE NOCASE LIMIT 1")
+    suspend fun getByName(name: String): TagEntity?
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertTag(tag: TagEntity)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertTrackTag(ref: TrackTagCrossRef)
+
+    @Query("DELETE FROM track_tags WHERE trackId = :trackId AND tagId = :tagId")
+    suspend fun deleteTrackTag(trackId: String, tagId: String)
 }
 
 @Dao

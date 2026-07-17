@@ -14,12 +14,14 @@ import com.perceptiveus.reverie.data.repository.Media3PlaybackRepository
 import com.perceptiveus.reverie.data.repository.MusicLibraryRepository
 import com.perceptiveus.reverie.data.repository.PlaybackRepository
 import com.perceptiveus.reverie.data.repository.PlaylistRepository
+import com.perceptiveus.reverie.data.repository.SongTagRepository
 import com.perceptiveus.reverie.data.import.AlbumArtCache
 import com.perceptiveus.reverie.data.import.AudioMetadataReader
 import com.perceptiveus.reverie.data.import.MusicIndexer
 import com.perceptiveus.reverie.data.import.MusicImportRepository
 import com.perceptiveus.reverie.data.repository.RoomMusicLibraryRepository
 import com.perceptiveus.reverie.data.repository.RoomPlaylistRepository
+import com.perceptiveus.reverie.data.repository.RoomSongTagRepository
 import com.perceptiveus.reverie.data.storage.MusicLibraryStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -82,6 +84,10 @@ class AppContainer(context: Context) {
         trackDao = database.trackDao(),
         featureAccessChecker = featureAccessChecker,
         scope = appScope,
+    )
+    val songTagRepository: SongTagRepository = RoomSongTagRepository(
+        songTagDao = database.songTagDao(),
+        featureAccessChecker = featureAccessChecker,
     )
     val playbackRepository: PlaybackRepository = Media3PlaybackRepository(
         context = appContext,

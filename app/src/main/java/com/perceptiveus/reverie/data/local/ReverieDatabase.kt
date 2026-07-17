@@ -7,13 +7,16 @@ import androidx.room.RoomDatabase
 import com.perceptiveus.reverie.data.local.dao.MusicFolderDao
 import com.perceptiveus.reverie.data.local.dao.PlayHistoryDao
 import com.perceptiveus.reverie.data.local.dao.PlaylistDao
+import com.perceptiveus.reverie.data.local.dao.SongTagDao
 import com.perceptiveus.reverie.data.local.dao.TrackDao
 import com.perceptiveus.reverie.data.local.dao.UserSettingsDao
 import com.perceptiveus.reverie.data.local.entity.MusicFolderEntity
 import com.perceptiveus.reverie.data.local.entity.PlayHistoryEntity
 import com.perceptiveus.reverie.data.local.entity.PlaylistEntity
 import com.perceptiveus.reverie.data.local.entity.PlaylistTrackCrossRef
+import com.perceptiveus.reverie.data.local.entity.TagEntity
 import com.perceptiveus.reverie.data.local.entity.TrackEntity
+import com.perceptiveus.reverie.data.local.entity.TrackTagCrossRef
 import com.perceptiveus.reverie.data.local.entity.UserSettingsEntity
 
 @Database(
@@ -22,10 +25,12 @@ import com.perceptiveus.reverie.data.local.entity.UserSettingsEntity
         TrackEntity::class,
         PlaylistEntity::class,
         PlaylistTrackCrossRef::class,
+        TagEntity::class,
+        TrackTagCrossRef::class,
         PlayHistoryEntity::class,
         UserSettingsEntity::class,
     ],
-    version = 3,
+    version = 6,
     exportSchema = false,
 )
 abstract class ReverieDatabase : RoomDatabase() {
@@ -34,6 +39,7 @@ abstract class ReverieDatabase : RoomDatabase() {
     abstract fun trackDao(): TrackDao
     abstract fun playHistoryDao(): PlayHistoryDao
     abstract fun playlistDao(): PlaylistDao
+    abstract fun songTagDao(): SongTagDao
     abstract fun userSettingsDao(): UserSettingsDao
 
     companion object {
@@ -48,7 +54,13 @@ abstract class ReverieDatabase : RoomDatabase() {
                     context.applicationContext,
                     ReverieDatabase::class.java,
                     DATABASE_NAME,
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                ).addMigrations(
+                    MIGRATION_1_2,
+                    MIGRATION_2_3,
+                    MIGRATION_3_4,
+                    MIGRATION_4_5,
+                    MIGRATION_5_6,
+                )
                     .build().also { instance = it }
             }
         }

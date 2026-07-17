@@ -8,6 +8,9 @@ data class AudioMetadata(
     val artist: String,
     val album: String,
     val durationMs: Long,
+    /** Release year when present in tags; 0 when unknown. */
+    val year: Int = 0,
+    val genre: String = "",
     /** Embedded cover bytes when present (JPEG/PNG/etc.). */
     val artworkBytes: ByteArray? = null,
 )
@@ -28,6 +31,13 @@ class AudioMetadataReader {
             val duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
                 ?.toLongOrNull()
                 ?: 0L
+            val year = parseYear(
+                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_YEAR)
+                    ?: retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE),
+            )
+            val genre = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_GENRE)
+                .orEmpty()
+                .trim()
             val artwork = runCatching { retriever.embeddedPicture }.getOrNull()?.takeIf { it.isNotEmpty() }
 
             AudioMetadata(
@@ -35,6 +45,8 @@ class AudioMetadataReader {
                 artist = artist.ifBlank { UNKNOWN_ARTIST },
                 album = album.ifBlank { UNKNOWN_ALBUM },
                 durationMs = duration.coerceAtLeast(0L),
+                year = year,
+                genre = genre,
                 artworkBytes = artwork,
             )
         } finally {
@@ -45,5 +57,14 @@ class AudioMetadataReader {
     companion object {
         private const val UNKNOWN_ARTIST = "Unknown Artist"
         private const val UNKNOWN_ALBUM = "Unknown Album"
+        private val YEAR_PATTERN = Regex("""\b(19|20)\d{2}\b""")
+
+        /** Parses a year tag or date string like "2020" / "2020-01-15" into a 4-digit year. */
+        internal fun parseYear(raw: String?): Int {
+            if (raw.isNullOrBlank()) return 0
+            val trimmed = raw.trim()
+            trimmed.toIntOrNull()?.takeIf { it in 1000..9999 }?.let { return it }
+            return YEAR_PATTERN.find(trimmed)?.value?.toIntOrNull() ?: 0
+        }
     }
 }

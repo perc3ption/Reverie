@@ -5,12 +5,14 @@ import com.perceptiveus.reverie.data.local.entity.AlbumAggregate
 import com.perceptiveus.reverie.data.local.entity.ArtistAggregate
 import com.perceptiveus.reverie.data.local.entity.FolderWithCounts
 import com.perceptiveus.reverie.data.local.entity.PlaylistWithCount
+import com.perceptiveus.reverie.data.local.entity.TagEntity
 import com.perceptiveus.reverie.data.local.entity.TrackEntity
 import com.perceptiveus.reverie.data.local.entity.UserSettingsEntity
 import com.perceptiveus.reverie.domain.model.Album
 import com.perceptiveus.reverie.domain.model.Artist
 import com.perceptiveus.reverie.domain.model.MusicFolder
 import com.perceptiveus.reverie.domain.model.Playlist
+import com.perceptiveus.reverie.domain.model.Tag
 import com.perceptiveus.reverie.domain.model.Track
 
 fun TrackEntity.toDomain(): Track = Track(
@@ -21,6 +23,10 @@ fun TrackEntity.toDomain(): Track = Track(
     durationMs = durationMs,
     filePath = filePath,
     artworkPath = artworkPath,
+    year = year,
+    genre = genre,
+    dateAdded = dateAdded,
+    isFavorite = isFavorite,
 )
 
 fun FolderWithCounts.toDomain(): MusicFolder = MusicFolder(
@@ -49,6 +55,11 @@ fun PlaylistWithCount.toDomain(): Playlist = Playlist(
     name = name,
     trackCount = trackCount,
     createdAt = createdAt,
+)
+
+fun TagEntity.toDomain(): Tag = Tag(
+    id = id,
+    name = name,
 )
 
 fun UserSettingsEntity.toThemePreference(): AppThemePreference =

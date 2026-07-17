@@ -6,8 +6,10 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
 import com.perceptiveus.reverie.AppContainer
 import com.perceptiveus.reverie.ReverieViewModelFactory
 import com.perceptiveus.reverie.feature.home.HomeScreen
@@ -16,6 +18,10 @@ import com.perceptiveus.reverie.feature.importmusic.ImportMusicScreen
 import com.perceptiveus.reverie.feature.importmusic.ImportMusicViewModel
 import com.perceptiveus.reverie.feature.library.LibraryScreen
 import com.perceptiveus.reverie.feature.library.LibraryViewModel
+import com.perceptiveus.reverie.feature.library.PlaylistDetailScreen
+import com.perceptiveus.reverie.feature.library.PlaylistDetailViewModel
+import com.perceptiveus.reverie.feature.library.SongDetailScreen
+import com.perceptiveus.reverie.feature.library.SongDetailViewModel
 import com.perceptiveus.reverie.feature.player.PlayerScreen
 import com.perceptiveus.reverie.feature.player.PlayerViewModel
 import com.perceptiveus.reverie.feature.premium.PremiumFeaturesScreen
@@ -73,6 +79,73 @@ fun ReverieNavGraph(
                 viewModel = viewModel,
                 onPremiumFeatureClick = {
                     navController.navigate(ReverieDestination.PremiumFeatures.route)
+                },
+                onSongDetailsClick = { track ->
+                    navController.navigate(ReverieDestination.SongDetail.createRoute(track.id))
+                },
+            )
+        }
+
+        composable(
+            route = ReverieDestination.SongDetail.route,
+            arguments = listOf(
+                navArgument(ReverieDestination.SONG_TRACK_ID_ARG) {
+                    type = NavType.StringType
+                },
+            ),
+        ) { backStackEntry ->
+            val trackId = backStackEntry.arguments
+                ?.getString(ReverieDestination.SONG_TRACK_ID_ARG)
+                .orEmpty()
+            val viewModel: SongDetailViewModel = viewModel(
+                key = trackId,
+                factory = SongDetailViewModel.factory(
+                    application = container.application,
+                    trackId = trackId,
+                    musicLibraryRepository = container.musicLibraryRepository,
+                    playlistRepository = container.playlistRepository,
+                    songTagRepository = container.songTagRepository,
+                    playbackRepository = container.playbackRepository,
+                    featureAccessChecker = container.featureAccessChecker,
+                ),
+            )
+            SongDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToPremium = {
+                    navController.navigate(ReverieDestination.PremiumFeatures.route)
+                },
+                onNavigateToPlaylist = { playlist ->
+                    navController.navigate(ReverieDestination.PlaylistDetail.createRoute(playlist.id))
+                },
+            )
+        }
+
+        composable(
+            route = ReverieDestination.PlaylistDetail.route,
+            arguments = listOf(
+                navArgument(ReverieDestination.PLAYLIST_ID_ARG) {
+                    type = NavType.StringType
+                },
+            ),
+        ) { backStackEntry ->
+            val playlistId = backStackEntry.arguments
+                ?.getString(ReverieDestination.PLAYLIST_ID_ARG)
+                .orEmpty()
+            val viewModel: PlaylistDetailViewModel = viewModel(
+                key = playlistId,
+                factory = PlaylistDetailViewModel.factory(
+                    playlistId = playlistId,
+                    playlistRepository = container.playlistRepository,
+                    musicLibraryRepository = container.musicLibraryRepository,
+                    playbackRepository = container.playbackRepository,
+                ),
+            )
+            PlaylistDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onSongClick = { track ->
+                    navController.navigate(ReverieDestination.SongDetail.createRoute(track.id))
                 },
             )
         }

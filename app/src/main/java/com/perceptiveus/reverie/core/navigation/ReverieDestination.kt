@@ -59,7 +59,27 @@ sealed class ReverieDestination(
         unselectedIcon = Icons.Outlined.Home,
     )
 
+    data object SongDetail : ReverieDestination(
+        route = "song/{trackId}",
+        label = "Song",
+        selectedIcon = Icons.Filled.Home,
+        unselectedIcon = Icons.Outlined.Home,
+    ) {
+        fun createRoute(trackId: String): String = "song/$trackId"
+    }
+
+    data object PlaylistDetail : ReverieDestination(
+        route = "playlist/{playlistId}",
+        label = "Playlist",
+        selectedIcon = Icons.Filled.Album,
+        unselectedIcon = Icons.Outlined.Album,
+    ) {
+        fun createRoute(playlistId: String): String = "playlist/$playlistId"
+    }
+
     companion object {
+        const val SONG_TRACK_ID_ARG = "trackId"
+        const val PLAYLIST_ID_ARG = "playlistId"
         val bottomNavItems = listOf(Home, Library, Player, Settings)
     }
 }

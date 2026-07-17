@@ -41,6 +41,9 @@ data class TrackEntity(
     val filePath: String = "",
     /** Absolute path to cached album art JPEG/PNG; empty if none. */
     val artworkPath: String = "",
+    /** Release year from tags; 0 when unknown. */
+    val year: Int = 0,
+    val genre: String = "",
     val folderId: String? = null,
     val dateAdded: Long = System.currentTimeMillis(),
     val isFavorite: Boolean = false,
@@ -76,6 +79,40 @@ data class PlaylistTrackCrossRef(
     val playlistId: String,
     val trackId: String,
     val position: Int,
+)
+
+@Entity(
+    tableName = "tags",
+    indices = [Index(value = ["name"], unique = true)],
+)
+data class TagEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    val createdAt: Long = System.currentTimeMillis(),
+)
+
+@Entity(
+    tableName = "track_tags",
+    primaryKeys = ["trackId", "tagId"],
+    foreignKeys = [
+        ForeignKey(
+            entity = TrackEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["trackId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+        ForeignKey(
+            entity = TagEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["tagId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("tagId")],
+)
+data class TrackTagCrossRef(
+    val trackId: String,
+    val tagId: String,
 )
 
 @Entity(

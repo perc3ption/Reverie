@@ -9,6 +9,11 @@ data class Track(
     val filePath: String = "",
     /** Absolute path to cached cover art; empty when unavailable. */
     val artworkPath: String = "",
+    /** Release year from tags; 0 when unknown. */
+    val year: Int = 0,
+    val genre: String = "",
+    val dateAdded: Long = 0L,
+    val isFavorite: Boolean = false,
 )
 
 data class Album(
@@ -37,6 +42,11 @@ data class Playlist(
     val name: String,
     val trackCount: Int,
     val createdAt: Long,
+)
+
+data class Tag(
+    val id: String,
+    val name: String,
 )
 
 enum class RepeatMode {

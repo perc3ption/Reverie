@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Folder
@@ -56,6 +57,7 @@ import com.perceptiveus.reverie.feature.premium.UpgradeDialog
 fun LibraryScreen(
     viewModel: LibraryViewModel,
     onPremiumFeatureClick: () -> Unit,
+    onSongDetailsClick: (Track) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(LibraryTab.SONGS) }
@@ -118,6 +120,7 @@ fun LibraryScreen(
                             SongListItem(
                                 track = track,
                                 onClick = { viewModel.playSong(track) },
+                                onDetailsClick = { onSongDetailsClick(track) },
                             )
                         }
                     }
@@ -229,6 +232,7 @@ fun LibraryScreen(
 private fun SongListItem(
     track: Track,
     onClick: () -> Unit,
+    onDetailsClick: () -> Unit,
 ) {
     Surface(
         onClick = onClick,
@@ -239,7 +243,7 @@ private fun SongListItem(
         shape = MaterialTheme.shapes.medium,
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(start = 12.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (track.artworkPath.isNotBlank()) {
@@ -273,6 +277,13 @@ private fun SongListItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                )
+            }
+            IconButton(onClick = onDetailsClick) {
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = "Song details",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
