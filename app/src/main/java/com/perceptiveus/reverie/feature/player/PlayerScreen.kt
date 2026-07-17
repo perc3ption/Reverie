@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -107,105 +108,108 @@ fun PlayerScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
+        // Outer app Scaffold already insets for the nav bar; don't add another bottom gap.
+        contentWindowInsets = WindowInsets(0.dp),
         snackbarHost = { SnackbarHost(snackbarHostState) },
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 16.dp),
-        ) {
-            RetroScreenTitle(
-                title = "Now Playing",
-                modifier = Modifier.padding(top = 12.dp, bottom = 8.dp),
-            )
-
-            PlayerMediaDisplay(
-                artworkPath = track?.artworkPath,
-                trackTitle = track?.title,
-                selectedView = mediaView,
-                onViewSelected = { requested ->
-                    when {
-                        requested == PlayerMediaView.LYRICS && !canAccessLyrics -> {
-                            upgradeFeature = AppFeature.LYRICS
-                            showUpgradeDialog = true
-                            mediaView = PlayerMediaView.LYRICS
-                        }
-                        else -> mediaView = requested
-                    }
-                },
-                audioSessionId = playbackState.audioSessionId,
-                isPlaying = playbackState.isPlaying,
-                positionMs = playbackState.positionMs,
-                selectedStyle = selectedStyle,
-                canAccessVisualizers = canAccessVisualizers,
-                onStyleSelected = { selectedStyle = it },
-                onVisualizerLocked = {
-                    upgradeFeature = AppFeature.ADVANCED_VISUALIZERS
-                    showUpgradeDialog = true
-                },
-                lyrics = lyrics,
-                canAccessLyrics = canAccessLyrics,
-                canImportLyrics = !track?.filePath.isNullOrBlank(),
-                onLyricsLocked = {
-                    upgradeFeature = AppFeature.LYRICS
-                    showUpgradeDialog = true
-                },
-                onImportLyrics = {
-                    // */* so .lrc shows up — many providers don't map .lrc to text/*
-                    pickLyricsFile.launch(arrayOf("*/*"))
-                },
-            )
-
+    ) { _ ->
+        Column(modifier = Modifier.fillMaxSize()) {
             Column(
-                modifier = Modifier.padding(top = 10.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
             ) {
-                Text(
-                    text = track?.title ?: "No track",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                RetroScreenTitle(
+                    title = "Now Playing",
+                    modifier = Modifier.padding(top = 12.dp, bottom = 8.dp),
                 )
-                Text(
-                    text = track?.artist ?: "",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+
+                PlayerMediaDisplay(
+                    artworkPath = track?.artworkPath,
+                    trackTitle = track?.title,
+                    selectedView = mediaView,
+                    onViewSelected = { requested ->
+                        when {
+                            requested == PlayerMediaView.LYRICS && !canAccessLyrics -> {
+                                upgradeFeature = AppFeature.LYRICS
+                                showUpgradeDialog = true
+                                mediaView = PlayerMediaView.LYRICS
+                            }
+                            else -> mediaView = requested
+                        }
+                    },
+                    audioSessionId = playbackState.audioSessionId,
+                    isPlaying = playbackState.isPlaying,
+                    positionMs = playbackState.positionMs,
+                    selectedStyle = selectedStyle,
+                    canAccessVisualizers = canAccessVisualizers,
+                    onStyleSelected = { selectedStyle = it },
+                    onVisualizerLocked = {
+                        upgradeFeature = AppFeature.ADVANCED_VISUALIZERS
+                        showUpgradeDialog = true
+                    },
+                    lyrics = lyrics,
+                    canAccessLyrics = canAccessLyrics,
+                    canImportLyrics = !track?.filePath.isNullOrBlank(),
+                    onLyricsLocked = {
+                        upgradeFeature = AppFeature.LYRICS
+                        showUpgradeDialog = true
+                    },
+                    onImportLyrics = {
+                        // */* so .lrc shows up — many providers don't map .lrc to text/*
+                        pickLyricsFile.launch(arrayOf("*/*"))
+                    },
                 )
-                Text(
-                    text = track?.album ?: "",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+
+                Column(
+                    modifier = Modifier.padding(top = 10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = track?.title ?: "No track",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = track?.artist ?: "",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = track?.album ?: "",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                PlaybackProgress(
+                    positionMs = playbackState.positionMs,
+                    durationMs = track?.durationMs ?: 1L,
+                    onSeek = viewModel::seekTo,
+                )
+                PlaybackControls(
+                    isPlaying = playbackState.isPlaying,
+                    shuffleEnabled = playbackState.shuffleEnabled,
+                    repeatMode = playbackState.repeatMode,
+                    onPlayPause = viewModel::togglePlayPause,
+                    onNext = viewModel::skipToNext,
+                    onPrevious = viewModel::skipToPrevious,
+                    onShuffle = viewModel::toggleShuffle,
+                    onRepeat = viewModel::cycleRepeatMode,
                 )
             }
 
-            // Push transport + Up Next to the bottom, just above the nav bar.
-            Spacer(modifier = Modifier.weight(1f))
-
-            PlaybackProgress(
-                positionMs = playbackState.positionMs,
-                durationMs = track?.durationMs ?: 1L,
-                onSeek = viewModel::seekTo,
-            )
-            PlaybackControls(
-                isPlaying = playbackState.isPlaying,
-                shuffleEnabled = playbackState.shuffleEnabled,
-                repeatMode = playbackState.repeatMode,
-                onPlayPause = viewModel::togglePlayPause,
-                onNext = viewModel::skipToNext,
-                onPrevious = viewModel::skipToPrevious,
-                onShuffle = viewModel::toggleShuffle,
-                onRepeat = viewModel::cycleRepeatMode,
-            )
             UpNextStrip(
                 nextTrack = playbackState.nextTrack,
                 queueSize = playbackState.queueSize,
-                modifier = Modifier.padding(top = 4.dp, bottom = 8.dp),
             )
         }
     }
@@ -469,8 +473,7 @@ private fun PlaybackControls(
 }
 
 /**
- * Compact queue peek under transport controls — next track + remaining count
- * in one glanceable strip so it stays above the fold on typical phones.
+ * Queue peek pinned just above the bottom nav — full-bleed like the mini player.
  */
 @Composable
 private fun UpNextStrip(
@@ -482,17 +485,20 @@ private fun UpNextStrip(
 
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f),
+        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        tonalElevation = 2.dp,
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (nextTrack != null) {
                 AlbumArt(
                     artworkPath = nextTrack.artworkPath,
-                    modifier = Modifier.size(48.dp),
+                    modifier = Modifier.size(52.dp),
                     contentDescription = nextTrack.title,
                 )
                 Spacer(modifier = Modifier.width(12.dp))
