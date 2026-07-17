@@ -67,6 +67,7 @@ class PlaylistDetailViewModel(
         return QueueSource.Playlist(
             name = current?.name ?: "Playlist",
             description = current?.description.orEmpty(),
+            coverPath = current?.coverPath.orEmpty(),
         )
     }
 

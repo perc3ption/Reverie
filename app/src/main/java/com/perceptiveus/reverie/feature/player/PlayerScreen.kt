@@ -116,11 +116,14 @@ fun PlayerScreen(
         QueueSheet(
             queue = playbackState.queue,
             currentIndex = playbackState.queueIndex,
+            queueSource = playbackState.queueSource,
+            disabledTrackIds = playbackState.disabledTrackIds,
             onDismiss = { showQueueSheet = false },
             onTrackSelected = { index ->
                 viewModel.playQueueIndex(index)
                 showQueueSheet = false
             },
+            onToggleTrackEnabled = viewModel::toggleQueueTrackEnabled,
         )
     }
 

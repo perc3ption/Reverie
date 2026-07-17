@@ -63,6 +63,8 @@ class PlayerViewModel(
     fun toggleShuffle() = playbackRepository.toggleShuffle()
     fun cycleRepeatMode() = playbackRepository.cycleRepeatMode()
     fun playQueueIndex(index: Int) = playbackRepository.playQueueIndex(index)
+    fun toggleQueueTrackEnabled(trackId: String) =
+        playbackRepository.toggleQueueTrackEnabled(trackId)
 
     fun canAccessAdvancedVisualizers(): Boolean =
         featureAccessChecker.canAccess(AppFeature.ADVANCED_VISUALIZERS)

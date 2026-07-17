@@ -34,6 +34,11 @@ interface PlaybackRepository {
     )
     /** Jump to an item already in the active queue and start playback. */
     fun playQueueIndex(index: Int)
+    /**
+     * Session-only mute/unmute for a track in the current queue.
+     * Does not change playlists or library membership.
+     */
+    fun toggleQueueTrackEnabled(trackId: String)
     fun togglePlayPause()
     fun skipToNext()
     fun skipToPrevious()

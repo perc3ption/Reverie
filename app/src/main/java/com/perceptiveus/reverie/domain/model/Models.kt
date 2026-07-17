@@ -71,13 +71,18 @@ sealed class QueueSource {
     data class Playlist(
         val name: String,
         val description: String = "",
+        val coverPath: String = "",
     ) : QueueSource()
     data class Album(
         val title: String,
         val artist: String,
         val year: Int = 0,
+        val artworkPath: String = "",
     ) : QueueSource()
-    data class Artist(val name: String) : QueueSource()
+    data class Artist(
+        val name: String,
+        val artworkPath: String = "",
+    ) : QueueSource()
     data class Folder(val name: String) : QueueSource()
     data object RecentlyPlayed : QueueSource()
     data object Unknown : QueueSource()
@@ -99,4 +104,9 @@ data class PlaybackState(
     val audioSessionId: Int = 0,
     /** Origin of the active queue. */
     val queueSource: QueueSource = QueueSource.Unknown,
+    /**
+     * Track ids muted for this playback session only.
+     * Cleared when a new queue is started.
+     */
+    val disabledTrackIds: Set<String> = emptySet(),
 )

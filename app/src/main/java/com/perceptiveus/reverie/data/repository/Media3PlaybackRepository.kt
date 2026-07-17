@@ -50,14 +50,20 @@ class Media3PlaybackRepository(
 
     private var queue: List<Track> = emptyList()
     private var queueSource: QueueSource = QueueSource.Unknown
+    private var disabledTrackIds: Set<String> = emptySet()
     private var positionJob: Job? = null
     private var lastRecordedTrackId: String? = null
     private val connecting = AtomicBoolean(false)
 
     private var pendingAction: (() -> Unit)? = null
+    /** Avoid recursive skip loops when auto-advancing past muted tracks. */
+    private var skippingDisabled = false
 
     private val playerListener = object : Player.Listener {
         override fun onEvents(player: Player, events: Player.Events) {
+            if (events.contains(Player.EVENT_MEDIA_ITEM_TRANSITION)) {
+                skipCurrentIfDisabled(player)
+            }
             syncFromPlayer(player)
             if (events.contains(Player.EVENT_MEDIA_ITEM_TRANSITION) ||
                 events.contains(Player.EVENT_IS_PLAYING_CHANGED)
@@ -114,6 +120,7 @@ class Media3PlaybackRepository(
         runWhenReady {
             queue = playable
             queueSource = source
+            disabledTrackIds = emptySet()
             lastRecordedTrackId = null
             val mediaItems = playable.map { it.toMediaItem() }
             val player = controller ?: return@runWhenReady
@@ -129,10 +136,39 @@ class Media3PlaybackRepository(
         runWhenReady {
             val player = controller ?: return@runWhenReady
             if (index !in 0 until player.mediaItemCount) return@runWhenReady
+            val trackId = queue.getOrNull(index)?.id
+            if (trackId != null && trackId in disabledTrackIds) {
+                // Explicitly choosing a muted song re-enables it for this session.
+                disabledTrackIds = disabledTrackIds - trackId
+            }
             player.seekTo(index, /* positionMs = */ 0L)
             player.play()
             syncFromPlayer(player)
             maybeRecordPlayHistory(player)
+        }
+    }
+
+    override fun toggleQueueTrackEnabled(trackId: String) {
+        if (trackId.isBlank() || queue.none { it.id == trackId }) return
+        runWhenReady {
+            val enabling = trackId in disabledTrackIds
+            if (!enabling) {
+                val enabledCount = queue.count { it.id !in disabledTrackIds }
+                if (enabledCount <= 1 && trackId !in disabledTrackIds) {
+                    // Keep at least one playable song in the session queue.
+                    syncFromPlayer(controller ?: return@runWhenReady)
+                    return@runWhenReady
+                }
+                disabledTrackIds = disabledTrackIds + trackId
+            } else {
+                disabledTrackIds = disabledTrackIds - trackId
+            }
+
+            val player = controller
+            if (player != null && !enabling && player.currentMediaItem?.mediaId == trackId) {
+                seekToNextEnabled(player)
+            }
+            if (player != null) syncFromPlayer(player)
         }
     }
 
@@ -147,9 +183,7 @@ class Media3PlaybackRepository(
     override fun skipToNext() {
         runWhenReady {
             val player = controller ?: return@runWhenReady
-            if (player.hasNextMediaItem()) {
-                player.seekToNextMediaItem()
-            }
+            seekToNextEnabled(player)
             syncFromPlayer(player)
         }
     }
@@ -159,10 +193,8 @@ class Media3PlaybackRepository(
             val player = controller ?: return@runWhenReady
             if (player.currentPosition > RESTART_THRESHOLD_MS) {
                 player.seekTo(0L)
-            } else if (player.hasPreviousMediaItem()) {
-                player.seekToPreviousMediaItem()
             } else {
-                player.seekTo(0L)
+                seekToPreviousEnabled(player)
             }
             syncFromPlayer(player)
         }
@@ -223,9 +255,8 @@ class Media3PlaybackRepository(
         val mediaId = player.currentMediaItem?.mediaId
         val current = queue.firstOrNull { it.id == mediaId }
             ?: player.currentMediaItem?.toTrackFallback()
-        val nextIndex = player.currentMediaItemIndex + 1
-        val next = queue.getOrNull(nextIndex)
         val queueIndex = player.currentMediaItemIndex.takeIf { it in queue.indices } ?: -1
+        val next = findNextEnabledTrack(fromIndex = queueIndex)
         val duration = when {
             player.duration > 0 -> player.duration
             current != null && current.durationMs > 0 -> current.durationMs
@@ -248,13 +279,97 @@ class Media3PlaybackRepository(
                 queueIndex = queueIndex,
                 audioSessionId = player.audioSessionId,
                 queueSource = queueSource,
+                disabledTrackIds = disabledTrackIds,
             )
         }
+    }
+
+    private fun skipCurrentIfDisabled(player: Player) {
+        if (skippingDisabled) return
+        val id = player.currentMediaItem?.mediaId ?: return
+        if (id !in disabledTrackIds) return
+        skippingDisabled = true
+        try {
+            seekToNextEnabled(player)
+        } finally {
+            skippingDisabled = false
+        }
+    }
+
+    private fun seekToNextEnabled(player: Player) {
+        val count = player.mediaItemCount
+        if (count <= 0) return
+        repeat(count) {
+            if (player.hasNextMediaItem()) {
+                player.seekToNextMediaItem()
+            } else {
+                val next = when {
+                    player.repeatMode != Player.REPEAT_MODE_OFF ->
+                        findNextEnabledIndex(fromIndex = player.currentMediaItemIndex, wrap = true)
+                    else ->
+                        findNextEnabledIndex(fromIndex = player.currentMediaItemIndex, wrap = false)
+                }
+                if (next >= 0) {
+                    player.seekTo(next, 0L)
+                } else {
+                    return
+                }
+            }
+            val id = player.currentMediaItem?.mediaId
+            if (id != null && id !in disabledTrackIds) return
+        }
+    }
+
+    private fun seekToPreviousEnabled(player: Player) {
+        val count = player.mediaItemCount
+        if (count <= 0) return
+        repeat(count) {
+            if (player.hasPreviousMediaItem()) {
+                player.seekToPreviousMediaItem()
+            } else {
+                val prev = findPreviousEnabledIndex(fromIndex = player.currentMediaItemIndex)
+                if (prev >= 0) {
+                    player.seekTo(prev, 0L)
+                } else {
+                    player.seekTo(0L)
+                    return
+                }
+            }
+            val id = player.currentMediaItem?.mediaId
+            if (id != null && id !in disabledTrackIds) return
+        }
+    }
+
+    private fun findNextEnabledTrack(fromIndex: Int): Track? {
+        if (queue.isEmpty() || fromIndex !in queue.indices) return null
+        val wrap = _playbackState.value.repeatMode != RepeatMode.OFF
+        val index = findNextEnabledIndex(fromIndex = fromIndex, wrap = wrap)
+        return index.takeIf { it >= 0 }?.let { queue[it] }
+    }
+
+    private fun findNextEnabledIndex(fromIndex: Int, wrap: Boolean): Int {
+        if (queue.isEmpty() || fromIndex !in queue.indices) return -1
+        val maxOffset = if (wrap) queue.size - 1 else queue.size - fromIndex - 1
+        for (offset in 1..maxOffset) {
+            val index = if (wrap) (fromIndex + offset) % queue.size else fromIndex + offset
+            if (queue[index].id !in disabledTrackIds) return index
+        }
+        return -1
+    }
+
+    private fun findPreviousEnabledIndex(fromIndex: Int): Int {
+        if (queue.isEmpty() || fromIndex !in queue.indices) return -1
+        for (offset in 1 until queue.size) {
+            val index = (fromIndex - offset).mod(queue.size)
+            if (queue[index].id !in disabledTrackIds) return index
+        }
+        return -1
     }
 
     private fun maybeRecordPlayHistory(player: Player) {
         if (!player.isPlaying) return
         val trackId = player.currentMediaItem?.mediaId ?: return
+        if (trackId in disabledTrackIds) return
         if (trackId == lastRecordedTrackId) return
         lastRecordedTrackId = trackId
         scope.launch {

@@ -230,14 +230,14 @@ class LibraryViewModel(
             return
         }
         val index = artistSongs.indexOfFirst { it.id == track.id }.coerceAtLeast(0)
-        playbackRepository.play(artistSongs, index, QueueSource.Artist(artistName))
+        playbackRepository.play(artistSongs, index, QueueSource.Artist(artistName, artworkFrom(artistSongs)))
     }
 
     fun playAllArtistSongs(): Boolean {
         val artistName = artistBrowser.value.selectedArtist ?: return false
         val queue = artistBrowser.value.songs
         if (queue.isEmpty()) return false
-        playbackRepository.play(queue, 0, QueueSource.Artist(artistName))
+        playbackRepository.play(queue, 0, QueueSource.Artist(artistName, artworkFrom(queue)))
         return true
     }
 
@@ -246,7 +246,7 @@ class LibraryViewModel(
             .filter { it.artist.equals(artistName, ignoreCase = true) }
             .sortedBy { it.title.lowercase() }
         if (queue.isEmpty()) return false
-        playbackRepository.play(queue, 0, QueueSource.Artist(artistName))
+        playbackRepository.play(queue, 0, QueueSource.Artist(artistName, artworkFrom(queue)))
         return true
     }
 
@@ -293,8 +293,16 @@ class LibraryViewModel(
         val year = tracks.map { it.year }.filter { it > 0 }.distinct().let { years ->
             years.singleOrNull() ?: years.maxOrNull() ?: 0
         }
-        return QueueSource.Album(title = title, artist = artist, year = year)
+        return QueueSource.Album(
+            title = title,
+            artist = artist,
+            year = year,
+            artworkPath = artworkFrom(tracks),
+        )
     }
+
+    private fun artworkFrom(tracks: List<Track>): String =
+        tracks.firstOrNull { it.artworkPath.isNotBlank() }?.artworkPath.orEmpty()
 
     private fun buildFolderBrowserState(
         allFolders: List<MusicFolder>,
