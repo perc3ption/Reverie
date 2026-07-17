@@ -45,7 +45,7 @@ Gated via `AppFeature` / `FeatureAccessChecker`. Entitlements are currently a **
 | Playback Scope | Planned | Control what plays and shuffles across the library |
 | Advanced Visualizers | Done | Scope, Radial, VU, Starburst skins |
 | Advanced Search | Planned | Filters and saved searches |
-| Lyrics | Planned | Synced lyrics while listening |
+| Lyrics | Done | Sidecar `.lrc` / `.txt`; import via + on empty Lyrics tab; synced highlight |
 | Metadata Editing | Planned | Edit title, artist, album, etc. |
 | Album Art Editing | Planned | Set custom cover art |
 | Library Stats | Planned | Collection insights and statistics |
@@ -98,6 +98,20 @@ app/src/main/java/com/perceptiveus/reverie/
   playback/      MediaSessionService
   core/          Theme, navigation, entitlements, settings
 ```
+
+## Lyrics
+
+Synced lyrics load from sidecar files next to the audio file (same basename):
+
+- `Song.lrc` — timed LRC (preferred)
+- `Song.txt` — plain unsynced text
+- fallback: `lyrics.lrc` / `lyrics.txt` in the same folder
+
+Empty Lyrics tab offers **+** to pick a file; `LyricsSidecarImporter` validates `.lrc`/`.txt`, copies next to the track, and renames to match the audio basename.
+
+User-facing steps: see [`docs/TUTORIAL.md`](TUTORIAL.md).
+
+Premium-gated via `AppFeature.LYRICS`.
 
 ## Keep in sync
 

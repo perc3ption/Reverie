@@ -1,9 +1,10 @@
 package com.perceptiveus.reverie.feature.player
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,11 +13,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
@@ -27,7 +28,10 @@ import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -46,15 +50,19 @@ import androidx.compose.ui.unit.dp
 import com.perceptiveus.reverie.core.design.components.AlbumArt
 import com.perceptiveus.reverie.core.design.components.RetroScreenTitle
 import com.perceptiveus.reverie.core.entitlement.AppFeature
+import com.perceptiveus.reverie.domain.model.LyricsDocument
 import com.perceptiveus.reverie.domain.model.RepeatMode
 import com.perceptiveus.reverie.domain.model.Track
+import com.perceptiveus.reverie.feature.player.lyrics.LyricsPanel
 import com.perceptiveus.reverie.feature.player.visualizer.MusicVisualizer
 import com.perceptiveus.reverie.feature.player.visualizer.VisualizerStyle
 import com.perceptiveus.reverie.feature.premium.UpgradeDialog
+import kotlinx.coroutines.flow.collectLatest
 
 private enum class PlayerMediaView {
     ALBUM_ART,
     VISUALIZER,
+    LYRICS,
 }
 
 @Composable
@@ -64,15 +72,30 @@ fun PlayerScreen(
     modifier: Modifier = Modifier,
 ) {
     val playbackState by viewModel.playbackState.collectAsState()
+    val lyrics by viewModel.lyrics.collectAsState()
     val track = playbackState.currentTrack
     var showUpgradeDialog by remember { mutableStateOf(false) }
+    var upgradeFeature by remember { mutableStateOf(AppFeature.ADVANCED_VISUALIZERS) }
     var selectedStyle by remember { mutableStateOf(VisualizerStyle.SPECTRUM) }
     var mediaView by rememberSaveable { mutableStateOf(PlayerMediaView.ALBUM_ART) }
-    val canAccessPremium = viewModel.canAccessAdvancedVisualizers()
+    val canAccessVisualizers = viewModel.canAccessAdvancedVisualizers()
+    val canAccessLyrics = viewModel.canAccessLyrics()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val pickLyricsFile = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) viewModel.importLyrics(uri)
+    }
+
+    LaunchedEffect(viewModel) {
+        viewModel.userMessages.collectLatest { message ->
+            snackbarHostState.showSnackbar(message)
+        }
+    }
 
     if (showUpgradeDialog) {
         UpgradeDialog(
-            feature = AppFeature.ADVANCED_VISUALIZERS,
+            feature = upgradeFeature,
             onDismiss = { showUpgradeDialog = false },
             onUpgradeClick = {
                 showUpgradeDialog = false
@@ -81,84 +104,110 @@ fun PlayerScreen(
         )
     }
 
-    Column(modifier = modifier.fillMaxSize()) {
-        LazyColumn(
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { padding ->
+        Column(
             modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 16.dp),
         ) {
-            item {
-                RetroScreenTitle(title = "Now Playing")
-            }
-            item {
-                PlayerMediaDisplay(
-                    artworkPath = track?.artworkPath,
-                    trackTitle = track?.title,
-                    selectedView = mediaView,
-                    onViewSelected = { mediaView = it },
-                    audioSessionId = playbackState.audioSessionId,
-                    isPlaying = playbackState.isPlaying,
-                    positionMs = playbackState.positionMs,
-                    selectedStyle = selectedStyle,
-                    canAccessPremium = canAccessPremium,
-                    onStyleSelected = { selectedStyle = it },
-                    onPremiumStyleLocked = { showUpgradeDialog = true },
-                )
-            }
-            item {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = track?.title ?: "No track",
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = track?.artist ?: "",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = track?.album ?: "",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-            item {
-                PlaybackProgress(
-                    positionMs = playbackState.positionMs,
-                    durationMs = track?.durationMs ?: 1L,
-                    onSeek = viewModel::seekTo,
-                )
-            }
-            item {
-                PlaybackControls(
-                    isPlaying = playbackState.isPlaying,
-                    shuffleEnabled = playbackState.shuffleEnabled,
-                    repeatMode = playbackState.repeatMode,
-                    onPlayPause = viewModel::togglePlayPause,
-                    onNext = viewModel::skipToNext,
-                    onPrevious = viewModel::skipToPrevious,
-                    onShuffle = viewModel::toggleShuffle,
-                    onRepeat = viewModel::cycleRepeatMode,
-                )
-            }
-        }
+            RetroScreenTitle(
+                title = "Now Playing",
+                modifier = Modifier.padding(top = 12.dp, bottom = 8.dp),
+            )
 
-        UpNextStrip(
-            nextTrack = playbackState.nextTrack,
-            queueSize = playbackState.queueSize,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        )
+            PlayerMediaDisplay(
+                artworkPath = track?.artworkPath,
+                trackTitle = track?.title,
+                selectedView = mediaView,
+                onViewSelected = { requested ->
+                    when {
+                        requested == PlayerMediaView.LYRICS && !canAccessLyrics -> {
+                            upgradeFeature = AppFeature.LYRICS
+                            showUpgradeDialog = true
+                            mediaView = PlayerMediaView.LYRICS
+                        }
+                        else -> mediaView = requested
+                    }
+                },
+                audioSessionId = playbackState.audioSessionId,
+                isPlaying = playbackState.isPlaying,
+                positionMs = playbackState.positionMs,
+                selectedStyle = selectedStyle,
+                canAccessVisualizers = canAccessVisualizers,
+                onStyleSelected = { selectedStyle = it },
+                onVisualizerLocked = {
+                    upgradeFeature = AppFeature.ADVANCED_VISUALIZERS
+                    showUpgradeDialog = true
+                },
+                lyrics = lyrics,
+                canAccessLyrics = canAccessLyrics,
+                canImportLyrics = !track?.filePath.isNullOrBlank(),
+                onLyricsLocked = {
+                    upgradeFeature = AppFeature.LYRICS
+                    showUpgradeDialog = true
+                },
+                onImportLyrics = {
+                    // */* so .lrc shows up — many providers don't map .lrc to text/*
+                    pickLyricsFile.launch(arrayOf("*/*"))
+                },
+            )
+
+            Column(
+                modifier = Modifier.padding(top = 10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text = track?.title ?: "No track",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = track?.artist ?: "",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = track?.album ?: "",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            // Push transport + Up Next to the bottom, just above the nav bar.
+            Spacer(modifier = Modifier.weight(1f))
+
+            PlaybackProgress(
+                positionMs = playbackState.positionMs,
+                durationMs = track?.durationMs ?: 1L,
+                onSeek = viewModel::seekTo,
+            )
+            PlaybackControls(
+                isPlaying = playbackState.isPlaying,
+                shuffleEnabled = playbackState.shuffleEnabled,
+                repeatMode = playbackState.repeatMode,
+                onPlayPause = viewModel::togglePlayPause,
+                onNext = viewModel::skipToNext,
+                onPrevious = viewModel::skipToPrevious,
+                onShuffle = viewModel::toggleShuffle,
+                onRepeat = viewModel::cycleRepeatMode,
+            )
+            UpNextStrip(
+                nextTrack = playbackState.nextTrack,
+                queueSize = playbackState.queueSize,
+                modifier = Modifier.padding(top = 4.dp, bottom = 8.dp),
+            )
+        }
     }
 }
 
@@ -172,9 +221,14 @@ private fun PlayerMediaDisplay(
     isPlaying: Boolean,
     positionMs: Long,
     selectedStyle: VisualizerStyle,
-    canAccessPremium: Boolean,
+    canAccessVisualizers: Boolean,
     onStyleSelected: (VisualizerStyle) -> Unit,
-    onPremiumStyleLocked: () -> Unit,
+    onVisualizerLocked: () -> Unit,
+    lyrics: LyricsDocument?,
+    canAccessLyrics: Boolean,
+    canImportLyrics: Boolean,
+    onLyricsLocked: () -> Unit,
+    onImportLyrics: () -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -183,6 +237,7 @@ private fun PlayerMediaDisplay(
         MediaViewToggle(
             selectedView = selectedView,
             onViewSelected = onViewSelected,
+            lyricsLocked = !canAccessLyrics,
         )
         Spacer(modifier = Modifier.height(10.dp))
 
@@ -208,9 +263,20 @@ private fun PlayerMediaDisplay(
                     isPlaying = isPlaying,
                     positionMs = positionMs,
                     selectedStyle = selectedStyle,
-                    canAccessPremium = canAccessPremium,
+                    canAccessPremium = canAccessVisualizers,
                     onStyleSelected = onStyleSelected,
-                    onPremiumStyleLocked = onPremiumStyleLocked,
+                    onPremiumStyleLocked = onVisualizerLocked,
+                )
+            }
+
+            PlayerMediaView.LYRICS -> {
+                LyricsPanel(
+                    lyrics = lyrics,
+                    positionMs = positionMs,
+                    hasAccess = canAccessLyrics,
+                    canImport = canImportLyrics,
+                    onLockedClick = onLyricsLocked,
+                    onImportClick = onImportLyrics,
                 )
             }
         }
@@ -221,22 +287,37 @@ private fun PlayerMediaDisplay(
 private fun MediaViewToggle(
     selectedView: PlayerMediaView,
     onViewSelected: (PlayerMediaView) -> Unit,
+    lyricsLocked: Boolean,
 ) {
     Surface(
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceVariant,
     ) {
-        Row(modifier = Modifier.padding(4.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
             MediaViewToggleButton(
                 label = "ALBUM ART",
                 selected = selectedView == PlayerMediaView.ALBUM_ART,
                 onClick = { onViewSelected(PlayerMediaView.ALBUM_ART) },
+                modifier = Modifier.weight(1f),
             )
-            Spacer(modifier = Modifier.width(4.dp))
             MediaViewToggleButton(
                 label = "VISUALIZER",
                 selected = selectedView == PlayerMediaView.VISUALIZER,
                 onClick = { onViewSelected(PlayerMediaView.VISUALIZER) },
+                modifier = Modifier.weight(1f),
+            )
+            MediaViewToggleButton(
+                label = "LYRICS",
+                selected = selectedView == PlayerMediaView.LYRICS,
+                showLock = lyricsLocked,
+                onClick = { onViewSelected(PlayerMediaView.LYRICS) },
+                modifier = Modifier.weight(1f),
             )
         }
     }
@@ -247,9 +328,12 @@ private fun MediaViewToggleButton(
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    showLock: Boolean = false,
 ) {
     Surface(
         onClick = onClick,
+        modifier = modifier,
         shape = RoundedCornerShape(9.dp),
         color = if (selected) {
             MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
@@ -257,16 +341,33 @@ private fun MediaViewToggleButton(
             MaterialTheme.colorScheme.surfaceVariant
         },
     ) {
-        Text(
-            text = label,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            style = MaterialTheme.typography.labelLarge,
-            color = if (selected) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 6.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = if (selected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                maxLines = 1,
+            )
+            if (showLock) {
+                Spacer(modifier = Modifier.width(4.dp))
+                Icon(
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = "Premium",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(12.dp),
+                )
+            }
+        }
     }
 }
 

@@ -1,5 +1,6 @@
 package com.perceptiveus.reverie
 
+import android.app.Application
 import android.content.Context
 import android.util.Log
 import com.perceptiveus.reverie.core.entitlement.EntitlementRepository
@@ -31,6 +32,9 @@ import kotlinx.coroutines.launch
 class AppContainer(context: Context) {
 
     private val appContext = context.applicationContext
+    val application: Application =
+        (context.applicationContext as? Application)
+            ?: error("AppContainer requires an Application context")
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val database: ReverieDatabase = ReverieDatabase.getInstance(appContext)

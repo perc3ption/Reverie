@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -32,6 +32,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.perceptiveus.reverie.core.design.ReveriePurple
+
+/** Matches album art / lyrics media area so Now Playing stays above the fold. */
+private val MediaAreaHeight = 220.dp
 
 /**
  * Early-2000s style music visualizer with selectable skins.
@@ -83,27 +86,23 @@ fun MusicVisualizer(
     }
 
     Surface(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .height(MediaAreaHeight),
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceVariant,
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+        ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(
-                        text = "VISUALIZER",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = ReveriePurple,
-                    )
-                    CaptureModeBadge(mode = captureMode)
-                }
+                CaptureModeBadge(mode = captureMode)
                 StylePickerButton(
                     selected = selectedStyle,
                     canAccessPremium = canAccessPremium,
@@ -112,8 +111,6 @@ fun MusicVisualizer(
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
-
             VisualizerCanvas(
                 style = selectedStyle,
                 spectrum = spectrum,
@@ -121,7 +118,8 @@ fun MusicVisualizer(
                 waveform = waveform,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp)
+                    .weight(1f)
+                    .padding(top = 8.dp)
                     .clip(RoundedCornerShape(12.dp)),
             )
         }

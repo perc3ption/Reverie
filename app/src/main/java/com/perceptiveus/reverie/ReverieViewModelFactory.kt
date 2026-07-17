@@ -32,6 +32,7 @@ class ReverieViewModelFactory(
                 container.featureAccessChecker,
             )
             modelClass.isAssignableFrom(PlayerViewModel::class.java) -> PlayerViewModel(
+                container.application,
                 container.playbackRepository,
                 container.featureAccessChecker,
             )
