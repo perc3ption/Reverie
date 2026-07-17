@@ -3,6 +3,7 @@ package com.perceptiveus.reverie.feature.player
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,11 +29,13 @@ import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -49,8 +52,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import com.perceptiveus.reverie.core.design.components.AlbumArt
 import com.perceptiveus.reverie.core.design.components.RetroScreenTitle
@@ -207,9 +210,7 @@ fun PlayerScreen(
                         ) {
                             Text(
                                 text = track.title,
-                                style = MaterialTheme.typography.headlineMedium.copy(
-                                    textDecoration = TextDecoration.Underline,
-                                ),
+                                style = MaterialTheme.typography.headlineSmall,
                                 color = MaterialTheme.colorScheme.primary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -226,7 +227,7 @@ fun PlayerScreen(
                     } else {
                         Text(
                             text = "No track",
-                            style = MaterialTheme.typography.headlineMedium,
+                            style = MaterialTheme.typography.headlineSmall,
                             color = MaterialTheme.colorScheme.onBackground,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.fillMaxWidth(),
@@ -269,6 +270,7 @@ fun PlayerScreen(
                     onShuffle = viewModel::toggleShuffle,
                     onRepeat = viewModel::cycleRepeatMode,
                 )
+                Spacer(modifier = Modifier.height(8.dp))
             }
 
             UpNextStrip(
@@ -303,7 +305,6 @@ private fun QueueSourceLabel(
     val subtitle = when (source) {
         is QueueSource.Playlist -> source.description.trim().takeIf { it.isNotEmpty() }
         is QueueSource.Album -> source.artist.takeIf { it.isNotBlank() }
-        QueueSource.Library -> if (queueSize > 0) "$queueSize songs" else null
         else -> null
     }
 
@@ -487,6 +488,7 @@ private fun MediaViewToggleButton(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PlaybackProgress(
     positionMs: Long,
@@ -496,6 +498,7 @@ private fun PlaybackProgress(
     val safeDuration = durationMs.coerceAtLeast(1L)
     var sliderPosition by remember { mutableFloatStateOf(0f) }
     var isDragging by remember { mutableStateOf(false) }
+    val interactionSource = remember { MutableInteractionSource() }
 
     LaunchedEffect(positionMs, durationMs, isDragging) {
         if (!isDragging) {
@@ -515,6 +518,21 @@ private fun PlaybackProgress(
                 onSeek((sliderPosition * safeDuration).toLong())
             },
             modifier = Modifier.fillMaxWidth(),
+            interactionSource = interactionSource,
+            thumb = {
+                SliderDefaults.Thumb(
+                    interactionSource = interactionSource,
+                    thumbSize = DpSize(12.dp, 12.dp),
+                )
+            },
+            track = { sliderState ->
+                SliderDefaults.Track(
+                    sliderState = sliderState,
+                    modifier = Modifier.height(3.dp),
+                    thumbTrackGapSize = 0.dp,
+                    drawStopIndicator = null,
+                )
+            },
         )
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -543,40 +561,50 @@ private fun PlaybackControls(
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = onShuffle) {
+        IconButton(onClick = onShuffle, modifier = Modifier.size(44.dp)) {
             Icon(
                 Icons.Default.Shuffle,
                 contentDescription = "Shuffle",
+                modifier = Modifier.size(22.dp),
                 tint = if (shuffleEnabled) MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        IconButton(onClick = onPrevious) {
-            Icon(Icons.Default.SkipPrevious, contentDescription = "Previous")
+        IconButton(onClick = onPrevious, modifier = Modifier.size(44.dp)) {
+            Icon(
+                Icons.Default.SkipPrevious,
+                contentDescription = "Previous",
+                modifier = Modifier.size(26.dp),
+            )
         }
         Surface(
             onClick = onPlayPause,
             shape = CircleShape,
             color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-            modifier = Modifier.size(64.dp),
+            modifier = Modifier.size(56.dp),
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
                     imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = if (isPlaying) "Pause" else "Play",
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(36.dp),
+                    modifier = Modifier.size(32.dp),
                 )
             }
         }
-        IconButton(onClick = onNext) {
-            Icon(Icons.Default.SkipNext, contentDescription = "Next")
+        IconButton(onClick = onNext, modifier = Modifier.size(44.dp)) {
+            Icon(
+                Icons.Default.SkipNext,
+                contentDescription = "Next",
+                modifier = Modifier.size(26.dp),
+            )
         }
-        IconButton(onClick = onRepeat) {
+        IconButton(onClick = onRepeat, modifier = Modifier.size(44.dp)) {
             Icon(
                 imageVector = if (repeatMode == RepeatMode.ONE) Icons.Default.RepeatOne
                 else Icons.Default.Repeat,
                 contentDescription = "Repeat",
+                modifier = Modifier.size(22.dp),
                 tint = if (repeatMode != RepeatMode.OFF) MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.onSurfaceVariant,
             )
