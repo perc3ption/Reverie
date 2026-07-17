@@ -28,7 +28,7 @@ Status key: **Done** · **Partial** · **Planned**
 | Search | Planned | Basic search TODOs on Home / Library |
 | Album art display | Done | Embedded + folder covers cached on disk; Coil in UI |
 | Play from album / artist / folder | Planned | |
-| Queue UI (“next up” management) | Planned | Queue exists in player; no dedicated editor |
+| Queue UI (“next up” management) | Partial | Tap Up Next strip → queue sheet; tap song to play |
 
 ## Premium
 

@@ -53,6 +53,10 @@ data class PlaybackState(
     val repeatMode: RepeatMode = RepeatMode.OFF,
     val queueSize: Int = 0,
     val nextTrack: Track? = null,
+    /** Current playlist in play order. */
+    val queue: List<Track> = emptyList(),
+    /** Index of [currentTrack] within [queue], or -1 when empty. */
+    val queueIndex: Int = -1,
     /** ExoPlayer audio session id for [android.media.audiofx.Visualizer]; 0 when unset. */
     val audioSessionId: Int = 0,
 )

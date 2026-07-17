@@ -27,6 +27,8 @@ interface PlaybackRepository {
     val playbackState: StateFlow<PlaybackState>
 
     fun play(tracks: List<Track>, startIndex: Int = 0)
+    /** Jump to an item already in the active queue and start playback. */
+    fun playQueueIndex(index: Int)
     fun togglePlayPause()
     fun skipToNext()
     fun skipToPrevious()

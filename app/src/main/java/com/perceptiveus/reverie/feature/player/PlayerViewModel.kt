@@ -62,6 +62,7 @@ class PlayerViewModel(
     fun seekTo(positionMs: Long) = playbackRepository.seekTo(positionMs)
     fun toggleShuffle() = playbackRepository.toggleShuffle()
     fun cycleRepeatMode() = playbackRepository.cycleRepeatMode()
+    fun playQueueIndex(index: Int) = playbackRepository.playQueueIndex(index)
 
     fun canAccessAdvancedVisualizers(): Boolean =
         featureAccessChecker.canAccess(AppFeature.ADVANCED_VISUALIZERS)

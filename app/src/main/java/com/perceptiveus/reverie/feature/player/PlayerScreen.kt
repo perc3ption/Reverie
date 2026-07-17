@@ -46,6 +46,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.perceptiveus.reverie.core.design.components.AlbumArt
@@ -79,6 +80,7 @@ fun PlayerScreen(
     var upgradeFeature by remember { mutableStateOf(AppFeature.ADVANCED_VISUALIZERS) }
     var selectedStyle by remember { mutableStateOf(VisualizerStyle.SPECTRUM) }
     var mediaView by rememberSaveable { mutableStateOf(PlayerMediaView.ALBUM_ART) }
+    var showQueueSheet by remember { mutableStateOf(false) }
     val canAccessVisualizers = viewModel.canAccessAdvancedVisualizers()
     val canAccessLyrics = viewModel.canAccessLyrics()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -101,6 +103,18 @@ fun PlayerScreen(
             onUpgradeClick = {
                 showUpgradeDialog = false
                 onNavigateToPremium()
+            },
+        )
+    }
+
+    if (showQueueSheet) {
+        QueueSheet(
+            queue = playbackState.queue,
+            currentIndex = playbackState.queueIndex,
+            onDismiss = { showQueueSheet = false },
+            onTrackSelected = { index ->
+                viewModel.playQueueIndex(index)
+                showQueueSheet = false
             },
         )
     }
@@ -162,7 +176,9 @@ fun PlayerScreen(
                 )
 
                 Column(
-                    modifier = Modifier.padding(top = 10.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 10.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
@@ -171,6 +187,8 @@ fun PlayerScreen(
                         color = MaterialTheme.colorScheme.onBackground,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
                     )
                     Text(
                         text = track?.artist ?: "",
@@ -178,6 +196,8 @@ fun PlayerScreen(
                         color = MaterialTheme.colorScheme.primary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
                     )
                     Text(
                         text = track?.album ?: "",
@@ -185,6 +205,8 @@ fun PlayerScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
 
@@ -210,6 +232,7 @@ fun PlayerScreen(
             UpNextStrip(
                 nextTrack = playbackState.nextTrack,
                 queueSize = playbackState.queueSize,
+                onClick = { showQueueSheet = true },
             )
         }
     }
@@ -474,16 +497,19 @@ private fun PlaybackControls(
 
 /**
  * Queue peek pinned just above the bottom nav — full-bleed like the mini player.
+ * Tap to open the full queue list.
  */
 @Composable
 private fun UpNextStrip(
     nextTrack: Track?,
     queueSize: Int,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val remaining = (queueSize - 1).coerceAtLeast(0)
 
     Surface(
+        onClick = onClick,
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
         color = MaterialTheme.colorScheme.surfaceVariant,

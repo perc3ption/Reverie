@@ -118,6 +118,17 @@ class Media3PlaybackRepository(
         }
     }
 
+    override fun playQueueIndex(index: Int) {
+        runWhenReady {
+            val player = controller ?: return@runWhenReady
+            if (index !in 0 until player.mediaItemCount) return@runWhenReady
+            player.seekTo(index, /* positionMs = */ 0L)
+            player.play()
+            syncFromPlayer(player)
+            maybeRecordPlayHistory(player)
+        }
+    }
+
     override fun togglePlayPause() {
         runWhenReady {
             val player = controller ?: return@runWhenReady
@@ -207,6 +218,7 @@ class Media3PlaybackRepository(
             ?: player.currentMediaItem?.toTrackFallback()
         val nextIndex = player.currentMediaItemIndex + 1
         val next = queue.getOrNull(nextIndex)
+        val queueIndex = player.currentMediaItemIndex.takeIf { it in queue.indices } ?: -1
         val duration = when {
             player.duration > 0 -> player.duration
             current != null && current.durationMs > 0 -> current.durationMs
@@ -225,6 +237,8 @@ class Media3PlaybackRepository(
                 repeatMode = player.repeatMode.toDomain(),
                 queueSize = player.mediaItemCount.takeIf { it > 0 } ?: queue.size,
                 nextTrack = next,
+                queue = queue,
+                queueIndex = queueIndex,
                 audioSessionId = player.audioSessionId,
             )
         }
