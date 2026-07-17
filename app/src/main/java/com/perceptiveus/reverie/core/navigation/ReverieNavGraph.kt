@@ -157,6 +157,9 @@ fun ReverieNavGraph(
                 onNavigateToPremium = {
                     navController.navigate(ReverieDestination.PremiumFeatures.route)
                 },
+                onNavigateToSongDetails = { track ->
+                    navController.navigate(ReverieDestination.SongDetail.createRoute(track.id))
+                },
             )
         }
 
