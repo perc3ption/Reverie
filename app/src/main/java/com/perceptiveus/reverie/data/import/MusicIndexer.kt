@@ -133,12 +133,17 @@ class MusicIndexer(
     }
 
     private fun buildFolderEntities(audioFiles: List<File>, libraryRoot: File): List<MusicFolderEntity> {
-        val relativePaths = audioFiles
-            .map { parentRelativePath(it, libraryRoot) }
-            .distinct()
-            .sorted()
+        val relativePaths = mutableSetOf("")
+        for (file in audioFiles) {
+            var path = parentRelativePath(file, libraryRoot)
+            while (true) {
+                relativePaths.add(path)
+                if (path.isEmpty()) break
+                path = if ('/' in path) path.substringBeforeLast('/') else ""
+            }
+        }
 
-        return relativePaths.map { relativePath ->
+        return relativePaths.sorted().map { relativePath ->
             MusicFolderEntity(
                 id = LibraryIds.folderId(relativePath),
                 name = LibraryIds.folderDisplayName(relativePath),

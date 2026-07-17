@@ -27,6 +27,7 @@ fun TrackEntity.toDomain(): Track = Track(
     genre = genre,
     dateAdded = dateAdded,
     isFavorite = isFavorite,
+    folderId = folderId,
 )
 
 fun FolderWithCounts.toDomain(): MusicFolder = MusicFolder(
@@ -34,6 +35,7 @@ fun FolderWithCounts.toDomain(): MusicFolder = MusicFolder(
     name = name,
     songCount = songCount,
     albumCount = albumCount,
+    relativePath = relativePath,
 )
 
 fun ArtistAggregate.toDomain(): Artist = Artist(
@@ -55,6 +57,8 @@ fun PlaylistWithCount.toDomain(): Playlist = Playlist(
     name = name,
     trackCount = trackCount,
     createdAt = createdAt,
+    description = description,
+    coverPath = coverPath,
 )
 
 fun TagEntity.toDomain(): Tag = Tag(

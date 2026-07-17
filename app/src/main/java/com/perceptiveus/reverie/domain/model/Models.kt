@@ -14,6 +14,8 @@ data class Track(
     val genre: String = "",
     val dateAdded: Long = 0L,
     val isFavorite: Boolean = false,
+    /** Parent folder id in the library tree; null when unknown. */
+    val folderId: String? = null,
 )
 
 data class Album(
@@ -35,6 +37,8 @@ data class MusicFolder(
     val name: String,
     val songCount: Int,
     val albumCount: Int,
+    /** Path relative to the Reverie library root. Empty string = library root. */
+    val relativePath: String = "",
 )
 
 data class Playlist(
@@ -42,6 +46,9 @@ data class Playlist(
     val name: String,
     val trackCount: Int,
     val createdAt: Long,
+    val description: String = "",
+    /** Absolute path to playlist cover image; empty when unset. */
+    val coverPath: String = "",
 )
 
 data class Tag(

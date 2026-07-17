@@ -13,7 +13,7 @@ Status key: **Done** · **Partial** · **Planned**
 | Import music (SAF) | Done | Files or folders; copy or move into app storage |
 | Library scan / re-index | Done | Syncs on-disk `Reverie/` folder into Room |
 | Browse Songs | Done | Library → Songs; tap to play |
-| Browse Folders / Artists / Albums | Partial | Lists exist; play-from-row not wired yet |
+| Browse Folders / Artists / Albums | Done | Navigable Folders, Artists, and Albums with song lists |
 | Home (recently played / library preview) | Done | Tap tracks to play |
 | Home Now Playing card | Done | Compact player on Home (seek + transport) |
 | Mini player (bottom, all main tabs) | Done | Shown when a track is active |
@@ -22,7 +22,7 @@ Status key: **Done** · **Partial** · **Planned**
 | Full Now Playing screen | Done | Switchable Album Art / Visualizer media view |
 | Basic spectrum visualizer | Done | Classic CRT spectrum (free) |
 | Visualizer style picker | Done | SPECTRUM free; SCOPE, RADIAL, VU, STARBURST premium |
-| Playlists | Partial | Room + repository ready; no playlist UI yet |
+| Playlists | Done | Library Playlists tab; All Songs; create/delete; detail add/remove; description + cover |
 | Theme (system / light / dark) | Done | Settings |
 | Free-tier limits | Done | Max **500** songs, **3** playlists |
 | Search | Planned | Basic search TODOs on Home / Library |

@@ -28,6 +28,7 @@ class ReverieViewModelFactory(
             )
             modelClass.isAssignableFrom(LibraryViewModel::class.java) -> LibraryViewModel(
                 container.musicLibraryRepository,
+                container.playlistRepository,
                 container.playbackRepository,
                 container.featureAccessChecker,
             )

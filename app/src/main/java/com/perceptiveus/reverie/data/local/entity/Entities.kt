@@ -53,6 +53,9 @@ data class TrackEntity(
 data class PlaylistEntity(
     @PrimaryKey val id: String,
     val name: String,
+    val description: String = "",
+    /** Absolute path to playlist cover image; empty when unset. */
+    val coverPath: String = "",
     val createdAt: Long = System.currentTimeMillis(),
 )
 

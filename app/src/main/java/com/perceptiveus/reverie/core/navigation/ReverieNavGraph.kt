@@ -83,6 +83,18 @@ fun ReverieNavGraph(
                 onSongDetailsClick = { track ->
                     navController.navigate(ReverieDestination.SongDetail.createRoute(track.id))
                 },
+                onPlaylistClick = { playlist ->
+                    navController.navigate(ReverieDestination.PlaylistDetail.createRoute(playlist.id))
+                },
+                onNavigateToPlayer = {
+                    navController.navigate(ReverieDestination.Player.route) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
             )
         }
 
@@ -135,6 +147,7 @@ fun ReverieNavGraph(
             val viewModel: PlaylistDetailViewModel = viewModel(
                 key = playlistId,
                 factory = PlaylistDetailViewModel.factory(
+                    application = container.application,
                     playlistId = playlistId,
                     playlistRepository = container.playlistRepository,
                     musicLibraryRepository = container.musicLibraryRepository,
@@ -146,6 +159,15 @@ fun ReverieNavGraph(
                 onNavigateBack = { navController.popBackStack() },
                 onSongClick = { track ->
                     navController.navigate(ReverieDestination.SongDetail.createRoute(track.id))
+                },
+                onNavigateToPlayer = {
+                    navController.navigate(ReverieDestination.Player.route) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
                 },
             )
         }

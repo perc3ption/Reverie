@@ -25,11 +25,9 @@ class FakeMusicLibraryRepository : MusicLibraryRepository {
 
     private val _folders = MutableStateFlow(
         listOf(
-            MusicFolder("f1", "Downloaded Music", 1234, 87),
-            MusicFolder("f2", "FLAC Collection", 689, 56),
-            MusicFolder("f3", "Anime & OST", 412, 38),
-            MusicFolder("f4", "Rock Classics", 512, 41),
-            MusicFolder("f5", "Chill & Lo-Fi", 331, 22),
+            MusicFolder("f0", "Library Root", 5, 4, relativePath = ""),
+            MusicFolder("f1", "Downloaded Music", 3, 2, relativePath = "Downloaded Music"),
+            MusicFolder("f2", "FLAC Collection", 2, 1, relativePath = "FLAC Collection"),
         ),
     )
     override val folders: StateFlow<List<MusicFolder>> = _folders.asStateFlow()

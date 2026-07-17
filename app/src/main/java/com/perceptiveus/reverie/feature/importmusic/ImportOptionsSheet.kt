@@ -82,7 +82,8 @@ fun ImportOptionsSheet(
             Text(
                 text = when (pickerType) {
                     ImportPickerType.FILES -> "Pick one or more songs."
-                    ImportPickerType.FOLDER -> "Pick a folder — Reverie keeps your subfolders."
+                    ImportPickerType.FOLDER ->
+                        "Pick a folder — it is added under the destination with its name and subfolders."
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

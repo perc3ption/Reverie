@@ -10,6 +10,10 @@ How to get audio into Reverie and attach lyrics so they show on the Now Playing 
 4. Continue and select the songs or folder in the system picker.
 5. Wait for the status message. Songs appear in **Library → Songs**.
 
+**Folder import:** the folder you pick is copied into the destination **as that folder**, including nested subfolders (e.g. picking `Album` into Reverie creates `Reverie/Album/...`). Only audio files are copied; empty folders with no audio are skipped.
+
+**Browse folders:** Library → **Folders** starts at the Reverie root. Tap a folder to open it; use the back control to go up. Songs in the current folder are listed under its subfolders.
+
 Reverie only imports what you pick — it does not scan your whole device.
 
 ### Supported audio types
@@ -33,7 +37,18 @@ Free accounts are limited to **500** songs. Premium removes that limit (mock tog
 2. In Reverie, open **Import** and tap **Scan Library**.
 3. New files are indexed into the library.
 
-## Import lyrics
+## Playlists
+
+1. Open **Library → Playlists**.
+2. **All Songs** (top) lists every track in the library — use **Play All**, or open it to browse and play individual songs.
+3. Tap **+** to create a playlist (free tier: 3 playlists).
+4. Tap a playlist to open it:
+   - **Play All**
+   - **Add** / remove songs
+   - Tap the cover area to set a playlist image
+   - Tap the description to edit it
+   - Trash icon deletes the playlist (library songs are kept)
+
 
 Lyrics are **sidecar files** next to the audio file, using the **same base name**:
 

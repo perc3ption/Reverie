@@ -4,6 +4,7 @@ package com.perceptiveus.reverie.data.local.entity
 data class FolderWithCounts(
     val id: String,
     val name: String,
+    val relativePath: String,
     val songCount: Int,
     val albumCount: Int,
 )
@@ -28,4 +29,6 @@ data class PlaylistWithCount(
     val name: String,
     val createdAt: Long,
     val trackCount: Int,
+    val description: String = "",
+    val coverPath: String = "",
 )

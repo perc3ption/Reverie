@@ -6,6 +6,7 @@ import com.perceptiveus.reverie.data.local.dao.TrackDao
 import com.perceptiveus.reverie.data.local.entity.PlaylistEntity
 import com.perceptiveus.reverie.data.local.entity.PlaylistTrackCrossRef
 import com.perceptiveus.reverie.data.local.mapper.toDomain
+import com.perceptiveus.reverie.data.playlist.PlaylistCoverStore
 import com.perceptiveus.reverie.domain.model.Playlist
 import com.perceptiveus.reverie.domain.model.Track
 import kotlinx.coroutines.CoroutineScope
@@ -43,13 +44,17 @@ class RoomPlaylistRepository(
             .map { rows -> rows.map { it.toDomain() } }
 
     override suspend fun createPlaylist(name: String): Result<Playlist> {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) {
+            return Result.failure(IllegalArgumentException("Playlist name cannot be empty."))
+        }
         val currentCount = playlistDao.count()
         if (!featureAccessChecker.canCreatePlaylist(currentCount)) {
             return Result.failure(PlaylistLimitException(currentCount))
         }
         val playlist = PlaylistEntity(
             id = UUID.randomUUID().toString(),
-            name = name.trim(),
+            name = trimmed,
         )
         playlistDao.insert(playlist)
         return Result.success(
@@ -58,12 +63,43 @@ class RoomPlaylistRepository(
                 name = playlist.name,
                 trackCount = 0,
                 createdAt = playlist.createdAt,
+                description = playlist.description,
+                coverPath = playlist.coverPath,
             ),
         )
     }
 
     override suspend fun deletePlaylist(id: String) {
+        val existing = playlistDao.getById(id)
         playlistDao.deleteById(id)
+        existing?.coverPath?.let { PlaylistCoverStore.deleteCover(it) }
+    }
+
+    override suspend fun updatePlaylist(
+        id: String,
+        name: String?,
+        description: String?,
+        coverPath: String?,
+    ): Result<Unit> {
+        val existing = playlistDao.getById(id)
+            ?: return Result.failure(IllegalArgumentException("Playlist not found."))
+        val nextName = name?.trim()?.takeIf { it.isNotEmpty() } ?: existing.name
+        val nextDescription = description ?: existing.description
+        val nextCover = coverPath ?: existing.coverPath
+        if (coverPath != null &&
+            existing.coverPath.isNotBlank() &&
+            existing.coverPath != coverPath
+        ) {
+            PlaylistCoverStore.deleteCover(existing.coverPath)
+        }
+        playlistDao.insert(
+            existing.copy(
+                name = nextName,
+                description = nextDescription,
+                coverPath = nextCover,
+            ),
+        )
+        return Result.success(Unit)
     }
 
     override suspend fun addTrackToPlaylist(playlistId: String, trackId: String) {

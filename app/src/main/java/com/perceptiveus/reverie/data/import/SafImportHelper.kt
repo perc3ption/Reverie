@@ -44,10 +44,18 @@ internal object SafImportHelper {
         return sanitizeFileName(lastSegment.substringAfterLast(':'))
     }
 
+    /**
+     * Collects audio files under a SAF tree, preserving the picked folder name and
+     * relative subfolder paths (e.g. `Album/Disc 1/track.mp3`).
+     */
     fun collectAudioFromTree(context: Context, treeUri: Uri): List<AudioDocument> {
         val root = DocumentFile.fromTreeUri(context, treeUri) ?: return emptyList()
+        val rootFolderName = sanitizeFileName(
+            root.name?.takeIf { it.isNotBlank() } ?: "Imported Folder",
+        )
         val results = mutableListOf<AudioDocument>()
-        walkTree(root, relativeDirectory = "", results = results)
+        // Start relative paths with the picked folder so it is created under the destination.
+        walkTree(root, relativeDirectory = rootFolderName, results = results)
         return results
     }
 
@@ -59,11 +67,20 @@ internal object SafImportHelper {
         val children = node.listFiles()
         for (child in children) {
             val childName = sanitizeFileName(child.name ?: continue)
+            if (childName.isEmpty()) continue
             if (child.isDirectory) {
-                val nextDirectory = if (relativeDirectory.isEmpty()) childName else "$relativeDirectory/$childName"
+                val nextDirectory = if (relativeDirectory.isEmpty()) {
+                    childName
+                } else {
+                    "$relativeDirectory/$childName"
+                }
                 walkTree(child, nextDirectory, results)
             } else if (child.isFile && isAudioFileName(childName)) {
-                val relativePath = if (relativeDirectory.isEmpty()) childName else "$relativeDirectory/$childName"
+                val relativePath = if (relativeDirectory.isEmpty()) {
+                    childName
+                } else {
+                    "$relativeDirectory/$childName"
+                }
                 results.add(
                     AudioDocument(
                         uri = child.uri,

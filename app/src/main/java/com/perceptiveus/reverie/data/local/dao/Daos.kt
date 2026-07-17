@@ -24,13 +24,13 @@ interface MusicFolderDao {
 
     @Query(
         """
-        SELECT f.id, f.name,
+        SELECT f.id, f.name, f.relativePath,
                COUNT(t.id) AS songCount,
                COUNT(DISTINCT t.album) AS albumCount
         FROM music_folders f
         LEFT JOIN tracks t ON t.folderId = f.id
         GROUP BY f.id
-        ORDER BY f.name ASC
+        ORDER BY f.relativePath ASC
         """,
     )
     fun observeFoldersWithCounts(): Flow<List<FolderWithCounts>>
@@ -134,7 +134,7 @@ interface PlaylistDao {
 
     @Query(
         """
-        SELECT p.id, p.name, p.createdAt,
+        SELECT p.id, p.name, p.description, p.coverPath, p.createdAt,
                COUNT(pt.trackId) AS trackCount
         FROM playlists p
         LEFT JOIN playlist_tracks pt ON pt.playlistId = p.id
@@ -146,7 +146,7 @@ interface PlaylistDao {
 
     @Query(
         """
-        SELECT p.id, p.name, p.createdAt,
+        SELECT p.id, p.name, p.description, p.coverPath, p.createdAt,
                COUNT(all_pt.trackId) AS trackCount
         FROM playlists p
         INNER JOIN playlist_tracks selected_pt ON selected_pt.playlistId = p.id
@@ -160,7 +160,7 @@ interface PlaylistDao {
 
     @Query(
         """
-        SELECT p.id, p.name, p.createdAt,
+        SELECT p.id, p.name, p.description, p.coverPath, p.createdAt,
                (SELECT COUNT(*) FROM playlist_tracks WHERE playlistId = p.id) AS trackCount
         FROM playlists p
         WHERE p.id = :playlistId
@@ -168,6 +168,9 @@ interface PlaylistDao {
         """,
     )
     fun observePlaylist(playlistId: String): Flow<PlaylistWithCount?>
+
+    @Query("SELECT * FROM playlists WHERE id = :id LIMIT 1")
+    suspend fun getById(id: String): PlaylistEntity?
 
     @Query(
         """
