@@ -29,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.perceptiveus.reverie.core.design.ReveriePurple
 
@@ -55,13 +56,21 @@ fun MusicVisualizer(
     var waveform by remember {
         mutableStateOf(FloatArray(AudioSpectrumCollector.WAVEFORM_POINTS))
     }
+    var captureMode by remember {
+        mutableStateOf(AudioSpectrumCollector.CaptureMode.FALLBACK)
+    }
 
     val collector = remember {
-        AudioSpectrumCollector { spectrumFrame, peaksFrame, waveformFrame ->
-            spectrum = spectrumFrame
-            peaks = peaksFrame
-            waveform = waveformFrame
-        }
+        AudioSpectrumCollector(
+            onFrame = { spectrumFrame, peaksFrame, waveformFrame ->
+                spectrum = spectrumFrame
+                peaks = peaksFrame
+                waveform = waveformFrame
+            },
+            onModeChanged = { mode ->
+                captureMode = mode
+            },
+        )
     }
 
     DisposableEffect(Unit) {
@@ -84,11 +93,17 @@ fun MusicVisualizer(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = "VISUALIZER",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = ReveriePurple,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = "VISUALIZER",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = ReveriePurple,
+                    )
+                    CaptureModeBadge(mode = captureMode)
+                }
                 StylePickerButton(
                     selected = selectedStyle,
                     canAccessPremium = canAccessPremium,
@@ -110,6 +125,26 @@ fun MusicVisualizer(
                     .clip(RoundedCornerShape(12.dp)),
             )
         }
+    }
+}
+
+@Composable
+private fun CaptureModeBadge(mode: AudioSpectrumCollector.CaptureMode) {
+    val isLive = mode == AudioSpectrumCollector.CaptureMode.LIVE
+    Surface(
+        shape = RoundedCornerShape(4.dp),
+        color = if (isLive) {
+            Color(0xFF1B5E20).copy(alpha = 0.85f)
+        } else {
+            Color(0xFF4E342E).copy(alpha = 0.9f)
+        },
+    ) {
+        Text(
+            text = if (isLive) "LIVE" else "FALLBACK",
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = if (isLive) Color(0xFFB9F6CA) else Color(0xFFFFCC80),
+        )
     }
 }
 

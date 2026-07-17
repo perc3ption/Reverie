@@ -15,7 +15,15 @@ import kotlin.math.sqrt
 class AudioSpectrumCollector(
     private val barCount: Int = DEFAULT_BAR_COUNT,
     private val onFrame: (spectrum: FloatArray, peaks: FloatArray, waveform: FloatArray) -> Unit,
+    private val onModeChanged: (mode: CaptureMode) -> Unit = {},
 ) {
+    enum class CaptureMode {
+        /** Real FFT/waveform from [Visualizer] attached to the player session. */
+        LIVE,
+        /** Procedural animation when live capture is unavailable. */
+        FALLBACK,
+    }
+
     private val mainHandler = Handler(Looper.getMainLooper())
     private var visualizer: Visualizer? = null
     private var audioSessionId: Int = 0
@@ -51,11 +59,16 @@ class AudioSpectrumCollector(
         releaseVisualizer()
     }
 
+    private fun setMode(fallback: Boolean) {
+        usingFallback = fallback
+        val mode = if (fallback) CaptureMode.FALLBACK else CaptureMode.LIVE
+        mainHandler.post { onModeChanged(mode) }
+    }
+
     private fun restartVisualizer() {
         releaseVisualizer()
-        usingFallback = false
         if (audioSessionId <= 0) {
-            usingFallback = true
+            setMode(fallback = true)
             ensureFallbackLoop()
             return
         }
@@ -91,8 +104,9 @@ class AudioSpectrumCollector(
             viz.enabled = true
             visualizer = viz
             stopFallback()
+            setMode(fallback = false)
         } catch (_: Throwable) {
-            usingFallback = true
+            setMode(fallback = true)
             ensureFallbackLoop()
         }
     }
