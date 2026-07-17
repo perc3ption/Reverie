@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
@@ -40,11 +41,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.perceptiveus.reverie.core.design.components.AlbumArt
 import com.perceptiveus.reverie.core.design.components.RetroScreenTitle
 import com.perceptiveus.reverie.core.entitlement.AppFeature
 import com.perceptiveus.reverie.domain.model.RepeatMode
+import com.perceptiveus.reverie.domain.model.Track
 import com.perceptiveus.reverie.feature.player.visualizer.MusicVisualizer
 import com.perceptiveus.reverie.feature.player.visualizer.VisualizerStyle
 import com.perceptiveus.reverie.feature.premium.UpgradeDialog
@@ -78,76 +81,84 @@ fun PlayerScreen(
         )
     }
 
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        item {
-            RetroScreenTitle(title = "Now Playing")
-        }
-        item {
-            PlayerMediaDisplay(
-                artworkPath = track?.artworkPath,
-                trackTitle = track?.title,
-                selectedView = mediaView,
-                onViewSelected = { mediaView = it },
-                audioSessionId = playbackState.audioSessionId,
-                isPlaying = playbackState.isPlaying,
-                positionMs = playbackState.positionMs,
-                selectedStyle = selectedStyle,
-                canAccessPremium = canAccessPremium,
-                onStyleSelected = { selectedStyle = it },
-                onPremiumStyleLocked = { showUpgradeDialog = true },
-            )
-        }
-        item {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = track?.title ?: "No track",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.onBackground,
+    Column(modifier = modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            item {
+                RetroScreenTitle(title = "Now Playing")
+            }
+            item {
+                PlayerMediaDisplay(
+                    artworkPath = track?.artworkPath,
+                    trackTitle = track?.title,
+                    selectedView = mediaView,
+                    onViewSelected = { mediaView = it },
+                    audioSessionId = playbackState.audioSessionId,
+                    isPlaying = playbackState.isPlaying,
+                    positionMs = playbackState.positionMs,
+                    selectedStyle = selectedStyle,
+                    canAccessPremium = canAccessPremium,
+                    onStyleSelected = { selectedStyle = it },
+                    onPremiumStyleLocked = { showUpgradeDialog = true },
                 )
-                Text(
-                    text = track?.artist ?: "",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
+            }
+            item {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = track?.title ?: "No track",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = track?.artist ?: "",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = track?.album ?: "",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            item {
+                PlaybackProgress(
+                    positionMs = playbackState.positionMs,
+                    durationMs = track?.durationMs ?: 1L,
+                    onSeek = viewModel::seekTo,
                 )
-                Text(
-                    text = track?.album ?: "",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+            }
+            item {
+                PlaybackControls(
+                    isPlaying = playbackState.isPlaying,
+                    shuffleEnabled = playbackState.shuffleEnabled,
+                    repeatMode = playbackState.repeatMode,
+                    onPlayPause = viewModel::togglePlayPause,
+                    onNext = viewModel::skipToNext,
+                    onPrevious = viewModel::skipToPrevious,
+                    onShuffle = viewModel::toggleShuffle,
+                    onRepeat = viewModel::cycleRepeatMode,
                 )
             }
         }
-        item {
-            PlaybackProgress(
-                positionMs = playbackState.positionMs,
-                durationMs = track?.durationMs ?: 1L,
-                onSeek = viewModel::seekTo,
-            )
-        }
-        item {
-            PlaybackControls(
-                isPlaying = playbackState.isPlaying,
-                shuffleEnabled = playbackState.shuffleEnabled,
-                repeatMode = playbackState.repeatMode,
-                onPlayPause = viewModel::togglePlayPause,
-                onNext = viewModel::skipToNext,
-                onPrevious = viewModel::skipToPrevious,
-                onShuffle = viewModel::toggleShuffle,
-                onRepeat = viewModel::cycleRepeatMode,
-            )
-        }
-        item {
-            MetadataGrid(
-                format = "Local file",
-                bitDepth = track?.let { formatMs(it.durationMs) } ?: "—",
-                nextUp = playbackState.nextTrack?.title ?: "—",
-                queueSize = playbackState.queueSize,
-            )
-        }
+
+        UpNextStrip(
+            nextTrack = playbackState.nextTrack,
+            queueSize = playbackState.queueSize,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
     }
 }
 
@@ -173,19 +184,19 @@ private fun PlayerMediaDisplay(
             selectedView = selectedView,
             onViewSelected = onViewSelected,
         )
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         when (selectedView) {
             PlayerMediaView.ALBUM_ART -> {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(242.dp),
+                        .height(220.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     AlbumArt(
                         artworkPath = artworkPath,
-                        modifier = Modifier.size(220.dp),
+                        modifier = Modifier.size(200.dp),
                         contentDescription = trackTitle,
                     )
                 }
@@ -356,37 +367,110 @@ private fun PlaybackControls(
     }
 }
 
+/**
+ * Compact queue peek under transport controls — next track + remaining count
+ * in one glanceable strip so it stays above the fold on typical phones.
+ */
 @Composable
-private fun MetadataGrid(
-    format: String,
-    bitDepth: String,
-    nextUp: String,
+private fun UpNextStrip(
+    nextTrack: Track?,
     queueSize: Int,
+    modifier: Modifier = Modifier,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MetadataCard(label = format, modifier = Modifier.weight(1f))
-            MetadataCard(label = bitDepth, modifier = Modifier.weight(1f))
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MetadataCard(label = "Next Up: $nextUp", modifier = Modifier.weight(1f))
-            MetadataCard(label = "Queue: $queueSize songs", modifier = Modifier.weight(1f))
+    val remaining = (queueSize - 1).coerceAtLeast(0)
+
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (nextTrack != null) {
+                AlbumArt(
+                    artworkPath = nextTrack.artworkPath,
+                    modifier = Modifier.size(48.dp),
+                    contentDescription = nextTrack.title,
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "UP NEXT",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
+                        text = nextTrack.title,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = nextTrack.artist,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            } else {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.QueueMusic,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(28.dp),
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "UP NEXT",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
+                        text = if (queueSize <= 1) "End of queue" else "Nothing queued",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            QueueCountPill(remaining = remaining, hasNext = nextTrack != null)
         }
     }
 }
 
 @Composable
-private fun MetadataCard(label: String, modifier: Modifier = Modifier) {
+private fun QueueCountPill(
+    remaining: Int,
+    hasNext: Boolean,
+) {
     Surface(
-        modifier = modifier.height(56.dp),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surface,
     ) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(8.dp)) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.QueueMusic,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(16.dp),
+            )
             Text(
-                text = label,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = when {
+                    remaining <= 0 && !hasNext -> "1 playing"
+                    remaining == 1 -> "1 left"
+                    else -> "$remaining left"
+                },
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface,
             )
         }
     }
