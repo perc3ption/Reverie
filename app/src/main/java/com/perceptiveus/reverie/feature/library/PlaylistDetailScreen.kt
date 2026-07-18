@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -29,11 +30,11 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -99,8 +100,8 @@ fun PlaylistDetailScreen(
         AddSongsToPlaylistDialog(
             availableTracks = availableTracks,
             onDismiss = { showAddDialog = false },
-            onAddTrack = { track ->
-                viewModel.addTrack(track)
+            onAddTracks = { selected ->
+                viewModel.addTracks(selected)
                 showAddDialog = false
             },
         )
@@ -150,6 +151,8 @@ fun PlaylistDetailScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        // Outer app Scaffold already applies system bar insets.
+        contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             TopAppBar(
                 title = { RetroScreenTitle(title = "Playlist") },
@@ -167,6 +170,7 @@ fun PlaylistDetailScreen(
                         )
                     }
                 },
+                windowInsets = WindowInsets(0.dp),
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                 ),
@@ -400,9 +404,10 @@ private fun PlaylistSongsHeader(onAddClick: () -> Unit) {
 private fun AddSongsToPlaylistDialog(
     availableTracks: List<Track>,
     onDismiss: () -> Unit,
-    onAddTrack: (Track) -> Unit,
+    onAddTracks: (List<Track>) -> Unit,
 ) {
     var query by remember { mutableStateOf("") }
+    var selectedIds by remember { mutableStateOf(emptySet<String>()) }
     val filtered = remember(query, availableTracks) {
         val trimmed = query.trim()
         if (trimmed.isBlank()) {
@@ -415,6 +420,10 @@ private fun AddSongsToPlaylistDialog(
             }
         }
     }
+    val selectedTracks = remember(selectedIds, availableTracks) {
+        availableTracks.filter { it.id in selectedIds }
+    }
+    val allFilteredSelected = filtered.isNotEmpty() && filtered.all { it.id in selectedIds }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -449,23 +458,79 @@ private fun AddSongsToPlaylistDialog(
                         )
                     }
                     else -> {
-                        filtered.forEach { track ->
-                            OutlinedButton(
-                                onClick = { onAddTrack(track) },
-                                modifier = Modifier.fillMaxWidth(),
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = if (selectedIds.isEmpty()) {
+                                    "${filtered.size} songs"
+                                } else {
+                                    "${selectedIds.size} selected"
+                                },
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            TextButton(
+                                onClick = {
+                                    selectedIds = if (allFilteredSelected) {
+                                        selectedIds - filtered.map { it.id }.toSet()
+                                    } else {
+                                        selectedIds + filtered.map { it.id }
+                                    }
+                                },
                             ) {
-                                Column(modifier = Modifier.fillMaxWidth()) {
-                                    Text(
-                                        text = track.title,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
+                                Text(if (allFilteredSelected) "Clear" else "Select all")
+                            }
+                        }
+                        filtered.forEach { track ->
+                            val selected = track.id in selectedIds
+                            Surface(
+                                onClick = {
+                                    selectedIds = if (selected) {
+                                        selectedIds - track.id
+                                    } else {
+                                        selectedIds + track.id
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = MaterialTheme.shapes.medium,
+                                color = if (selected) {
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                } else {
+                                    MaterialTheme.colorScheme.surface
+                                },
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Checkbox(
+                                        checked = selected,
+                                        onCheckedChange = { checked ->
+                                            selectedIds = if (checked) {
+                                                selectedIds + track.id
+                                            } else {
+                                                selectedIds - track.id
+                                            }
+                                        },
                                     )
-                                    Text(
-                                        text = "${track.artist} · ${track.album}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = track.title,
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                        Text(
+                                            text = "${track.artist} · ${track.album}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -473,7 +538,20 @@ private fun AddSongsToPlaylistDialog(
                 }
             }
         },
-        confirmButton = {},
+        confirmButton = {
+            Button(
+                onClick = { onAddTracks(selectedTracks) },
+                enabled = selectedTracks.isNotEmpty(),
+            ) {
+                Text(
+                    when (selectedTracks.size) {
+                        0 -> "Add"
+                        1 -> "Add 1 song"
+                        else -> "Add ${selectedTracks.size} songs"
+                    },
+                )
+            }
+        },
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text("Cancel")

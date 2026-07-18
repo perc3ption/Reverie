@@ -53,7 +53,9 @@ fun ReverieNavGraph(
                 },
                 onNavigateToLibrary = {
                     navController.navigate(ReverieDestination.Library.route) {
-                        popUpTo(ReverieDestination.Home.route) { saveState = true }
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
                         launchSingleTop = true
                         restoreState = true
                     }
@@ -123,7 +125,7 @@ fun ReverieNavGraph(
             )
             SongDetailScreen(
                 viewModel = viewModel,
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = { navController.navigateUp() },
                 onNavigateToPremium = {
                     navController.navigate(ReverieDestination.PremiumFeatures.route)
                 },
@@ -156,7 +158,7 @@ fun ReverieNavGraph(
             )
             PlaylistDetailScreen(
                 viewModel = viewModel,
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = { navController.navigateUp() },
                 onSongClick = { track ->
                     navController.navigate(ReverieDestination.SongDetail.createRoute(track.id))
                 },
@@ -194,14 +196,14 @@ fun ReverieNavGraph(
             val viewModel: ImportMusicViewModel = viewModel(factory = factory)
             ImportMusicScreen(
                 viewModel = viewModel,
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = { navController.navigateUp() },
             )
         }
 
         composable(ReverieDestination.PremiumFeatures.route) {
             PremiumFeaturesScreen(
                 featureAccessChecker = container.featureAccessChecker,
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = { navController.navigateUp() },
                 onTogglePremiumForTesting = {
                     scope.launch {
                         val current = container.entitlementRepository.entitlements.value.isPremium

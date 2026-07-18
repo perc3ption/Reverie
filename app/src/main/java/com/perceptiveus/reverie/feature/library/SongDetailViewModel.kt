@@ -11,6 +11,7 @@ import com.perceptiveus.reverie.core.entitlement.FeatureAccessChecker
 import com.perceptiveus.reverie.data.lyrics.LyricsImportResult
 import com.perceptiveus.reverie.data.lyrics.LyricsLoader
 import com.perceptiveus.reverie.data.lyrics.LyricsSidecarImporter
+import com.perceptiveus.reverie.data.import.EditableTrackMetadata
 import com.perceptiveus.reverie.data.repository.MusicLibraryRepository
 import com.perceptiveus.reverie.data.repository.PlaybackRepository
 import com.perceptiveus.reverie.data.repository.PlaylistLimitException
@@ -40,7 +41,7 @@ import kotlinx.coroutines.withContext
 class SongDetailViewModel(
     application: Application,
     private val trackId: String,
-    musicLibraryRepository: MusicLibraryRepository,
+    private val musicLibraryRepository: MusicLibraryRepository,
     private val playlistRepository: PlaylistRepository,
     private val songTagRepository: SongTagRepository,
     private val playbackRepository: PlaybackRepository,
@@ -79,6 +80,12 @@ class SongDetailViewModel(
     private val _userMessages = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val userMessages: SharedFlow<String> = _userMessages.asSharedFlow()
 
+    private val _metadataSaved = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val metadataSaved: SharedFlow<Unit> = _metadataSaved.asSharedFlow()
+
+    private val _isSavingMetadata = MutableStateFlow(false)
+    val isSavingMetadata: StateFlow<Boolean> = _isSavingMetadata.asStateFlow()
+
     init {
         viewModelScope.launch {
             track
@@ -99,6 +106,39 @@ class SongDetailViewModel(
         val index = allSongs.indexOfFirst { it.id == trackId }.coerceAtLeast(0)
         if (allSongs.isEmpty()) return
         playbackRepository.play(allSongs, index, QueueSource.Library)
+    }
+
+    fun saveMetadata(
+        title: String,
+        artist: String,
+        album: String,
+        yearText: String,
+        genre: String,
+    ) {
+        if (_isSavingMetadata.value) return
+        viewModelScope.launch {
+            _isSavingMetadata.value = true
+            val year = yearText.trim().toIntOrNull()?.takeIf { it in 1000..9999 } ?: 0
+            val result = musicLibraryRepository.updateTrackMetadata(
+                trackId = trackId,
+                metadata = EditableTrackMetadata(
+                    title = title,
+                    artist = artist,
+                    album = album,
+                    year = year,
+                    genre = genre,
+                ),
+            )
+            _isSavingMetadata.value = false
+            result
+                .onSuccess {
+                    _metadataSaved.emit(Unit)
+                    _userMessages.emit("Metadata saved to file.")
+                }
+                .onFailure { error ->
+                    _userMessages.emit(error.message ?: "Could not save metadata.")
+                }
+        }
     }
 
     fun canAccessTags(): Boolean = featureAccessChecker.canAccess(AppFeature.TAGS)

@@ -78,6 +78,20 @@ class PlaylistDetailViewModel(
         }
     }
 
+    fun addTracks(tracks: List<Track>) {
+        if (tracks.isEmpty()) return
+        viewModelScope.launch {
+            tracks.forEach { track ->
+                playlistRepository.addTrackToPlaylist(playlistId, track.id)
+            }
+            val message = when (tracks.size) {
+                1 -> "Added 1 song to playlist."
+                else -> "Added ${tracks.size} songs to playlist."
+            }
+            _userMessages.emit(message)
+        }
+    }
+
     fun removeTrack(track: Track) {
         viewModelScope.launch {
             playlistRepository.removeTrackFromPlaylist(playlistId, track.id)

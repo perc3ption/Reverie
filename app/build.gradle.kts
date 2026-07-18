@@ -60,6 +60,7 @@ dependencies {
     implementation(libs.androidx.media3.session)
     implementation(libs.coil.compose)
     implementation("androidx.documentfile:documentfile:1.1.0")
+    implementation("net.jthink:jaudiotagger:3.0.1")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

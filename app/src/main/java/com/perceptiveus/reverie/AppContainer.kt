@@ -17,6 +17,7 @@ import com.perceptiveus.reverie.data.repository.PlaylistRepository
 import com.perceptiveus.reverie.data.repository.SongTagRepository
 import com.perceptiveus.reverie.data.import.AlbumArtCache
 import com.perceptiveus.reverie.data.import.AudioMetadataReader
+import com.perceptiveus.reverie.data.import.AudioMetadataWriter
 import com.perceptiveus.reverie.data.import.MusicIndexer
 import com.perceptiveus.reverie.data.import.MusicImportRepository
 import com.perceptiveus.reverie.data.repository.RoomMusicLibraryRepository
@@ -69,6 +70,7 @@ class AppContainer(context: Context) {
         folderDao = database.musicFolderDao(),
         trackDao = database.trackDao(),
         musicIndexer = musicIndexer,
+        metadataWriter = AudioMetadataWriter(),
         scope = appScope,
     )
 

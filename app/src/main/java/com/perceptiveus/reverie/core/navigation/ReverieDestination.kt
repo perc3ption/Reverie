@@ -81,5 +81,15 @@ sealed class ReverieDestination(
         const val SONG_TRACK_ID_ARG = "trackId"
         const val PLAYLIST_ID_ARG = "playlistId"
         val bottomNavItems = listOf(Home, Library, Player, Settings)
+
+        /** Routes where the bottom bar stays mounted (avoids tearing down nav chrome). */
+        val bottomBarVisibleRoutes = setOf(
+            Home.route,
+            Library.route,
+            Player.route,
+            Settings.route,
+            SongDetail.route,
+            PlaylistDetail.route,
+        )
     }
 }

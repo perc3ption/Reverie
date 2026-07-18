@@ -2,6 +2,8 @@ package com.perceptiveus.reverie.feature.library
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -9,17 +11,22 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -44,9 +51,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -79,9 +88,11 @@ fun SongDetailScreen(
     val playlists by viewModel.playlistsContainingTrack.collectAsState()
     val availablePlaylists by viewModel.availablePlaylists.collectAsState()
     val lyrics by viewModel.lyrics.collectAsState()
+    val isSavingMetadata by viewModel.isSavingMetadata.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var showTagDialog by remember { mutableStateOf(false) }
     var showPlaylistDialog by remember { mutableStateOf(false) }
+    var showEditMetadataDialog by remember { mutableStateOf(false) }
     var upgradeFeature by remember { mutableStateOf<AppFeature?>(null) }
     val canAccessTags = viewModel.canAccessTags()
     val canAccessLyrics = viewModel.canAccessLyrics()
@@ -95,6 +106,12 @@ fun SongDetailScreen(
     LaunchedEffect(viewModel) {
         viewModel.userMessages.collectLatest { message ->
             snackbarHostState.showSnackbar(message)
+        }
+    }
+
+    LaunchedEffect(viewModel) {
+        viewModel.metadataSaved.collectLatest {
+            showEditMetadataDialog = false
         }
     }
 
@@ -128,6 +145,20 @@ fun SongDetailScreen(
         )
     }
 
+    if (showEditMetadataDialog) {
+        val current = track
+        if (current != null) {
+            EditMetadataDialog(
+                track = current,
+                isSaving = isSavingMetadata,
+                onDismiss = { if (!isSavingMetadata) showEditMetadataDialog = false },
+                onSave = { title, artist, album, year, genre ->
+                    viewModel.saveMetadata(title, artist, album, year, genre)
+                },
+            )
+        }
+    }
+
     upgradeFeature?.let { feature ->
         UpgradeDialog(
             feature = feature,
@@ -141,6 +172,8 @@ fun SongDetailScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        // Outer app Scaffold already applies system bar insets.
+        contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             TopAppBar(
                 title = { RetroScreenTitle(title = "Song") },
@@ -149,6 +182,7 @@ fun SongDetailScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
+                windowInsets = WindowInsets(0.dp),
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                 ),
@@ -186,27 +220,6 @@ fun SongDetailScreen(
             }
 
             item {
-                Section(title = "Details") {
-                    MetadataSection(track = current)
-                }
-            }
-
-            item {
-                Section(
-                    title = "Tags",
-                    actionText = "Add",
-                    onActionClick = {
-                        if (canAccessTags) showTagDialog = true else upgradeFeature = AppFeature.TAGS
-                    },
-                ) {
-                    TagsSection(
-                        tags = tags,
-                        onRemoveTag = viewModel::removeTag,
-                    )
-                }
-            }
-
-            item {
                 Section(
                     title = "Playlists",
                     actionText = "Add",
@@ -215,6 +228,26 @@ fun SongDetailScreen(
                     PlaylistsSection(
                         playlists = playlists,
                         onPlaylistClick = onNavigateToPlaylist,
+                    )
+                }
+            }
+
+            item {
+                Section(
+                    title = "Details",
+                    actionText = "Edit",
+                    actionIcon = Icons.Default.Edit,
+                    onActionClick = { showEditMetadataDialog = true },
+                    collapsible = true,
+                    initiallyExpanded = true,
+                ) {
+                    MetadataSection(
+                        track = current,
+                        tags = tags,
+                        onAddTag = {
+                            if (canAccessTags) showTagDialog = true else upgradeFeature = AppFeature.TAGS
+                        },
+                        onRemoveTag = viewModel::removeTag,
                     )
                 }
             }
@@ -263,13 +296,13 @@ private fun SongHeader(
     ) {
         AlbumArt(
             artworkPath = track.artworkPath,
-            modifier = Modifier.size(220.dp),
+            modifier = Modifier.size(192.dp),
             contentDescription = track.title,
         )
         Spacer(modifier = Modifier.height(20.dp))
         Text(
             text = track.title,
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onBackground,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
@@ -295,18 +328,22 @@ private fun SongHeader(
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
         )
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(16.dp))
         Button(
             onClick = onPlay,
             modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
         ) {
             Icon(
                 Icons.Default.PlayArrow,
                 contentDescription = null,
-                modifier = Modifier.size(20.dp),
+                modifier = Modifier.size(18.dp),
             )
-            Spacer(modifier = Modifier.size(8.dp))
-            Text("Play")
+            Spacer(modifier = Modifier.size(6.dp))
+            Text(
+                text = "Play",
+                style = MaterialTheme.typography.labelLarge,
+            )
         }
     }
 }
@@ -316,34 +353,72 @@ private fun Section(
     title: String,
     modifier: Modifier = Modifier,
     actionText: String? = null,
+    actionIcon: ImageVector = Icons.Default.Add,
     onActionClick: (() -> Unit)? = null,
+    collapsible: Boolean = false,
+    initiallyExpanded: Boolean = true,
     content: @Composable () -> Unit,
 ) {
+    var expanded by rememberSaveable(title, initiallyExpanded) { mutableStateOf(initiallyExpanded) }
+    val showContent = !collapsible || expanded
+
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(
+                    if (collapsible) {
+                        Modifier.clickable { expanded = !expanded }
+                    } else {
+                        Modifier
+                    },
+                ),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onBackground,
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onBackground,
+                )
+                if (collapsible) {
+                    Icon(
+                        imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = if (expanded) "Collapse" else "Expand",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .padding(start = 4.dp)
+                            .size(22.dp),
+                    )
+                }
+            }
             if (actionText != null && onActionClick != null) {
                 TextButton(onClick = onActionClick) {
-                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(actionIcon, contentDescription = null, modifier = Modifier.size(18.dp))
                     Text(actionText)
                 }
             }
         }
-        Spacer(modifier = Modifier.height(8.dp))
-        content()
+        AnimatedVisibility(visible = showContent) {
+            Column {
+                Spacer(modifier = Modifier.height(8.dp))
+                content()
+            }
+        }
     }
 }
 
 @Composable
-private fun MetadataSection(track: Track) {
+private fun MetadataSection(
+    track: Track,
+    tags: List<Tag>,
+    onAddTag: () -> Unit,
+    onRemoveTag: (Tag) -> Unit,
+) {
     Column(modifier = Modifier.fillMaxWidth()) {
         MetadataRow(label = "Title", value = track.title)
         MetadataRow(label = "Artist", value = track.artist)
@@ -369,54 +444,92 @@ private fun MetadataSection(track: Track) {
             label = "File path",
             value = track.filePath.ifBlank { "-" },
         )
+        MetadataTagsRow(
+            tags = tags,
+            onAddTag = onAddTag,
+            onRemoveTag = onRemoveTag,
+        )
     }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun TagsSection(
+private fun MetadataTagsRow(
     tags: List<Tag>,
+    onAddTag: () -> Unit,
     onRemoveTag: (Tag) -> Unit,
 ) {
-    if (tags.isEmpty()) {
-        EmptySectionText("No tags yet.")
-        return
-    }
-
-    FlowRow(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        tags.forEach { tag ->
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
-                ) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 10.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Text(
+                text = "Tags",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.width(100.dp),
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                if (tags.isEmpty()) {
                     Text(
-                        text = tag.name,
+                        text = "None",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(end = 4.dp),
+                        color = MaterialTheme.colorScheme.onBackground,
                     )
-                    IconButton(
-                        onClick = { onRemoveTag(tag) },
-                        modifier = Modifier.size(28.dp),
+                } else {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Icon(
-                            Icons.Default.Close,
-                            contentDescription = "Remove tag",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(16.dp),
-                        )
+                        tags.forEach { tag ->
+                            Surface(
+                                shape = RoundedCornerShape(20.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(
+                                        start = 12.dp,
+                                        end = 4.dp,
+                                        top = 4.dp,
+                                        bottom = 4.dp,
+                                    ),
+                                ) {
+                                    Text(
+                                        text = tag.name,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.padding(end = 4.dp),
+                                    )
+                                    IconButton(
+                                        onClick = { onRemoveTag(tag) },
+                                        modifier = Modifier.size(28.dp),
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = "Remove tag",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(16.dp),
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
+                }
+                TextButton(
+                    onClick = onAddTag,
+                    contentPadding = PaddingValues(horizontal = 0.dp, vertical = 4.dp),
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Text("Add tag")
                 }
             }
         }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     }
 }
 
@@ -504,6 +617,89 @@ private fun MetadataRow(
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     }
+}
+
+@Composable
+private fun EditMetadataDialog(
+    track: Track,
+    isSaving: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (title: String, artist: String, album: String, year: String, genre: String) -> Unit,
+) {
+    var title by remember(track.id) { mutableStateOf(track.title) }
+    var artist by remember(track.id) { mutableStateOf(track.artist) }
+    var album by remember(track.id) { mutableStateOf(track.album) }
+    var year by remember(track.id) {
+        mutableStateOf(if (track.year > 0) track.year.toString() else "")
+    }
+    var genre by remember(track.id) { mutableStateOf(track.genre) }
+
+    AlertDialog(
+        onDismissRequest = { if (!isSaving) onDismiss() },
+        title = { Text("Edit metadata") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = "Changes are written into the audio file, so they stay if you copy it elsewhere.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("Title") },
+                    singleLine = true,
+                    enabled = !isSaving,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = artist,
+                    onValueChange = { artist = it },
+                    label = { Text("Artist") },
+                    singleLine = true,
+                    enabled = !isSaving,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = album,
+                    onValueChange = { album = it },
+                    label = { Text("Album") },
+                    singleLine = true,
+                    enabled = !isSaving,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = year,
+                    onValueChange = { year = it.filter { ch -> ch.isDigit() }.take(4) },
+                    label = { Text("Year") },
+                    singleLine = true,
+                    enabled = !isSaving,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = genre,
+                    onValueChange = { genre = it },
+                    label = { Text("Genre") },
+                    singleLine = true,
+                    enabled = !isSaving,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onSave(title, artist, album, year, genre) },
+                enabled = !isSaving && title.isNotBlank(),
+            ) {
+                Text(if (isSaving) "Saving…" else "Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isSaving) {
+                Text("Cancel")
+            }
+        },
+    )
 }
 
 @Composable

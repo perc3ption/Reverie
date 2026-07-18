@@ -12,6 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -28,14 +29,32 @@ fun ReverieApp(container: AppContainer) {
 
     ReverieTheme(themePreference = themePreference) {
         val navController = rememberNavController()
-        val factory = ReverieViewModelFactory(container)
+        val factory = remember { ReverieViewModelFactory(container) }
         val navBackStackEntry by navController.currentBackStackEntryAsState()
-        val currentDestination = navBackStackEntry?.destination
+        val currentRoute = navBackStackEntry?.destination?.route
 
-        val showBottomBar = currentDestination?.route in ReverieDestination.bottomNavItems.map { it.route }
+        val showBottomBar = currentRoute in ReverieDestination.bottomBarVisibleRoutes
         val showMiniPlayer = showBottomBar &&
-            currentDestination?.route != ReverieDestination.Player.route &&
+            currentRoute != ReverieDestination.Player.route &&
+            currentRoute != ReverieDestination.SongDetail.route &&
+            currentRoute != ReverieDestination.PlaylistDetail.route &&
             playbackState.currentTrack != null
+
+        // Keep a tab highlighted on detail screens so the bottom bar never sits in an
+        // "nothing selected" state (which can mis-fire navigation back to Home).
+        val selectedTabRoute = when (currentRoute) {
+            ReverieDestination.SongDetail.route,
+            ReverieDestination.PlaylistDetail.route,
+            -> {
+                val previous = navController.previousBackStackEntry?.destination?.route
+                when (previous) {
+                    ReverieDestination.Player.route -> ReverieDestination.Player.route
+                    ReverieDestination.Library.route -> ReverieDestination.Library.route
+                    else -> ReverieDestination.Library.route
+                }
+            }
+            else -> currentRoute
+        }
 
         Scaffold(
             containerColor = MaterialTheme.colorScheme.background,
@@ -61,7 +80,7 @@ fun ReverieApp(container: AppContainer) {
                             )
                         }
                         ReverieBottomBar(
-                            currentRoute = currentDestination?.route,
+                            selectedRoute = selectedTabRoute,
                             onNavigate = { destination ->
                                 navController.navigate(destination.route) {
                                     popUpTo(navController.graph.findStartDestination().id) {
@@ -89,14 +108,14 @@ fun ReverieApp(container: AppContainer) {
 
 @Composable
 private fun ReverieBottomBar(
-    currentRoute: String?,
+    selectedRoute: String?,
     onNavigate: (ReverieDestination) -> Unit,
 ) {
     NavigationBar(
         containerColor = MaterialTheme.colorScheme.surface,
     ) {
         ReverieDestination.bottomNavItems.forEach { destination ->
-            val selected = currentRoute == destination.route
+            val selected = selectedRoute == destination.route
             NavigationBarItem(
                 selected = selected,
                 onClick = { onNavigate(destination) },

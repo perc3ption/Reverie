@@ -1,5 +1,6 @@
 package com.perceptiveus.reverie.data.repository
 
+import com.perceptiveus.reverie.data.import.EditableTrackMetadata
 import com.perceptiveus.reverie.domain.model.Album
 import com.perceptiveus.reverie.domain.model.Artist
 import com.perceptiveus.reverie.domain.model.MusicFolder
@@ -67,4 +68,22 @@ class FakeMusicLibraryRepository : MusicLibraryRepository {
         tracksRemoved = 0,
         foldersIndexed = 0,
     )
+
+    override suspend fun updateTrackMetadata(
+        trackId: String,
+        metadata: EditableTrackMetadata,
+    ): Result<Unit> {
+        val current = _songs.value.toMutableList()
+        val index = current.indexOfFirst { it.id == trackId }
+        if (index < 0) return Result.failure(IllegalArgumentException("Track not found."))
+        current[index] = current[index].copy(
+            title = metadata.title,
+            artist = metadata.artist,
+            album = metadata.album,
+            year = metadata.year,
+            genre = metadata.genre,
+        )
+        _songs.value = current
+        return Result.success(Unit)
+    }
 }

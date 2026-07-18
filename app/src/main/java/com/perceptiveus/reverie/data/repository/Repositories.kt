@@ -1,5 +1,6 @@
 package com.perceptiveus.reverie.data.repository
 
+import com.perceptiveus.reverie.data.import.EditableTrackMetadata
 import com.perceptiveus.reverie.domain.model.Album
 import com.perceptiveus.reverie.domain.model.Artist
 import com.perceptiveus.reverie.domain.model.MusicFolder
@@ -21,6 +22,12 @@ interface MusicLibraryRepository {
 
     /** Scans the on-disk Reverie folder and syncs metadata into Room. */
     suspend fun scanLibrary(): LibraryScanResult
+
+    /**
+     * Writes [metadata] into the audio file on disk, then updates Room.
+     * Changes persist if the file is later copied outside the app.
+     */
+    suspend fun updateTrackMetadata(trackId: String, metadata: EditableTrackMetadata): Result<Unit>
 }
 
 /** Playback state backed by Media3 ExoPlayer via [com.perceptiveus.reverie.playback.PlaybackService]. */
