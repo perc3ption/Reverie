@@ -46,7 +46,8 @@ data class TrackEntity(
     val genre: String = "",
     val folderId: String? = null,
     val dateAdded: Long = System.currentTimeMillis(),
-    val isFavorite: Boolean = false,
+    /** User rating 0–5; 0 means unrated. */
+    val rating: Int = 0,
 )
 
 @Entity(tableName = "playlists")

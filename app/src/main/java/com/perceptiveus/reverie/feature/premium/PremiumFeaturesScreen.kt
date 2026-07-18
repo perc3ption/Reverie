@@ -10,7 +10,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Collections
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.ManageSearch
@@ -19,6 +18,7 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.QueryStats
 import androidx.compose.material.icons.filled.Slideshow
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -125,7 +125,7 @@ private data class PremiumFeatureItem(
 
 private val premiumFeatureItems = listOf(
     PremiumFeatureItem(AppFeature.UNLIMITED_LIBRARY, "Unlimited Library", "No song limit on imports.", Icons.Default.LibraryMusic),
-    PremiumFeatureItem(AppFeature.FAVORITES, "Favorites", "Quick access to loved tracks.", Icons.Default.Favorite),
+    PremiumFeatureItem(AppFeature.RATINGS, "Ratings", "Rate tracks out of 5 stars.", Icons.Default.Star),
     PremiumFeatureItem(AppFeature.TAGS, "Tags", "Organize with custom tags.", Icons.Default.Label),
     PremiumFeatureItem(AppFeature.COLLECTIONS, "Collections", "Custom listening collections.", Icons.Default.Collections),
     PremiumFeatureItem(AppFeature.SMART_PLAYLISTS, "Smart Playlists", "Rule-based auto playlists.", Icons.Default.AutoAwesome),

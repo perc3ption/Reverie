@@ -134,7 +134,7 @@ private fun featureDescription(feature: AppFeature): String = when (feature) {
     AppFeature.METADATA_EDITING -> "Edit track titles, artists, albums, and other metadata."
     AppFeature.ALBUM_ART_EDITING -> "Set custom album art for any track or album."
     AppFeature.TAGS -> "Organize your library with custom tags."
-    AppFeature.FAVORITES -> "Mark tracks as favorites for quick access."
+    AppFeature.RATINGS -> "Rate tracks from 1 to 5 stars on Song Detail."
     AppFeature.UNLIMITED_PLAYLISTS -> "Create more than 3 playlists."
     AppFeature.LYRICS -> "View synced lyrics while listening."
     AppFeature.PLAYBACK_SCOPE -> "Control what plays and shuffles across your library."

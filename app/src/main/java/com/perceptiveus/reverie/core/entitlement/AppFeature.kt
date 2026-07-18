@@ -9,7 +9,7 @@ enum class AppFeature {
     METADATA_EDITING,
     ALBUM_ART_EDITING,
     TAGS,
-    FAVORITES,
+    RATINGS,
     UNLIMITED_PLAYLISTS,
     LYRICS,
     PLAYBACK_SCOPE,

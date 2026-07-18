@@ -86,4 +86,13 @@ class FakeMusicLibraryRepository : MusicLibraryRepository {
         _songs.value = current
         return Result.success(Unit)
     }
+
+    override suspend fun updateTrackRating(trackId: String, rating: Int): Result<Unit> {
+        val current = _songs.value.toMutableList()
+        val index = current.indexOfFirst { it.id == trackId }
+        if (index < 0) return Result.failure(IllegalArgumentException("Track not found."))
+        current[index] = current[index].copy(rating = rating.coerceIn(0, 5))
+        _songs.value = current
+        return Result.success(Unit)
+    }
 }

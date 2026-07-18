@@ -114,6 +114,9 @@ interface TrackDao {
 
     @Query("SELECT * FROM tracks WHERE id = :id LIMIT 1")
     suspend fun getById(id: String): TrackEntity?
+
+    @Query("UPDATE tracks SET rating = :rating WHERE id = :trackId")
+    suspend fun updateRating(trackId: String, rating: Int)
 }
 
 @Dao

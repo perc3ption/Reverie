@@ -71,6 +71,7 @@ class AppContainer(context: Context) {
         trackDao = database.trackDao(),
         musicIndexer = musicIndexer,
         metadataWriter = AudioMetadataWriter(),
+        featureAccessChecker = featureAccessChecker,
         scope = appScope,
     )
 

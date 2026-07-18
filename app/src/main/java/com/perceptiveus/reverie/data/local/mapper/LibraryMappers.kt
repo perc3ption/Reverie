@@ -26,7 +26,7 @@ fun TrackEntity.toDomain(): Track = Track(
     year = year,
     genre = genre,
     dateAdded = dateAdded,
-    isFavorite = isFavorite,
+    rating = rating.coerceIn(0, 5),
     folderId = folderId,
 )
 

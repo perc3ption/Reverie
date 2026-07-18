@@ -13,7 +13,8 @@ data class Track(
     val year: Int = 0,
     val genre: String = "",
     val dateAdded: Long = 0L,
-    val isFavorite: Boolean = false,
+    /** User rating 0–5; 0 means unrated. Premium feature. */
+    val rating: Int = 0,
     /** Parent folder id in the library tree; null when unknown. */
     val folderId: String? = null,
 )

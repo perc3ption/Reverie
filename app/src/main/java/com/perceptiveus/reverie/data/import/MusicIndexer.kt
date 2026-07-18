@@ -73,7 +73,7 @@ class MusicIndexer(
                     genre = metadata.genre,
                     folderId = LibraryIds.folderId(relativeFolderPath),
                     dateAdded = existing?.dateAdded ?: now,
-                    isFavorite = existing?.isFavorite ?: false,
+                    rating = existing?.rating ?: 0,
                 )
             } catch (_: Exception) {
                 skippedUnreadable++

@@ -25,13 +25,13 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -423,15 +423,15 @@ fun LibraryScreen(
                 SectionHeader(title = "Quick Access")
             }
 
-            if (!viewModel.canAccess(AppFeature.FAVORITES)) {
+            if (!viewModel.canAccess(AppFeature.RATINGS)) {
                 item {
                     LockedFeatureCard(
-                        title = "Favorites",
-                        description = "128 songs",
-                        icon = Icons.Default.Favorite,
+                        title = "Ratings",
+                        description = "Rate tracks out of 5 stars",
+                        icon = Icons.Default.Star,
                         modifier = Modifier.padding(horizontal = 16.dp),
                         onClick = {
-                            lockedFeature = AppFeature.FAVORITES
+                            lockedFeature = AppFeature.RATINGS
                             showUpgradeDialog = true
                         },
                     )

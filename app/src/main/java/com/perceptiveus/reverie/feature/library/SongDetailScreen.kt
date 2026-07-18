@@ -28,6 +28,8 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -60,6 +62,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.perceptiveus.reverie.core.design.components.AlbumArt
+import com.perceptiveus.reverie.core.design.components.PremiumBadge
 import com.perceptiveus.reverie.core.design.components.RetroScreenTitle
 import com.perceptiveus.reverie.core.entitlement.AppFeature
 import com.perceptiveus.reverie.domain.model.Playlist
@@ -96,6 +99,7 @@ fun SongDetailScreen(
     var upgradeFeature by remember { mutableStateOf<AppFeature?>(null) }
     val canAccessTags = viewModel.canAccessTags()
     val canAccessLyrics = viewModel.canAccessLyrics()
+    val canAccessRatings = viewModel.canAccessRatings()
 
     val pickLyricsFile = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
@@ -215,8 +219,16 @@ fun SongDetailScreen(
             item {
                     SongHeader(
                         track = current,
+                        canAccessRatings = canAccessRatings,
                         onPlay = viewModel::play,
                         onAddToQueue = viewModel::addToQueue,
+                        onRatingClick = { rating ->
+                            if (canAccessRatings) {
+                                viewModel.setRating(rating)
+                            } else {
+                                upgradeFeature = AppFeature.RATINGS
+                            }
+                        },
                     )
             }
 
@@ -289,8 +301,10 @@ fun SongDetailScreen(
 @Composable
 private fun SongHeader(
     track: Track,
+    canAccessRatings: Boolean,
     onPlay: () -> Unit,
     onAddToQueue: () -> Unit,
+    onRatingClick: (Int) -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -330,6 +344,12 @@ private fun SongHeader(
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
         )
+        Spacer(modifier = Modifier.height(12.dp))
+        SongRatingRow(
+            rating = track.rating,
+            canAccess = canAccessRatings,
+            onRatingClick = onRatingClick,
+        )
         Spacer(modifier = Modifier.height(16.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -362,6 +382,59 @@ private fun SongHeader(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun SongRatingRow(
+    rating: Int,
+    canAccess: Boolean,
+    onRatingClick: (Int) -> Unit,
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                text = "Rating",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (!canAccess) {
+                PremiumBadge()
+            }
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            for (star in 1..5) {
+                val filled = star <= rating
+                IconButton(
+                    onClick = { onRatingClick(star) },
+                    modifier = Modifier.size(40.dp),
+                ) {
+                    Icon(
+                        imageVector = if (filled) Icons.Default.Star else Icons.Default.StarBorder,
+                        contentDescription = "Rate $star of 5",
+                        tint = if (filled) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
+            }
+        }
+        Text(
+            text = when {
+                !canAccess -> "Premium · rate your tracks"
+                rating > 0 -> "$rating of 5"
+                else -> "Tap a star to rate"
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -449,7 +522,10 @@ private fun MetadataSection(
             value = track.genre.ifBlank { "-" },
         )
         MetadataRow(label = "Duration", value = formatDuration(track.durationMs))
-        MetadataRow(label = "Favorite", value = if (track.isFavorite) "Yes" else "No")
+        MetadataRow(
+            label = "Rating",
+            value = if (track.rating > 0) "${track.rating} / 5" else "Unrated",
+        )
         if (track.dateAdded > 0L) {
             MetadataRow(label = "Date added", value = formatDateAdded(track.dateAdded))
         }

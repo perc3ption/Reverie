@@ -16,6 +16,7 @@ import com.perceptiveus.reverie.data.repository.MusicLibraryRepository
 import com.perceptiveus.reverie.data.repository.PlaybackRepository
 import com.perceptiveus.reverie.data.repository.PlaylistLimitException
 import com.perceptiveus.reverie.data.repository.PlaylistRepository
+import com.perceptiveus.reverie.data.repository.RatingAccessException
 import com.perceptiveus.reverie.data.repository.SongTagRepository
 import com.perceptiveus.reverie.data.repository.TagAccessException
 import com.perceptiveus.reverie.domain.model.LyricsDocument
@@ -116,6 +117,37 @@ class SongDetailViewModel(
         }
     }
 
+    fun setRating(rating: Int) {
+        if (!canAccessRatings()) {
+            viewModelScope.launch {
+                _userMessages.emit("Ratings are a Premium feature.")
+            }
+            return
+        }
+        val current = track.value ?: return
+        val next = when {
+            rating !in 1..5 -> 0
+            rating == current.rating -> 0 // tap same star to clear
+            else -> rating
+        }
+        viewModelScope.launch {
+            musicLibraryRepository.updateTrackRating(trackId, next)
+                .onSuccess {
+                    _userMessages.emit(
+                        if (next == 0) "Rating cleared." else "Rated $next of 5.",
+                    )
+                }
+                .onFailure { error ->
+                    _userMessages.emit(
+                        when (error) {
+                            RatingAccessException -> "Ratings are a Premium feature."
+                            else -> error.message ?: "Could not save rating."
+                        },
+                    )
+                }
+        }
+    }
+
     fun saveMetadata(
         title: String,
         artist: String,
@@ -152,6 +184,8 @@ class SongDetailViewModel(
     fun canAccessTags(): Boolean = featureAccessChecker.canAccess(AppFeature.TAGS)
 
     fun canAccessLyrics(): Boolean = featureAccessChecker.canAccess(AppFeature.LYRICS)
+
+    fun canAccessRatings(): Boolean = featureAccessChecker.canAccess(AppFeature.RATINGS)
 
     fun addTag(name: String) {
         viewModelScope.launch {

@@ -1,5 +1,7 @@
 package com.perceptiveus.reverie.data.repository
 
+import com.perceptiveus.reverie.core.entitlement.AppFeature
+import com.perceptiveus.reverie.core.entitlement.FeatureAccessChecker
 import com.perceptiveus.reverie.data.import.AudioMetadataWriter
 import com.perceptiveus.reverie.data.import.EditableTrackMetadata
 import com.perceptiveus.reverie.data.import.MusicIndexer
@@ -25,6 +27,7 @@ class RoomMusicLibraryRepository(
     private val trackDao: TrackDao,
     private val musicIndexer: MusicIndexer,
     private val metadataWriter: AudioMetadataWriter,
+    private val featureAccessChecker: FeatureAccessChecker,
     scope: CoroutineScope,
 ) : MusicLibraryRepository {
 
@@ -83,4 +86,19 @@ class RoomMusicLibraryRepository(
             )
         }
     }
+
+    override suspend fun updateTrackRating(
+        trackId: String,
+        rating: Int,
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        if (!featureAccessChecker.canAccess(AppFeature.RATINGS)) {
+            return@withContext Result.failure(RatingAccessException)
+        }
+        runCatching {
+            trackDao.getById(trackId) ?: error("Track not found.")
+            trackDao.updateRating(trackId, rating.coerceIn(0, 5))
+        }
+    }
 }
+
+object RatingAccessException : Exception("Ratings are a Premium feature.")

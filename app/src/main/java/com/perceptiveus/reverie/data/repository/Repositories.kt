@@ -28,6 +28,12 @@ interface MusicLibraryRepository {
      * Changes persist if the file is later copied outside the app.
      */
     suspend fun updateTrackMetadata(trackId: String, metadata: EditableTrackMetadata): Result<Unit>
+
+    /**
+     * Sets the track rating (0–5). 0 clears the rating.
+     * Premium-gated via [com.perceptiveus.reverie.core.entitlement.AppFeature.RATINGS].
+     */
+    suspend fun updateTrackRating(trackId: String, rating: Int): Result<Unit>
 }
 
 /** Playback state backed by Media3 ExoPlayer via [com.perceptiveus.reverie.playback.PlaybackService]. */

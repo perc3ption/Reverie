@@ -27,8 +27,8 @@ Status key: **Done** · **Partial** · **Planned**
 | Free-tier limits | Done | Max **500** songs, **3** playlists |
 | Search | Done | Shared Search screen from Home / Library; songs, artists, albums, playlists, folders |
 | Album art display | Done | Embedded + folder covers cached on disk; Coil in UI |
-| Play from album / artist / folder | Planned | |
-| Queue UI (“next up” management) | Done | Queue sheet: tap to play, session mute, reorder (up/down), add to queue from Library / Search / Song Detail |
+| Play from album / artist / folder | Done | Play song or Play All from folder / artist / album browsers |
+| Queue UI (“next up” management) | Done | Queue sheet: tap to play, session mute, reorder (up/down); Add to Queue from Library / Search / Song Detail |
 
 ## Premium
 
@@ -38,15 +38,15 @@ Gated via `AppFeature` / `FeatureAccessChecker`. Entitlements are currently a **
 | --- | --- | --- |
 | Unlimited Library | Partial (gate only) | No 500-song import limit |
 | Unlimited Playlists | Partial (gate only) | Beyond the 3-playlist free limit |
-| Favorites | Planned | Mark/loved tracks for quick access |
-| Tags | Planned | Custom tags to organize the library |
+| Song Ratings | Done | Premium: 1–5 stars on Song Detail; tap same star to clear; replaces Favorites |
+| Tags | Partial | Add/remove tags on Song Detail; Library browse still stubbed |
 | Collections | Planned | Custom listening collections |
 | Smart Playlists | Planned | Rule-based playlists that update automatically |
 | Playback Scope | Planned | Control what plays and shuffles across the library |
 | Advanced Visualizers | Done | Scope, Radial, VU, Starburst skins |
 | Advanced Search | Planned | Filters and saved searches |
 | Lyrics | Done | Sidecar `.lrc` / `.txt`; import via + on empty Lyrics tab; synced highlight |
-| Metadata Editing | Planned | Edit title, artist, album, etc. |
+| Metadata Editing | Partial | Edit title/artist/album/year/genre on Song Detail; writes to file + Room |
 | Album Art Editing | Planned | Set custom cover art |
 | Library Stats | Planned | Collection insights and statistics |
 | Play Billing purchase / restore | Planned | Replace mock premium toggle |

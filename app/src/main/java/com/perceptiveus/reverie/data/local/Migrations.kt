@@ -112,3 +112,47 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
         )
     }
 }
+
+/** Replace isFavorite with rating (0–5); former favorites become 5 stars. */
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS tracks_new (
+                id TEXT NOT NULL PRIMARY KEY,
+                title TEXT NOT NULL,
+                artist TEXT NOT NULL,
+                album TEXT NOT NULL,
+                durationMs INTEGER NOT NULL,
+                filePath TEXT NOT NULL,
+                artworkPath TEXT NOT NULL,
+                year INTEGER NOT NULL,
+                genre TEXT NOT NULL,
+                folderId TEXT,
+                dateAdded INTEGER NOT NULL,
+                rating INTEGER NOT NULL,
+                FOREIGN KEY(folderId) REFERENCES music_folders(id) ON DELETE SET NULL
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            """
+            INSERT INTO tracks_new (
+                id, title, artist, album, durationMs, filePath, artworkPath,
+                year, genre, folderId, dateAdded, rating
+            )
+            SELECT
+                id, title, artist, album, durationMs, filePath, artworkPath,
+                year, genre, folderId, dateAdded,
+                CASE WHEN isFavorite = 1 THEN 5 ELSE 0 END
+            FROM tracks
+            """.trimIndent(),
+        )
+        db.execSQL("DROP TABLE tracks")
+        db.execSQL("ALTER TABLE tracks_new RENAME TO tracks")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_tracks_folderId ON tracks(folderId)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_tracks_artist ON tracks(artist)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_tracks_album ON tracks(album)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_tracks_filePath ON tracks(filePath)")
+    }
+}

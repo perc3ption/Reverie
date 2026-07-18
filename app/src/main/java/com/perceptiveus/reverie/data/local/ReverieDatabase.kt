@@ -30,7 +30,7 @@ import com.perceptiveus.reverie.data.local.entity.UserSettingsEntity
         PlayHistoryEntity::class,
         UserSettingsEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = false,
 )
 abstract class ReverieDatabase : RoomDatabase() {
@@ -61,6 +61,7 @@ abstract class ReverieDatabase : RoomDatabase() {
                     MIGRATION_4_5,
                     MIGRATION_5_6,
                     MIGRATION_6_7,
+                    MIGRATION_7_8,
                 )
                     .build().also { instance = it }
             }
