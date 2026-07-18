@@ -52,102 +52,94 @@ fun HomeNowPlayingCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier.fillMaxWidth()) {
-        Text(
-            text = "•  NOW PLAYING",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-        )
-        Surface(
-            onClick = onClick,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant,
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(verticalAlignment = Alignment.Top) {
-                    AlbumArt(
-                        artworkPath = track?.artworkPath,
-                        modifier = Modifier.size(88.dp),
-                        contentDescription = track?.title,
+    Surface(
+        onClick = onClick,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.Top) {
+                AlbumArt(
+                    artworkPath = track?.artworkPath,
+                    modifier = Modifier.size(88.dp),
+                    contentDescription = track?.title,
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = track?.title ?: "Nothing playing",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = track?.artist ?: "Pick a track to start",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (track != null) {
                         Text(
-                            text = track?.title ?: "Nothing playing",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            text = track.album,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            text = track?.artist ?: "Pick a track to start",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        if (track != null) {
-                            Text(
-                                text = track.album,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-                    IconButton(onClick = { /* TODO: track options */ }) {
-                        Icon(
-                            Icons.Default.MoreVert,
-                            contentDescription = "More",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
+                IconButton(onClick = { /* TODO: track options */ }) {
+                    Icon(
+                        Icons.Default.MoreVert,
+                        contentDescription = "More",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
 
-                Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-                val durationMs = track?.durationMs?.coerceAtLeast(1L) ?: 1L
-                HomeSeekBar(
-                    positionMs = if (track != null) positionMs else 0L,
-                    durationMs = if (track != null) durationMs else 1L,
+            val durationMs = track?.durationMs?.coerceAtLeast(1L) ?: 1L
+            HomeSeekBar(
+                positionMs = if (track != null) positionMs else 0L,
+                durationMs = if (track != null) durationMs else 1L,
+                enabled = track != null,
+                onSeek = onSeek,
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = onPrevious, enabled = track != null) {
+                    Icon(Icons.Default.SkipPrevious, contentDescription = "Previous")
+                }
+                Surface(
+                    onClick = onPlayPause,
                     enabled = track != null,
-                    onSeek = onSeek,
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically,
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+                    modifier = Modifier.size(56.dp),
                 ) {
-                    IconButton(onClick = onPrevious, enabled = track != null) {
-                        Icon(Icons.Default.SkipPrevious, contentDescription = "Previous")
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (isPlaying) "Pause" else "Play",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(32.dp),
+                        )
                     }
-                    Surface(
-                        onClick = onPlayPause,
-                        enabled = track != null,
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
-                        modifier = Modifier.size(56.dp),
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                contentDescription = if (isPlaying) "Pause" else "Play",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(32.dp),
-                            )
-                        }
-                    }
-                    IconButton(onClick = onNext, enabled = track != null) {
-                        Icon(Icons.Default.SkipNext, contentDescription = "Next")
-                    }
+                }
+                IconButton(onClick = onNext, enabled = track != null) {
+                    Icon(Icons.Default.SkipNext, contentDescription = "Next")
                 }
             }
         }

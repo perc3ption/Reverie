@@ -42,6 +42,7 @@ import com.perceptiveus.reverie.core.settings.AppThemePreference
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
+    onNavigateToPremium: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val displayName by viewModel.displayName.collectAsState()
@@ -89,6 +90,19 @@ fun SettingsScreen(
                 isPremium = entitlements.isPremium,
                 onToggleForTesting = viewModel::togglePremiumForTesting,
             )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = onNavigateToPremium,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+            ) {
+                Icon(Icons.Default.Star, contentDescription = null)
+                Spacer(modifier = Modifier.padding(4.dp))
+                Text(
+                    if (entitlements.isPremium) "View Premium Features" else "Explore Premium Features",
+                )
+            }
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedButton(
                 onClick = {

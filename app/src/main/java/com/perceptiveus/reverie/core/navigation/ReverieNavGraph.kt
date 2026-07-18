@@ -189,7 +189,12 @@ fun ReverieNavGraph(
 
         composable(ReverieDestination.Settings.route) {
             val viewModel: SettingsViewModel = viewModel(factory = factory)
-            SettingsScreen(viewModel = viewModel)
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateToPremium = {
+                    navController.navigate(ReverieDestination.PremiumFeatures.route)
+                },
+            )
         }
 
         composable(ReverieDestination.ImportMusic.route) {

@@ -96,7 +96,6 @@ fun HomeScreen(
             QuickAccessGrid(
                 onImportClick = onNavigateToImport,
                 onLibraryClick = onNavigateToLibrary,
-                onPremiumClick = onNavigateToPremium,
             )
         }
         if (!isPremium) {
@@ -188,7 +187,6 @@ private fun RecentlyPlayedRow(
 private fun QuickAccessGrid(
     onImportClick: () -> Unit,
     onLibraryClick: () -> Unit,
-    onPremiumClick: () -> Unit,
 ) {
     Column(
         modifier = Modifier.padding(horizontal = 16.dp),
@@ -210,22 +208,13 @@ private fun QuickAccessGrid(
                 onClick = onLibraryClick,
             )
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            QuickAccessCard(
-                title = "Playlists",
-                description = "Your playlists and mixes",
-                icon = Icons.Default.LibraryMusic,
-                modifier = Modifier.weight(1f),
-                onClick = onLibraryClick,
-            )
-            QuickAccessCard(
-                title = "Premium Features",
-                description = "Unlock advanced tools",
-                icon = Icons.Default.Star,
-                modifier = Modifier.weight(1f),
-                onClick = onPremiumClick,
-            )
-        }
+        QuickAccessCard(
+            title = "Playlists",
+            description = "Your playlists and mixes",
+            icon = Icons.Default.LibraryMusic,
+            modifier = Modifier.fillMaxWidth(),
+            onClick = onLibraryClick,
+        )
     }
 }
 
