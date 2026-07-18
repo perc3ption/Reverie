@@ -20,6 +20,8 @@ import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Person
@@ -58,6 +60,7 @@ fun QueueSheet(
     onDismiss: () -> Unit,
     onTrackSelected: (Int) -> Unit,
     onToggleTrackEnabled: (String) -> Unit = {},
+    onMoveTrack: (fromIndex: Int, toIndex: Int) -> Unit = { _, _ -> },
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val listState = rememberLazyListState()
@@ -110,8 +113,12 @@ fun QueueSheet(
                             isCurrent = index == currentIndex,
                             isDisabled = isDisabled,
                             canToggleOff = enabledCount > 1,
+                            canMoveUp = index > 0,
+                            canMoveDown = index < queue.lastIndex,
                             onClick = { onTrackSelected(index) },
                             onToggleEnabled = { onToggleTrackEnabled(track.id) },
+                            onMoveUp = { onMoveTrack(index, index - 1) },
+                            onMoveDown = { onMoveTrack(index, index + 1) },
                         )
                     }
                 }
@@ -286,8 +293,12 @@ private fun QueueSongRow(
     isCurrent: Boolean,
     isDisabled: Boolean,
     canToggleOff: Boolean,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
     onClick: () -> Unit,
     onToggleEnabled: () -> Unit,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit,
 ) {
     val contentAlpha = if (isDisabled) 0.45f else 1f
     Surface(
@@ -301,16 +312,52 @@ private fun QueueSongRow(
     ) {
         Row(
             modifier = Modifier
-                .padding(start = 12.dp, end = 4.dp, top = 6.dp, bottom = 6.dp)
+                .padding(start = 4.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)
                 .alpha(contentAlpha),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = "${index + 1}",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.width(28.dp),
-            )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.width(36.dp),
+            ) {
+                IconButton(
+                    onClick = onMoveUp,
+                    enabled = canMoveUp,
+                    modifier = Modifier.size(28.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowUp,
+                        contentDescription = "Move up",
+                        modifier = Modifier.size(18.dp),
+                        tint = if (canMoveUp) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                        },
+                    )
+                }
+                Text(
+                    text = "${index + 1}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                IconButton(
+                    onClick = onMoveDown,
+                    enabled = canMoveDown,
+                    modifier = Modifier.size(28.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowDown,
+                        contentDescription = "Move down",
+                        modifier = Modifier.size(18.dp),
+                        tint = if (canMoveDown) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                        },
+                    )
+                }
+            }
             if (track.artworkPath.isNotBlank()) {
                 AlbumArt(
                     artworkPath = track.artworkPath,

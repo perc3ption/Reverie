@@ -127,6 +127,7 @@ fun PlayerScreen(
                 showQueueSheet = false
             },
             onToggleTrackEnabled = viewModel::toggleQueueTrackEnabled,
+            onMoveTrack = viewModel::moveQueueItem,
         )
     }
 

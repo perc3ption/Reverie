@@ -46,6 +46,10 @@ interface PlaybackRepository {
      * Does not change playlists or library membership.
      */
     fun toggleQueueTrackEnabled(trackId: String)
+    /** Append tracks to the end of the queue without interrupting playback. */
+    fun addToQueue(tracks: List<Track>)
+    /** Reorder an item within the active queue; keeps the current track playing. */
+    fun moveQueueItem(fromIndex: Int, toIndex: Int)
     fun togglePlayPause()
     fun skipToNext()
     fun skipToPrevious()

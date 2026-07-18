@@ -28,7 +28,7 @@ Status key: **Done** · **Partial** · **Planned**
 | Search | Done | Shared Search screen from Home / Library; songs, artists, albums, playlists, folders |
 | Album art display | Done | Embedded + folder covers cached on disk; Coil in UI |
 | Play from album / artist / folder | Planned | |
-| Queue UI (“next up” management) | Partial | Tap Up Next strip → queue sheet; tap song to play |
+| Queue UI (“next up” management) | Done | Queue sheet: tap to play, session mute, reorder (up/down), add to queue from Library / Search / Song Detail |
 
 ## Premium
 

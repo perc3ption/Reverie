@@ -14,8 +14,12 @@ import com.perceptiveus.reverie.domain.model.Track
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 data class SearchResults(
     /** Raw text-field value (not trimmed). */
@@ -43,6 +47,8 @@ class SearchViewModel(
 
     private val library = musicLibraryRepository
     private val _query = MutableStateFlow("")
+    private val _userMessages = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val userMessages: SharedFlow<String> = _userMessages.asSharedFlow()
 
     private val librarySnapshot = combine(
         _query,
@@ -131,6 +137,13 @@ class SearchViewModel(
         if (queue.isEmpty()) return false
         playbackRepository.play(queue, 0, QueueSource.Folder(folder.name))
         return true
+    }
+
+    fun addToQueue(track: Track) {
+        playbackRepository.addToQueue(listOf(track))
+        viewModelScope.launch {
+            _userMessages.emit("Added to queue")
+        }
     }
 
     private fun artworkFrom(tracks: List<Track>): String =

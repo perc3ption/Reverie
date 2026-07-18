@@ -65,6 +65,8 @@ class PlayerViewModel(
     fun playQueueIndex(index: Int) = playbackRepository.playQueueIndex(index)
     fun toggleQueueTrackEnabled(trackId: String) =
         playbackRepository.toggleQueueTrackEnabled(trackId)
+    fun moveQueueItem(fromIndex: Int, toIndex: Int) =
+        playbackRepository.moveQueueItem(fromIndex, toIndex)
 
     fun canAccessAdvancedVisualizers(): Boolean =
         featureAccessChecker.canAccess(AppFeature.ADVANCED_VISUALIZERS)

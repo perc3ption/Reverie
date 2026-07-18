@@ -108,6 +108,14 @@ class SongDetailViewModel(
         playbackRepository.play(allSongs, index, QueueSource.Library)
     }
 
+    fun addToQueue() {
+        val current = track.value ?: return
+        playbackRepository.addToQueue(listOf(current))
+        viewModelScope.launch {
+            _userMessages.emit("Added to queue")
+        }
+    }
+
     fun saveMetadata(
         title: String,
         artist: String,

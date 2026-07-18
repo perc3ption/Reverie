@@ -213,10 +213,11 @@ fun SongDetailScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             item {
-                SongHeader(
-                    track = current,
-                    onPlay = viewModel::play,
-                )
+                    SongHeader(
+                        track = current,
+                        onPlay = viewModel::play,
+                        onAddToQueue = viewModel::addToQueue,
+                    )
             }
 
             item {
@@ -289,6 +290,7 @@ fun SongDetailScreen(
 private fun SongHeader(
     track: Track,
     onPlay: () -> Unit,
+    onAddToQueue: () -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -329,21 +331,36 @@ private fun SongHeader(
             modifier = Modifier.fillMaxWidth(),
         )
         Spacer(modifier = Modifier.height(16.dp))
-        Button(
-            onClick = onPlay,
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Icon(
-                Icons.Default.PlayArrow,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
-            )
-            Spacer(modifier = Modifier.size(6.dp))
-            Text(
-                text = "Play",
-                style = MaterialTheme.typography.labelLarge,
-            )
+            Button(
+                onClick = onPlay,
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
+            ) {
+                Icon(
+                    Icons.Default.PlayArrow,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.size(6.dp))
+                Text(
+                    text = "Play",
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
+            OutlinedButton(
+                onClick = onAddToQueue,
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
+            ) {
+                Text(
+                    text = "Add to Queue",
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
         }
     }
 }

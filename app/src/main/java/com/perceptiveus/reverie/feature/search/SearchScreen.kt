@@ -1,6 +1,7 @@
 package com.perceptiveus.reverie.feature.search
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -19,15 +20,20 @@ import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -36,7 +42,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -51,6 +59,7 @@ import com.perceptiveus.reverie.domain.model.Artist
 import com.perceptiveus.reverie.domain.model.MusicFolder
 import com.perceptiveus.reverie.domain.model.Playlist
 import com.perceptiveus.reverie.domain.model.Track
+import kotlinx.coroutines.flow.collectLatest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,9 +73,16 @@ fun SearchScreen(
 ) {
     val results by viewModel.results.collectAsState()
     val focusRequester = remember { FocusRequester() }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
+    }
+
+    LaunchedEffect(viewModel) {
+        viewModel.userMessages.collectLatest { message ->
+            snackbarHostState.showSnackbar(message)
+        }
     }
 
     Scaffold(
@@ -84,6 +100,7 @@ fun SearchScreen(
                 ),
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
         Column(
@@ -149,6 +166,7 @@ fun SearchScreen(
                                         onNavigateToPlayer()
                                     },
                                     onDetailsClick = { onSongDetailsClick(track) },
+                                    onAddToQueue = { viewModel.addToQueue(track) },
                                 )
                             }
                         }
@@ -212,7 +230,9 @@ private fun SearchSongRow(
     track: Track,
     onClick: () -> Unit,
     onDetailsClick: () -> Unit,
+    onAddToQueue: () -> Unit,
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -254,12 +274,33 @@ private fun SearchSongRow(
                 }
             }
         }
-        IconButton(onClick = onDetailsClick) {
-            Icon(
-                Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = "Song details",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        Box {
+            IconButton(onClick = { menuExpanded = true }) {
+                Icon(
+                    Icons.Default.MoreVert,
+                    contentDescription = "Song options",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false },
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Song details") },
+                    onClick = {
+                        menuExpanded = false
+                        onDetailsClick()
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text("Add to queue") },
+                    onClick = {
+                        menuExpanded = false
+                        onAddToQueue()
+                    },
+                )
+            }
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.perceptiveus.reverie.feature.library
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -34,6 +35,8 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -199,6 +202,7 @@ fun LibraryScreen(
                                         track = track,
                                         onClick = { viewModel.playSong(track) },
                                         onDetailsClick = { onSongDetailsClick(track) },
+                                        onAddToQueue = { viewModel.addToQueue(track) },
                                     )
                                 }
                             }
@@ -287,6 +291,7 @@ fun LibraryScreen(
                                 track = track,
                                 onClick = { viewModel.playSongInFolder(track) },
                                 onDetailsClick = { onSongDetailsClick(track) },
+                                onAddToQueue = { viewModel.addToQueue(track) },
                             )
                         }
                     }
@@ -324,6 +329,7 @@ fun LibraryScreen(
                                     track = track,
                                     onClick = { viewModel.playSongByArtist(track) },
                                     onDetailsClick = { onSongDetailsClick(track) },
+                                    onAddToQueue = { viewModel.addToQueue(track) },
                                 )
                             }
                         }
@@ -383,6 +389,7 @@ fun LibraryScreen(
                                     track = track,
                                     onClick = { viewModel.playSongInAlbum(track) },
                                     onDetailsClick = { onSongDetailsClick(track) },
+                                    onAddToQueue = { viewModel.addToQueue(track) },
                                 )
                             }
                         }
@@ -756,7 +763,9 @@ private fun SongListItem(
     track: Track,
     onClick: () -> Unit,
     onDetailsClick: () -> Unit,
+    onAddToQueue: () -> Unit,
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -808,12 +817,33 @@ private fun SongListItem(
                 }
             }
         }
-        IconButton(onClick = onDetailsClick) {
-            Icon(
-                Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = "Song details",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        Box {
+            IconButton(onClick = { menuExpanded = true }) {
+                Icon(
+                    Icons.Default.MoreVert,
+                    contentDescription = "Song options",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false },
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Song details") },
+                    onClick = {
+                        menuExpanded = false
+                        onDetailsClick()
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text("Add to queue") },
+                    onClick = {
+                        menuExpanded = false
+                        onAddToQueue()
+                    },
+                )
+            }
         }
     }
 }

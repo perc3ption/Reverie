@@ -111,25 +111,34 @@ class Media3PlaybackRepository(
         source: QueueSource,
     ) {
         val intended = tracks.getOrNull(startIndex.coerceIn(0, tracks.lastIndex.coerceAtLeast(0)))
-        val playable = tracks.filter { it.filePath.isNotBlank() && File(it.filePath).exists() }
+        val playable = tracks.filterPlayable()
         if (playable.isEmpty()) return
         val index = intended?.let { target ->
             playable.indexOfFirst { it.id == target.id }
         }?.takeIf { it >= 0 } ?: 0
 
         runWhenReady {
-            queue = playable
-            queueSource = source
-            disabledTrackIds = emptySet()
-            lastRecordedTrackId = null
-            val mediaItems = playable.map { it.toMediaItem() }
-            val player = controller ?: return@runWhenReady
-            player.setMediaItems(mediaItems, index, /* startPositionMs = */ 0L)
-            player.prepare()
-            player.play()
-            syncFromPlayer(player)
-            maybeRecordPlayHistory(player)
+            playInternal(playable, startIndex = index, source = source)
         }
+    }
+
+    private fun playInternal(
+        playable: List<Track>,
+        startIndex: Int,
+        source: QueueSource,
+    ) {
+        queue = playable
+        queueSource = source
+        disabledTrackIds = emptySet()
+        lastRecordedTrackId = null
+        val mediaItems = playable.map { it.toMediaItem() }
+        val player = controller ?: return
+        val index = startIndex.coerceIn(0, playable.lastIndex)
+        player.setMediaItems(mediaItems, index, /* startPositionMs = */ 0L)
+        player.prepare()
+        player.play()
+        syncFromPlayer(player)
+        maybeRecordPlayHistory(player)
     }
 
     override fun playQueueIndex(index: Int) {
@@ -169,6 +178,37 @@ class Media3PlaybackRepository(
                 seekToNextEnabled(player)
             }
             if (player != null) syncFromPlayer(player)
+        }
+    }
+
+    override fun addToQueue(tracks: List<Track>) {
+        val playable = tracks.filterPlayable()
+        if (playable.isEmpty()) return
+        runWhenReady {
+            val player = controller ?: return@runWhenReady
+            if (queue.isEmpty() || player.mediaItemCount == 0) {
+                playInternal(playable, startIndex = 0, source = QueueSource.Unknown)
+                return@runWhenReady
+            }
+            player.addMediaItems(playable.map { it.toMediaItem() })
+            queue = queue + playable
+            syncFromPlayer(player)
+        }
+    }
+
+    override fun moveQueueItem(fromIndex: Int, toIndex: Int) {
+        if (fromIndex == toIndex) return
+        runWhenReady {
+            val player = controller ?: return@runWhenReady
+            if (fromIndex !in queue.indices || toIndex !in queue.indices) return@runWhenReady
+            if (fromIndex !in 0 until player.mediaItemCount) return@runWhenReady
+            if (toIndex !in 0 until player.mediaItemCount) return@runWhenReady
+            player.moveMediaItem(fromIndex, toIndex)
+            queue = queue.toMutableList().also { list ->
+                val item = list.removeAt(fromIndex)
+                list.add(toIndex, item)
+            }
+            syncFromPlayer(player)
         }
     }
 
@@ -391,6 +431,9 @@ class Media3PlaybackRepository(
             )
             .build()
     }
+
+    private fun List<Track>.filterPlayable(): List<Track> =
+        filter { it.filePath.isNotBlank() && File(it.filePath).exists() }
 
     private fun MediaItem.toTrackFallback(): Track {
         val meta = mediaMetadata

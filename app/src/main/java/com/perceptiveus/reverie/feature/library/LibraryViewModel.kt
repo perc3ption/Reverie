@@ -203,6 +203,13 @@ class LibraryViewModel(
         playbackRepository.play(allSongs, index, QueueSource.Library)
     }
 
+    fun addToQueue(track: Track) {
+        playbackRepository.addToQueue(listOf(track))
+        viewModelScope.launch {
+            _userMessages.emit("Added to queue")
+        }
+    }
+
     fun playSongInFolder(track: Track) {
         val folder = folderBrowser.value
         val folderSongs = folder.songs
