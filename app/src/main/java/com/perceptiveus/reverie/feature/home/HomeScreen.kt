@@ -46,6 +46,7 @@ fun HomeScreen(
     onNavigateToLibrary: () -> Unit,
     onNavigateToPlayer: () -> Unit,
     onNavigateToPremium: () -> Unit,
+    onNavigateToSearch: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val recentlyPlayed by viewModel.recentlyPlayed.collectAsState()
@@ -59,7 +60,7 @@ fun HomeScreen(
         contentPadding = PaddingValues(bottom = 16.dp),
     ) {
         item {
-            HomeHeader(onSearchClick = { /* TODO: Basic search */ })
+            HomeHeader(onSearchClick = onNavigateToSearch)
         }
         item {
             Spacer(modifier = Modifier.height(4.dp))

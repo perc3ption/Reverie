@@ -25,6 +25,8 @@ import com.perceptiveus.reverie.feature.library.SongDetailViewModel
 import com.perceptiveus.reverie.feature.player.PlayerScreen
 import com.perceptiveus.reverie.feature.player.PlayerViewModel
 import com.perceptiveus.reverie.feature.premium.PremiumFeaturesScreen
+import com.perceptiveus.reverie.feature.search.SearchScreen
+import com.perceptiveus.reverie.feature.search.SearchViewModel
 import com.perceptiveus.reverie.feature.settings.SettingsScreen
 import com.perceptiveus.reverie.feature.settings.SettingsViewModel
 import kotlinx.coroutines.launch
@@ -72,6 +74,11 @@ fun ReverieNavGraph(
                 onNavigateToPremium = {
                     navController.navigate(ReverieDestination.PremiumFeatures.route)
                 },
+                onNavigateToSearch = {
+                    navController.navigate(ReverieDestination.Search.route) {
+                        launchSingleTop = true
+                    }
+                },
             )
         }
 
@@ -82,6 +89,34 @@ fun ReverieNavGraph(
                 onPremiumFeatureClick = {
                     navController.navigate(ReverieDestination.PremiumFeatures.route)
                 },
+                onSongDetailsClick = { track ->
+                    navController.navigate(ReverieDestination.SongDetail.createRoute(track.id))
+                },
+                onPlaylistClick = { playlist ->
+                    navController.navigate(ReverieDestination.PlaylistDetail.createRoute(playlist.id))
+                },
+                onNavigateToPlayer = {
+                    navController.navigate(ReverieDestination.Player.route) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+                onNavigateToSearch = {
+                    navController.navigate(ReverieDestination.Search.route) {
+                        launchSingleTop = true
+                    }
+                },
+            )
+        }
+
+        composable(ReverieDestination.Search.route) {
+            val viewModel: SearchViewModel = viewModel(factory = factory)
+            SearchScreen(
+                viewModel = viewModel,
+                onNavigateBack = { navController.navigateUp() },
                 onSongDetailsClick = { track ->
                     navController.navigate(ReverieDestination.SongDetail.createRoute(track.id))
                 },

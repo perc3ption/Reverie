@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -78,6 +79,7 @@ fun LibraryScreen(
     onSongDetailsClick: (Track) -> Unit,
     onPlaylistClick: (Playlist) -> Unit,
     onNavigateToPlayer: () -> Unit,
+    onNavigateToSearch: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(LibraryTab.PLAYLISTS) }
@@ -139,13 +141,13 @@ fun LibraryScreen(
         modifier = modifier.fillMaxSize(),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background,
-    ) { padding ->
+        // Outer app Scaffold already applies system insets; don't add a second top gap.
+        contentWindowInsets = WindowInsets(0.dp),
+    ) { _ ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
+            modifier = Modifier.fillMaxSize(),
         ) {
-            LibraryTopBar()
+            LibraryTopBar(onSearchClick = onNavigateToSearch)
             TabRow(
                 selectedTabIndex = selectedTab.ordinal,
                 containerColor = MaterialTheme.colorScheme.background,
@@ -817,7 +819,7 @@ private fun SongListItem(
 }
 
 @Composable
-private fun LibraryTopBar() {
+private fun LibraryTopBar(onSearchClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -827,7 +829,7 @@ private fun LibraryTopBar() {
     ) {
         RetroScreenTitle(title = "Library")
         Row {
-            IconButton(onClick = { /* TODO: Basic search */ }) {
+            IconButton(onClick = onSearchClick) {
                 Icon(Icons.Default.Search, contentDescription = "Search")
             }
             IconButton(onClick = { }) {

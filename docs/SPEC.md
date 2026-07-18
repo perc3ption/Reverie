@@ -25,7 +25,7 @@ Status key: **Done** · **Partial** · **Planned**
 | Playlists | Done | Library Playlists tab; All Songs; create/delete; detail add/remove; description + cover |
 | Theme (system / light / dark) | Done | Settings |
 | Free-tier limits | Done | Max **500** songs, **3** playlists |
-| Search | Planned | Basic search TODOs on Home / Library |
+| Search | Done | Shared Search screen from Home / Library; songs, artists, albums, playlists, folders |
 | Album art display | Done | Embedded + folder covers cached on disk; Coil in UI |
 | Play from album / artist / folder | Planned | |
 | Queue UI (“next up” management) | Partial | Tap Up Next strip → queue sheet; tap song to play |
