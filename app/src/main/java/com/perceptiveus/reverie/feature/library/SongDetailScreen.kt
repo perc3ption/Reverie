@@ -100,11 +100,17 @@ fun SongDetailScreen(
     val canAccessTags = viewModel.canAccessTags()
     val canAccessLyrics = viewModel.canAccessLyrics()
     val canAccessRatings = viewModel.canAccessRatings()
+    val canAccessAlbumArt = viewModel.canAccessAlbumArtEditing()
 
     val pickLyricsFile = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
     ) { uri ->
         if (uri != null) viewModel.importLyrics(uri)
+    }
+    val pickAlbumArt = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) viewModel.importAlbumArt(uri)
     }
 
     LaunchedEffect(viewModel) {
@@ -220,6 +226,7 @@ fun SongDetailScreen(
                     SongHeader(
                         track = current,
                         canAccessRatings = canAccessRatings,
+                        canAccessAlbumArt = canAccessAlbumArt,
                         onPlay = viewModel::play,
                         onAddToQueue = viewModel::addToQueue,
                         onRatingClick = { rating ->
@@ -227,6 +234,13 @@ fun SongDetailScreen(
                                 viewModel.setRating(rating)
                             } else {
                                 upgradeFeature = AppFeature.RATINGS
+                            }
+                        },
+                        onImportAlbumArt = {
+                            if (canAccessAlbumArt) {
+                                pickAlbumArt.launch(arrayOf("image/*"))
+                            } else {
+                                upgradeFeature = AppFeature.ALBUM_ART_EDITING
                             }
                         },
                     )
@@ -302,9 +316,11 @@ fun SongDetailScreen(
 private fun SongHeader(
     track: Track,
     canAccessRatings: Boolean,
+    canAccessAlbumArt: Boolean,
     onPlay: () -> Unit,
     onAddToQueue: () -> Unit,
     onRatingClick: (Int) -> Unit,
+    onImportAlbumArt: () -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -315,7 +331,24 @@ private fun SongHeader(
             modifier = Modifier.size(192.dp),
             contentDescription = track.title,
         )
-        Spacer(modifier = Modifier.height(20.dp))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            TextButton(
+                onClick = onImportAlbumArt,
+                modifier = Modifier.height(32.dp),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+            ) {
+                Text(
+                    text = if (track.artworkPath.isNotBlank()) "Reimport Art" else "Import Art",
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
+            if (!canAccessAlbumArt) {
+                PremiumBadge()
+            }
+        }
         Text(
             text = track.title,
             style = MaterialTheme.typography.titleLarge,
@@ -327,17 +360,10 @@ private fun SongHeader(
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = track.artist,
+            text = listOf(track.artist, track.album)
+                .filter { it.isNotBlank() }
+                .joinToString(" | "),
             style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.primary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Text(
-            text = track.album,
-            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -391,50 +417,32 @@ private fun SongRatingRow(
     canAccess: Boolean,
     onRatingClick: (Int) -> Unit,
 ) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Text(
-                text = "Rating",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            if (!canAccess) {
-                PremiumBadge()
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        for (star in 1..5) {
+            val filled = star <= rating
+            IconButton(
+                onClick = { onRatingClick(star) },
+                modifier = Modifier.size(40.dp),
+            ) {
+                Icon(
+                    imageVector = if (filled) Icons.Default.Star else Icons.Default.StarBorder,
+                    contentDescription = "Rate $star of 5",
+                    tint = if (filled) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    modifier = Modifier.size(28.dp),
+                )
             }
         }
-        Spacer(modifier = Modifier.height(6.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-            for (star in 1..5) {
-                val filled = star <= rating
-                IconButton(
-                    onClick = { onRatingClick(star) },
-                    modifier = Modifier.size(40.dp),
-                ) {
-                    Icon(
-                        imageVector = if (filled) Icons.Default.Star else Icons.Default.StarBorder,
-                        contentDescription = "Rate $star of 5",
-                        tint = if (filled) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        modifier = Modifier.size(28.dp),
-                    )
-                }
-            }
+        if (!canAccess) {
+            Spacer(modifier = Modifier.size(4.dp))
+            PremiumBadge()
         }
-        Text(
-            text = when {
-                !canAccess -> "Premium · rate your tracks"
-                rating > 0 -> "$rating of 5"
-                else -> "Tap a star to rate"
-            },
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }
 

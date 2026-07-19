@@ -117,6 +117,17 @@ interface TrackDao {
 
     @Query("UPDATE tracks SET rating = :rating WHERE id = :trackId")
     suspend fun updateRating(trackId: String, rating: Int)
+
+    @Query("UPDATE tracks SET artworkPath = :artworkPath WHERE id = :trackId")
+    suspend fun updateArtworkPath(trackId: String, artworkPath: String)
+
+    @Query(
+        """
+        UPDATE tracks SET artworkPath = :artworkPath
+        WHERE artist = :artist AND album = :album
+        """,
+    )
+    suspend fun updateArtworkPathForAlbum(artist: String, album: String, artworkPath: String)
 }
 
 @Dao

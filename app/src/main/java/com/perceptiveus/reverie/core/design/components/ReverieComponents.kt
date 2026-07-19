@@ -207,12 +207,16 @@ fun AlbumArt(
     contentDescription: String? = null,
 ) {
     val hasArt = !artworkPath.isNullOrBlank()
+    val artFile = if (hasArt) File(artworkPath!!) else null
     Box(modifier = modifier) {
         AlbumArtPlaceholder(modifier = Modifier.matchParentSize())
-        if (hasArt) {
+        if (artFile != null && artFile.exists()) {
+            val cacheBust = artFile.lastModified()
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
-                    .data(File(artworkPath!!))
+                    .data(artFile)
+                    .memoryCacheKey("${artFile.absolutePath}-$cacheBust")
+                    .diskCacheKey("${artFile.absolutePath}-$cacheBust")
                     .crossfade(true)
                     .build(),
                 contentDescription = contentDescription,

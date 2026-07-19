@@ -1,7 +1,12 @@
 package com.perceptiveus.reverie.data.repository
 
+import android.content.Context
+import android.net.Uri
 import com.perceptiveus.reverie.core.entitlement.AppFeature
 import com.perceptiveus.reverie.core.entitlement.FeatureAccessChecker
+import com.perceptiveus.reverie.data.import.AlbumArtCache
+import com.perceptiveus.reverie.data.import.AlbumArtImportResult
+import com.perceptiveus.reverie.data.import.AlbumArtImporter
 import com.perceptiveus.reverie.data.import.AudioMetadataWriter
 import com.perceptiveus.reverie.data.import.EditableTrackMetadata
 import com.perceptiveus.reverie.data.import.MusicIndexer
@@ -23,10 +28,12 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 class RoomMusicLibraryRepository(
+    private val appContext: Context,
     folderDao: MusicFolderDao,
     private val trackDao: TrackDao,
     private val musicIndexer: MusicIndexer,
     private val metadataWriter: AudioMetadataWriter,
+    private val albumArtCache: AlbumArtCache,
     private val featureAccessChecker: FeatureAccessChecker,
     scope: CoroutineScope,
 ) : MusicLibraryRepository {
@@ -99,6 +106,40 @@ class RoomMusicLibraryRepository(
             trackDao.updateRating(trackId, rating.coerceIn(0, 5))
         }
     }
+
+    override suspend fun updateTrackArtwork(
+        trackId: String,
+        sourceUri: Uri,
+    ): Result<String> = withContext(Dispatchers.IO) {
+        if (!featureAccessChecker.canAccess(AppFeature.ALBUM_ART_EDITING)) {
+            return@withContext Result.failure(AlbumArtAccessException)
+        }
+        runCatching {
+            val existing = trackDao.getById(trackId)
+                ?: error("Track not found.")
+            when (
+                val result = AlbumArtImporter.importForAlbum(
+                    context = appContext,
+                    artist = existing.artist,
+                    album = existing.album,
+                    sourceUri = sourceUri,
+                    albumArtCache = albumArtCache,
+                )
+            ) {
+                is AlbumArtImportResult.Success -> {
+                    trackDao.updateArtworkPathForAlbum(
+                        artist = existing.artist,
+                        album = existing.album,
+                        artworkPath = result.artworkPath,
+                    )
+                    result.artworkPath
+                }
+                is AlbumArtImportResult.Failure -> error(result.message)
+            }
+        }
+    }
 }
 
 object RatingAccessException : Exception("Ratings are a Premium feature.")
+
+object AlbumArtAccessException : Exception("Album art editing is a Premium feature.")

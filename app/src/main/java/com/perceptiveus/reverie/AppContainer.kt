@@ -56,21 +56,25 @@ class AppContainer(context: Context) {
         scope = appScope,
     )
 
+    private val albumArtCache: AlbumArtCache = AlbumArtCache(appContext)
+
     private val musicIndexer: MusicIndexer = MusicIndexer(
         storage = musicLibraryStorage,
         folderDao = database.musicFolderDao(),
         trackDao = database.trackDao(),
         playHistoryDao = database.playHistoryDao(),
         metadataReader = AudioMetadataReader(),
-        albumArtCache = AlbumArtCache(appContext),
+        albumArtCache = albumArtCache,
         featureAccessChecker = featureAccessChecker,
     )
 
     val musicLibraryRepository: MusicLibraryRepository = RoomMusicLibraryRepository(
+        appContext = appContext,
         folderDao = database.musicFolderDao(),
         trackDao = database.trackDao(),
         musicIndexer = musicIndexer,
         metadataWriter = AudioMetadataWriter(),
+        albumArtCache = albumArtCache,
         featureAccessChecker = featureAccessChecker,
         scope = appScope,
     )

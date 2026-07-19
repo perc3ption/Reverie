@@ -34,6 +34,13 @@ interface MusicLibraryRepository {
      * Premium-gated via [com.perceptiveus.reverie.core.entitlement.AppFeature.RATINGS].
      */
     suspend fun updateTrackRating(trackId: String, rating: Int): Result<Unit>
+
+    /**
+     * Imports album art from [sourceUri] into the art cache and updates Room.
+     * Premium-gated via [com.perceptiveus.reverie.core.entitlement.AppFeature.ALBUM_ART_EDITING].
+     * @return absolute path of the saved artwork on success
+     */
+    suspend fun updateTrackArtwork(trackId: String, sourceUri: android.net.Uri): Result<String>
 }
 
 /** Playback state backed by Media3 ExoPlayer via [com.perceptiveus.reverie.playback.PlaybackService]. */
@@ -56,6 +63,11 @@ interface PlaybackRepository {
     fun addToQueue(tracks: List<Track>)
     /** Reorder an item within the active queue; keeps the current track playing. */
     fun moveQueueItem(fromIndex: Int, toIndex: Int)
+    /**
+     * Updates [artworkPath] on matching queue items after album-art import
+     * so Now Playing reflects the change without restarting playback.
+     */
+    fun updateQueueArtwork(artist: String, album: String, artworkPath: String)
     fun togglePlayPause()
     fun skipToNext()
     fun skipToPrevious()

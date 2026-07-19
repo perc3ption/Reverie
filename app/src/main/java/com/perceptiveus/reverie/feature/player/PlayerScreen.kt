@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -56,6 +57,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import com.perceptiveus.reverie.core.design.components.AlbumArt
+import com.perceptiveus.reverie.core.design.components.PremiumBadge
 import com.perceptiveus.reverie.core.design.components.RetroScreenTitle
 import com.perceptiveus.reverie.core.entitlement.AppFeature
 import com.perceptiveus.reverie.domain.model.LyricsDocument
@@ -91,11 +93,17 @@ fun PlayerScreen(
     var showQueueSheet by remember { mutableStateOf(false) }
     val canAccessVisualizers = viewModel.canAccessAdvancedVisualizers()
     val canAccessLyrics = viewModel.canAccessLyrics()
+    val canAccessAlbumArt = viewModel.canAccessAlbumArtEditing()
     val snackbarHostState = remember { SnackbarHostState() }
     val pickLyricsFile = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
     ) { uri ->
         if (uri != null) viewModel.importLyrics(uri)
+    }
+    val pickAlbumArt = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) viewModel.importAlbumArt(uri)
     }
 
     LaunchedEffect(viewModel) {
@@ -188,6 +196,15 @@ fun PlayerScreen(
                     onImportLyrics = {
                         // */* so .lrc shows up — many providers don't map .lrc to text/*
                         pickLyricsFile.launch(arrayOf("*/*"))
+                    },
+                    canAccessAlbumArt = canAccessAlbumArt,
+                    canImportAlbumArt = track != null,
+                    onAlbumArtLocked = {
+                        upgradeFeature = AppFeature.ALBUM_ART_EDITING
+                        showUpgradeDialog = true
+                    },
+                    onImportAlbumArt = {
+                        pickAlbumArt.launch(arrayOf("image/*"))
                     },
                 )
 
@@ -347,6 +364,10 @@ private fun PlayerMediaDisplay(
     canImportLyrics: Boolean,
     onLyricsLocked: () -> Unit,
     onImportLyrics: () -> Unit,
+    canAccessAlbumArt: Boolean,
+    canImportAlbumArt: Boolean,
+    onAlbumArtLocked: () -> Unit,
+    onImportAlbumArt: () -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -361,18 +382,14 @@ private fun PlayerMediaDisplay(
 
         when (selectedView) {
             PlayerMediaView.ALBUM_ART -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(220.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    AlbumArt(
-                        artworkPath = artworkPath,
-                        modifier = Modifier.size(200.dp),
-                        contentDescription = trackTitle,
-                    )
-                }
+                PlayerAlbumArtPane(
+                    artworkPath = artworkPath,
+                    trackTitle = trackTitle,
+                    canAccess = canAccessAlbumArt,
+                    canImport = canImportAlbumArt,
+                    onLockedClick = onAlbumArtLocked,
+                    onImportClick = onImportAlbumArt,
+                )
             }
 
             PlayerMediaView.VISUALIZER -> {
@@ -397,6 +414,74 @@ private fun PlayerMediaDisplay(
                     onImportClick = onImportLyrics,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun PlayerAlbumArtPane(
+    artworkPath: String?,
+    trackTitle: String?,
+    canAccess: Boolean,
+    canImport: Boolean,
+    onLockedClick: () -> Unit,
+    onImportClick: () -> Unit,
+) {
+    val hasArt = !artworkPath.isNullOrBlank()
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(220.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (!hasArt && canImport) {
+            Surface(
+                onClick = {
+                    if (canAccess) onImportClick() else onLockedClick()
+                },
+                modifier = Modifier.size(200.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+                        modifier = Modifier.size(44.dp),
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Import album art",
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
+                    Text(
+                        text = "Import album art",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                    if (!canAccess) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        PremiumBadge()
+                    }
+                }
+            }
+        } else {
+            AlbumArt(
+                artworkPath = artworkPath,
+                modifier = Modifier.size(200.dp),
+                contentDescription = trackTitle,
+            )
         }
     }
 }

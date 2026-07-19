@@ -30,6 +30,19 @@ class AlbumArtCache(context: Context) {
             ?: readSidecarCover(audioFile.parentFile)
             ?: return ""
 
+        return putOrReplace(artist, album, bytes)
+    }
+
+    /**
+     * Overwrites cached art for [artist]+[album], deleting any prior extension variants.
+     * Returns the absolute path of the new cache file, or empty on failure.
+     */
+    fun putOrReplace(artist: String, album: String, bytes: ByteArray): String {
+        if (bytes.isEmpty() || bytes.size > MAX_SIDECAR_BYTES) return ""
+        val key = cacheKey(artist, album)
+        EXTENSIONS.forEach { ext ->
+            File(cacheDir, "$key.$ext").takeIf { it.exists() }?.delete()
+        }
         val out = File(cacheDir, "$key.${extensionFor(bytes)}")
         return try {
             out.writeBytes(bytes)

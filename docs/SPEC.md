@@ -47,7 +47,7 @@ Gated via `AppFeature` / `FeatureAccessChecker`. Entitlements are currently a **
 | Advanced Search | Planned | Filters and saved searches |
 | Lyrics | Done | Sidecar `.lrc` / `.txt`; import via + on empty Lyrics tab; synced highlight |
 | Metadata Editing | Partial | Edit title/artist/album/year/genre on Song Detail; writes to file + Room |
-| Album Art Editing | Planned | Set custom cover art |
+| Album Art Editing | Done | Premium: Import in Player empty-art box; Import / Reimport on Song Detail; cache + Room (album-scoped) |
 | Library Stats | Planned | Collection insights and statistics |
 | Play Billing purchase / restore | Planned | Replace mock premium toggle |
 

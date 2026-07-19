@@ -9,6 +9,8 @@ import com.perceptiveus.reverie.core.entitlement.FeatureAccessChecker
 import com.perceptiveus.reverie.data.lyrics.LyricsImportResult
 import com.perceptiveus.reverie.data.lyrics.LyricsLoader
 import com.perceptiveus.reverie.data.lyrics.LyricsSidecarImporter
+import com.perceptiveus.reverie.data.repository.AlbumArtAccessException
+import com.perceptiveus.reverie.data.repository.MusicLibraryRepository
 import com.perceptiveus.reverie.data.repository.PlaybackRepository
 import com.perceptiveus.reverie.domain.model.LyricsDocument
 import com.perceptiveus.reverie.domain.model.PlaybackState
@@ -29,6 +31,7 @@ import kotlinx.coroutines.withContext
 class PlayerViewModel(
     application: Application,
     private val playbackRepository: PlaybackRepository,
+    private val musicLibraryRepository: MusicLibraryRepository,
     private val featureAccessChecker: FeatureAccessChecker,
 ) : AndroidViewModel(application) {
 
@@ -74,6 +77,9 @@ class PlayerViewModel(
     fun canAccessLyrics(): Boolean =
         featureAccessChecker.canAccess(AppFeature.LYRICS)
 
+    fun canAccessAlbumArtEditing(): Boolean =
+        featureAccessChecker.canAccess(AppFeature.ALBUM_ART_EDITING)
+
     fun importLyrics(uri: Uri) {
         if (!canAccessLyrics()) {
             viewModelScope.launch {
@@ -100,6 +106,35 @@ class PlayerViewModel(
                     _userMessages.emit(result.message)
                 }
             }
+        }
+    }
+
+    fun importAlbumArt(uri: Uri) {
+        if (!canAccessAlbumArtEditing()) {
+            viewModelScope.launch {
+                _userMessages.emit("Album art editing is a Premium feature.")
+            }
+            return
+        }
+        val track = playbackState.value.currentTrack ?: return
+        viewModelScope.launch {
+            musicLibraryRepository.updateTrackArtwork(track.id, uri)
+                .onSuccess { path ->
+                    playbackRepository.updateQueueArtwork(
+                        artist = track.artist,
+                        album = track.album,
+                        artworkPath = path,
+                    )
+                    _userMessages.emit("Album art updated.")
+                }
+                .onFailure { error ->
+                    _userMessages.emit(
+                        when (error) {
+                            AlbumArtAccessException -> "Album art editing is a Premium feature."
+                            else -> error.message ?: "Could not import album art."
+                        },
+                    )
+                }
         }
     }
 }

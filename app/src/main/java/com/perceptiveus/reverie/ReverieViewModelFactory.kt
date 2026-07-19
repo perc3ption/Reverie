@@ -36,6 +36,7 @@ class ReverieViewModelFactory(
             modelClass.isAssignableFrom(PlayerViewModel::class.java) -> PlayerViewModel(
                 container.application,
                 container.playbackRepository,
+                container.musicLibraryRepository,
                 container.featureAccessChecker,
             )
             modelClass.isAssignableFrom(SearchViewModel::class.java) -> SearchViewModel(

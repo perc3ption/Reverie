@@ -212,6 +212,23 @@ class Media3PlaybackRepository(
         }
     }
 
+    override fun updateQueueArtwork(artist: String, album: String, artworkPath: String) {
+        if (artworkPath.isBlank()) return
+        runWhenReady {
+            queue = queue.map { track ->
+                if (track.artist.equals(artist, ignoreCase = true) &&
+                    track.album.equals(album, ignoreCase = true)
+                ) {
+                    track.copy(artworkPath = artworkPath)
+                } else {
+                    track
+                }
+            }
+            val player = controller
+            if (player != null) syncFromPlayer(player)
+        }
+    }
+
     override fun togglePlayPause() {
         runWhenReady {
             val player = controller ?: return@runWhenReady

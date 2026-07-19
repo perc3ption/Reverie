@@ -95,4 +95,23 @@ class FakeMusicLibraryRepository : MusicLibraryRepository {
         _songs.value = current
         return Result.success(Unit)
     }
+
+    override suspend fun updateTrackArtwork(
+        trackId: String,
+        sourceUri: android.net.Uri,
+    ): Result<String> {
+        val current = _songs.value.toMutableList()
+        val index = current.indexOfFirst { it.id == trackId }
+        if (index < 0) return Result.failure(IllegalArgumentException("Track not found."))
+        val path = "fake://artwork/$trackId"
+        val track = current[index]
+        _songs.value = current.map {
+            if (it.artist == track.artist && it.album == track.album) {
+                it.copy(artworkPath = path)
+            } else {
+                it
+            }
+        }
+        return Result.success(path)
+    }
 }

@@ -12,6 +12,7 @@ import com.perceptiveus.reverie.data.lyrics.LyricsImportResult
 import com.perceptiveus.reverie.data.lyrics.LyricsLoader
 import com.perceptiveus.reverie.data.lyrics.LyricsSidecarImporter
 import com.perceptiveus.reverie.data.import.EditableTrackMetadata
+import com.perceptiveus.reverie.data.repository.AlbumArtAccessException
 import com.perceptiveus.reverie.data.repository.MusicLibraryRepository
 import com.perceptiveus.reverie.data.repository.PlaybackRepository
 import com.perceptiveus.reverie.data.repository.PlaylistLimitException
@@ -187,6 +188,9 @@ class SongDetailViewModel(
 
     fun canAccessRatings(): Boolean = featureAccessChecker.canAccess(AppFeature.RATINGS)
 
+    fun canAccessAlbumArtEditing(): Boolean =
+        featureAccessChecker.canAccess(AppFeature.ALBUM_ART_EDITING)
+
     fun addTag(name: String) {
         viewModelScope.launch {
             songTagRepository.addTagToTrack(trackId, name)
@@ -280,6 +284,37 @@ class SongDetailViewModel(
                     _userMessages.emit(result.message)
                 }
             }
+        }
+    }
+
+    fun importAlbumArt(uri: Uri) {
+        if (!canAccessAlbumArtEditing()) {
+            viewModelScope.launch {
+                _userMessages.emit("Album art editing is a Premium feature.")
+            }
+            return
+        }
+        viewModelScope.launch {
+            musicLibraryRepository.updateTrackArtwork(trackId, uri)
+                .onSuccess { path ->
+                    val current = track.value
+                    if (current != null) {
+                        playbackRepository.updateQueueArtwork(
+                            artist = current.artist,
+                            album = current.album,
+                            artworkPath = path,
+                        )
+                    }
+                    _userMessages.emit("Album art updated.")
+                }
+                .onFailure { error ->
+                    _userMessages.emit(
+                        when (error) {
+                            AlbumArtAccessException -> "Album art editing is a Premium feature."
+                            else -> error.message ?: "Could not import album art."
+                        },
+                    )
+                }
         }
     }
 
