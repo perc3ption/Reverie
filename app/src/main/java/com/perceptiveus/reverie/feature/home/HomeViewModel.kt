@@ -2,6 +2,7 @@ package com.perceptiveus.reverie.feature.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.perceptiveus.reverie.core.entitlement.AppFeature
 import com.perceptiveus.reverie.core.entitlement.FeatureAccessChecker
 import com.perceptiveus.reverie.data.repository.MusicLibraryRepository
 import com.perceptiveus.reverie.data.repository.PlaybackRepository
@@ -124,4 +125,13 @@ class HomeViewModel(
     }
 
     fun isPremium(): Boolean = featureAccessChecker.isPremium()
+
+    fun canAccessPlaybackScope(): Boolean =
+        featureAccessChecker.canAccess(AppFeature.PLAYBACK_SCOPE)
+
+    fun notifyFeatureComingSoon(featureName: String) {
+        viewModelScope.launch {
+            _userMessages.emit("$featureName is coming soon.")
+        }
+    }
 }

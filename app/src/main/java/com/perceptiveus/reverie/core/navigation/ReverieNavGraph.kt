@@ -17,6 +17,7 @@ import com.perceptiveus.reverie.feature.home.HomeViewModel
 import com.perceptiveus.reverie.feature.importmusic.ImportMusicScreen
 import com.perceptiveus.reverie.feature.importmusic.ImportMusicViewModel
 import com.perceptiveus.reverie.feature.library.LibraryScreen
+import com.perceptiveus.reverie.feature.library.LibraryTab
 import com.perceptiveus.reverie.feature.library.LibraryViewModel
 import com.perceptiveus.reverie.feature.library.PlaylistDetailScreen
 import com.perceptiveus.reverie.feature.library.PlaylistDetailViewModel
@@ -29,6 +30,8 @@ import com.perceptiveus.reverie.feature.search.SearchScreen
 import com.perceptiveus.reverie.feature.search.SearchViewModel
 import com.perceptiveus.reverie.feature.settings.SettingsScreen
 import com.perceptiveus.reverie.feature.settings.SettingsViewModel
+import androidx.compose.runtime.remember
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 
 @Composable
@@ -40,6 +43,20 @@ fun ReverieNavGraph(
     startDestination: String = ReverieDestination.Home.route,
 ) {
     val scope = rememberCoroutineScope()
+    val libraryTabRequests = remember {
+        MutableSharedFlow<LibraryTab>(extraBufferCapacity = 1)
+    }
+
+    fun navigateToLibrary(tab: LibraryTab) {
+        navController.navigate(ReverieDestination.Library.route) {
+            popUpTo(navController.graph.findStartDestination().id) {
+                saveState = true
+            }
+            launchSingleTop = true
+            restoreState = true
+        }
+        scope.launch { libraryTabRequests.emit(tab) }
+    }
 
     NavHost(
         navController = navController,
@@ -53,15 +70,8 @@ fun ReverieNavGraph(
                 onNavigateToImport = {
                     navController.navigate(ReverieDestination.ImportMusic.route)
                 },
-                onNavigateToLibrary = {
-                    navController.navigate(ReverieDestination.Library.route) {
-                        popUpTo(navController.graph.findStartDestination().id) {
-                            saveState = true
-                        }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                },
+                onNavigateToLibrary = { navigateToLibrary(LibraryTab.FOLDERS) },
+                onNavigateToLibraryPlaylists = { navigateToLibrary(LibraryTab.PLAYLISTS) },
                 onNavigateToPlayer = {
                     navController.navigate(ReverieDestination.Player.route) {
                         popUpTo(navController.graph.findStartDestination().id) {
@@ -112,6 +122,7 @@ fun ReverieNavGraph(
                         launchSingleTop = true
                     }
                 },
+                tabRequests = libraryTabRequests,
             )
         }
 

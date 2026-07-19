@@ -84,21 +84,22 @@ fun HomeNowPlayingCard(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = track?.artist ?: "Pick a track to start",
+                        text = if (track != null) {
+                            listOf(track.artist, track.album)
+                                .filter { it.isNotBlank() }
+                                .joinToString(" | ")
+                        } else {
+                            "Pick a track to start"
+                        },
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = if (track != null) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.primary
+                        },
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    if (track != null) {
-                        Text(
-                            text = track.album,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
                 }
                 Box {
                     IconButton(

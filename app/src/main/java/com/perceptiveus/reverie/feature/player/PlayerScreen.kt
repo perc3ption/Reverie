@@ -252,17 +252,10 @@ fun PlayerScreen(
                         )
                     }
                     Text(
-                        text = track?.artist ?: "",
+                        text = listOfNotNull(track?.artist, track?.album)
+                            .filter { it.isNotBlank() }
+                            .joinToString(" | "),
                         style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Text(
-                        text = track?.album ?: "",
-                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,

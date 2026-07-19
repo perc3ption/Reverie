@@ -26,8 +26,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 enum class LibraryTab {
-    PLAYLISTS,
     FOLDERS,
+    PLAYLISTS,
     ARTISTS,
     ALBUMS,
 }
@@ -295,6 +295,12 @@ class LibraryViewModel(
     fun canAccess(feature: AppFeature): Boolean = featureAccessChecker.canAccess(feature)
 
     fun isPremium(): Boolean = featureAccessChecker.isPremium()
+
+    fun notifyFeatureComingSoon(featureName: String) {
+        viewModelScope.launch {
+            _userMessages.emit("$featureName is coming soon.")
+        }
+    }
 
     private fun albumSource(title: String, artist: String, tracks: List<Track>): QueueSource.Album {
         val year = tracks.map { it.year }.filter { it > 0 }.distinct().let { years ->

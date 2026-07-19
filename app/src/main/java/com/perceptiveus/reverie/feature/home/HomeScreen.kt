@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,12 +42,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.perceptiveus.reverie.core.design.components.AlbumArt
 import com.perceptiveus.reverie.core.design.components.HomeNowPlayingCard
+import com.perceptiveus.reverie.core.design.components.LockedFeatureCard
 import com.perceptiveus.reverie.core.design.components.QuickAccessCard
 import com.perceptiveus.reverie.core.design.components.RetroScreenTitle
 import com.perceptiveus.reverie.core.design.components.SectionHeader
+import com.perceptiveus.reverie.core.entitlement.AppFeature
 import com.perceptiveus.reverie.domain.model.Track
 import com.perceptiveus.reverie.feature.library.AddToPlaylistDialog
 import com.perceptiveus.reverie.feature.player.QueueSheet
+import com.perceptiveus.reverie.feature.premium.UpgradeDialog
 import kotlinx.coroutines.flow.collectLatest
 
 @Composable
@@ -54,6 +58,7 @@ fun HomeScreen(
     viewModel: HomeViewModel,
     onNavigateToImport: () -> Unit,
     onNavigateToLibrary: () -> Unit,
+    onNavigateToLibraryPlaylists: () -> Unit,
     onNavigateToPlayer: () -> Unit,
     onNavigateToPremium: () -> Unit,
     onNavigateToSearch: () -> Unit,
@@ -69,11 +74,23 @@ fun HomeScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var showQueueSheet by remember { mutableStateOf(false) }
     var showPlaylistDialog by remember { mutableStateOf(false) }
+    var showPlaybackScopeUpgrade by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.userMessages.collectLatest { message ->
             snackbarHostState.showSnackbar(message)
         }
+    }
+
+    if (showPlaybackScopeUpgrade) {
+        UpgradeDialog(
+            feature = AppFeature.PLAYBACK_SCOPE,
+            onDismiss = { showPlaybackScopeUpgrade = false },
+            onUpgradeClick = {
+                showPlaybackScopeUpgrade = false
+                onNavigateToPremium()
+            },
+        )
     }
 
     if (showQueueSheet) {
@@ -153,6 +170,15 @@ fun HomeScreen(
                 QuickAccessGrid(
                     onImportClick = onNavigateToImport,
                     onLibraryClick = onNavigateToLibrary,
+                    onPlaylistsClick = onNavigateToLibraryPlaylists,
+                    canAccessPlaybackScope = viewModel.canAccessPlaybackScope(),
+                    onPlaybackScopeClick = {
+                        if (viewModel.canAccessPlaybackScope()) {
+                            viewModel.notifyFeatureComingSoon("Playback Scope")
+                        } else {
+                            showPlaybackScopeUpgrade = true
+                        }
+                    },
                 )
             }
             if (!isPremium) {
@@ -251,6 +277,9 @@ private fun RecentlyPlayedRow(
 private fun QuickAccessGrid(
     onImportClick: () -> Unit,
     onLibraryClick: () -> Unit,
+    onPlaylistsClick: () -> Unit,
+    canAccessPlaybackScope: Boolean,
+    onPlaybackScopeClick: () -> Unit,
 ) {
     Column(
         modifier = Modifier.padding(horizontal = 16.dp),
@@ -272,13 +301,32 @@ private fun QuickAccessGrid(
                 onClick = onLibraryClick,
             )
         }
-        QuickAccessCard(
-            title = "Playlists",
-            description = "Your playlists and mixes",
-            icon = Icons.Default.LibraryMusic,
-            modifier = Modifier.fillMaxWidth(),
-            onClick = onLibraryClick,
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            QuickAccessCard(
+                title = "Playlists",
+                description = "Your playlists and mixes",
+                icon = Icons.Default.LibraryMusic,
+                modifier = Modifier.weight(1f),
+                onClick = onPlaylistsClick,
+            )
+            if (canAccessPlaybackScope) {
+                QuickAccessCard(
+                    title = "Playback Scope",
+                    description = "Control what plays and shuffles",
+                    icon = Icons.Default.Tune,
+                    modifier = Modifier.weight(1f),
+                    onClick = onPlaybackScopeClick,
+                )
+            } else {
+                LockedFeatureCard(
+                    title = "Playback Scope",
+                    description = "Control what plays and shuffles",
+                    icon = Icons.Default.Tune,
+                    modifier = Modifier.weight(1f),
+                    onClick = onPlaybackScopeClick,
+                )
+            }
+        }
     }
 }
 
