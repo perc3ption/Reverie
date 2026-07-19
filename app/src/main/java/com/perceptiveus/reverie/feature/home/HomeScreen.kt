@@ -3,6 +3,7 @@ package com.perceptiveus.reverie.feature.home
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -23,12 +24,18 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -38,6 +45,9 @@ import com.perceptiveus.reverie.core.design.components.QuickAccessCard
 import com.perceptiveus.reverie.core.design.components.RetroScreenTitle
 import com.perceptiveus.reverie.core.design.components.SectionHeader
 import com.perceptiveus.reverie.domain.model.Track
+import com.perceptiveus.reverie.feature.library.AddToPlaylistDialog
+import com.perceptiveus.reverie.feature.player.QueueSheet
+import kotlinx.coroutines.flow.collectLatest
 
 @Composable
 fun HomeScreen(
@@ -47,63 +57,116 @@ fun HomeScreen(
     onNavigateToPlayer: () -> Unit,
     onNavigateToPremium: () -> Unit,
     onNavigateToSearch: () -> Unit,
+    onNavigateToSongDetails: (Track) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val recentlyPlayed by viewModel.recentlyPlayed.collectAsState()
     val songs by viewModel.songs.collectAsState()
     val playbackState by viewModel.playbackState.collectAsState()
+    val availablePlaylists by viewModel.availablePlaylists.collectAsState()
     val isPremium = viewModel.isPremium()
     val displayTracks = recentlyPlayed.ifEmpty { songs.take(12) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    var showQueueSheet by remember { mutableStateOf(false) }
+    var showPlaylistDialog by remember { mutableStateOf(false) }
 
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 16.dp),
-    ) {
-        item {
-            HomeHeader(onSearchClick = onNavigateToSearch)
+    LaunchedEffect(Unit) {
+        viewModel.userMessages.collectLatest { message ->
+            snackbarHostState.showSnackbar(message)
         }
-        item {
-            Spacer(modifier = Modifier.height(4.dp))
-            HomeNowPlayingCard(
-                track = playbackState.currentTrack,
-                isPlaying = playbackState.isPlaying,
-                positionMs = playbackState.positionMs,
-                onPlayPause = viewModel::togglePlayPause,
-                onNext = viewModel::skipToNext,
-                onPrevious = viewModel::skipToPrevious,
-                onSeek = viewModel::seekTo,
-                onClick = onNavigateToPlayer,
-            )
-        }
-        item {
-            Spacer(modifier = Modifier.height(8.dp))
-            SectionHeader(
-                title = if (recentlyPlayed.isNotEmpty()) "Recently Played" else "Your Library",
-                action = {
-                    TextButton(onClick = onNavigateToLibrary) { Text("View all") }
-                },
-            )
-        }
-        item {
-            RecentlyPlayedRow(
-                tracks = displayTracks,
-                onTrackClick = viewModel::playTrack,
-            )
-        }
-        item {
-            SectionHeader(title = "Quick Access")
-        }
-        item {
-            QuickAccessGrid(
-                onImportClick = onNavigateToImport,
-                onLibraryClick = onNavigateToLibrary,
-            )
-        }
-        if (!isPremium) {
+    }
+
+    if (showQueueSheet) {
+        QueueSheet(
+            queue = playbackState.queue,
+            currentIndex = playbackState.queueIndex,
+            queueSource = playbackState.queueSource,
+            disabledTrackIds = playbackState.disabledTrackIds,
+            onDismiss = { showQueueSheet = false },
+            onTrackSelected = { index ->
+                viewModel.playQueueIndex(index)
+                showQueueSheet = false
+            },
+            onToggleTrackEnabled = viewModel::toggleQueueTrackEnabled,
+            onMoveTrack = viewModel::moveQueueItem,
+        )
+    }
+
+    if (showPlaylistDialog) {
+        AddToPlaylistDialog(
+            availablePlaylists = availablePlaylists,
+            onDismiss = { showPlaylistDialog = false },
+            onAddToPlaylist = { playlist ->
+                viewModel.addCurrentTrackToPlaylist(playlist.id)
+                showPlaylistDialog = false
+            },
+            onCreatePlaylist = { name ->
+                viewModel.createPlaylistAndAddCurrentTrack(name)
+                showPlaylistDialog = false
+            },
+        )
+    }
+
+    Box(modifier = modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 16.dp),
+        ) {
             item {
-                UnlockPremiumBanner(onLearnMore = onNavigateToPremium)
+                HomeHeader(onSearchClick = onNavigateToSearch)
+            }
+            item {
+                Spacer(modifier = Modifier.height(4.dp))
+                HomeNowPlayingCard(
+                    track = playbackState.currentTrack,
+                    isPlaying = playbackState.isPlaying,
+                    positionMs = playbackState.positionMs,
+                    onPlayPause = viewModel::togglePlayPause,
+                    onNext = viewModel::skipToNext,
+                    onPrevious = viewModel::skipToPrevious,
+                    onSeek = viewModel::seekTo,
+                    onClick = onNavigateToPlayer,
+                    onSongDetailsClick = onNavigateToSongDetails,
+                    onViewQueueClick = { showQueueSheet = true },
+                    onAddToPlaylistClick = { showPlaylistDialog = true },
+                )
+            }
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                SectionHeader(
+                    title = if (recentlyPlayed.isNotEmpty()) "Recently Played" else "Your Library",
+                    action = {
+                        TextButton(onClick = onNavigateToLibrary) { Text("View all") }
+                    },
+                )
+            }
+            item {
+                RecentlyPlayedRow(
+                    tracks = displayTracks,
+                    onTrackClick = viewModel::playTrack,
+                )
+            }
+            item {
+                SectionHeader(title = "Quick Access")
+            }
+            item {
+                QuickAccessGrid(
+                    onImportClick = onNavigateToImport,
+                    onLibraryClick = onNavigateToLibrary,
+                )
+            }
+            if (!isPremium) {
+                item {
+                    UnlockPremiumBanner(onLearnMore = onNavigateToPremium)
+                }
             }
         }
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(16.dp),
+        )
     }
 }
 

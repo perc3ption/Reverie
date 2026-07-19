@@ -946,65 +946,6 @@ private fun AddTagDialog(
     )
 }
 
-@Composable
-private fun AddToPlaylistDialog(
-    availablePlaylists: List<Playlist>,
-    onDismiss: () -> Unit,
-    onAddToPlaylist: (Playlist) -> Unit,
-    onCreatePlaylist: (String) -> Unit,
-) {
-    var newPlaylistName by remember { mutableStateOf("") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Add to Playlist") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (availablePlaylists.isEmpty()) {
-                    Text(
-                        text = "No available playlists. Create a new one below.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                } else {
-                    availablePlaylists.forEach { playlist ->
-                        OutlinedButton(
-                            onClick = { onAddToPlaylist(playlist) },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text(
-                                text = playlist.name,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-                }
-                OutlinedTextField(
-                    value = newPlaylistName,
-                    onValueChange = { newPlaylistName = it },
-                    label = { Text("New playlist name") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onCreatePlaylist(newPlaylistName) },
-                enabled = newPlaylistName.isNotBlank(),
-            ) {
-                Text("Create")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        },
-    )
-}
-
 private fun formatDuration(ms: Long): String {
     if (ms <= 0L) return "-"
     val totalSeconds = TimeUnit.MILLISECONDS.toSeconds(ms)

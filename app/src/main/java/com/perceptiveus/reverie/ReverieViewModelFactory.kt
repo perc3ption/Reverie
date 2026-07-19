@@ -19,6 +19,7 @@ class ReverieViewModelFactory(
             modelClass.isAssignableFrom(HomeViewModel::class.java) -> HomeViewModel(
                 container.musicLibraryRepository,
                 container.playbackRepository,
+                container.playlistRepository,
                 container.featureAccessChecker,
             )
             modelClass.isAssignableFrom(ImportMusicViewModel::class.java) -> ImportMusicViewModel(

@@ -79,6 +79,9 @@ fun ReverieNavGraph(
                         launchSingleTop = true
                     }
                 },
+                onNavigateToSongDetails = { track ->
+                    navController.navigate(ReverieDestination.SongDetail.createRoute(track.id))
+                },
             )
         }
 

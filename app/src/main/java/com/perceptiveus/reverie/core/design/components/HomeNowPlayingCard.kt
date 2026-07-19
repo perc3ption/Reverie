@@ -18,6 +18,8 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -50,8 +52,13 @@ fun HomeNowPlayingCard(
     onPrevious: () -> Unit,
     onSeek: (Long) -> Unit,
     onClick: () -> Unit,
+    onSongDetailsClick: (Track) -> Unit,
+    onViewQueueClick: () -> Unit,
+    onAddToPlaylistClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
+
     Surface(
         onClick = onClick,
         modifier = modifier
@@ -93,12 +100,43 @@ fun HomeNowPlayingCard(
                         )
                     }
                 }
-                IconButton(onClick = { /* TODO: track options */ }) {
-                    Icon(
-                        Icons.Default.MoreVert,
-                        contentDescription = "More",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                Box {
+                    IconButton(
+                        onClick = { menuExpanded = true },
+                        enabled = track != null,
+                    ) {
+                        Icon(
+                            Icons.Default.MoreVert,
+                            contentDescription = "Song options",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Song details") },
+                            onClick = {
+                                menuExpanded = false
+                                track?.let(onSongDetailsClick)
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("View queue") },
+                            onClick = {
+                                menuExpanded = false
+                                onViewQueueClick()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Add to playlist") },
+                            onClick = {
+                                menuExpanded = false
+                                onAddToPlaylistClick()
+                            },
+                        )
+                    }
                 }
             }
 
