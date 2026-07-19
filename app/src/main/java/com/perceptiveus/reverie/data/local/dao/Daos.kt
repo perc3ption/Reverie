@@ -9,12 +9,14 @@ import com.perceptiveus.reverie.data.local.entity.AlbumAggregate
 import com.perceptiveus.reverie.data.local.entity.ArtistAggregate
 import com.perceptiveus.reverie.data.local.entity.FolderWithCounts
 import com.perceptiveus.reverie.data.local.entity.MusicFolderEntity
+import com.perceptiveus.reverie.data.local.entity.NamedPlayStatRow
 import com.perceptiveus.reverie.data.local.entity.PlayHistoryEntity
 import com.perceptiveus.reverie.data.local.entity.PlaylistEntity
 import com.perceptiveus.reverie.data.local.entity.PlaylistTrackCrossRef
 import com.perceptiveus.reverie.data.local.entity.PlaylistWithCount
 import com.perceptiveus.reverie.data.local.entity.TagEntity
 import com.perceptiveus.reverie.data.local.entity.TrackEntity
+import com.perceptiveus.reverie.data.local.entity.TrackPlayStatRow
 import com.perceptiveus.reverie.data.local.entity.TrackTagCrossRef
 import com.perceptiveus.reverie.data.local.entity.UserSettingsEntity
 import kotlinx.coroutines.flow.Flow
@@ -56,6 +58,18 @@ interface TrackDao {
 
     @Query("SELECT COUNT(*) FROM tracks")
     suspend fun countTracks(): Int
+
+    @Query("SELECT COUNT(DISTINCT artist) FROM tracks WHERE artist != ''")
+    suspend fun countDistinctArtists(): Int
+
+    @Query(
+        """
+        SELECT COUNT(*) FROM (
+            SELECT album, artist FROM tracks GROUP BY album, artist
+        ) AS album_groups
+        """,
+    )
+    suspend fun countDistinctAlbums(): Int
 
     @Query("SELECT * FROM tracks ORDER BY title ASC")
     fun observeAllTracks(): Flow<List<TrackEntity>>
@@ -141,6 +155,38 @@ interface PlayHistoryDao {
 
     @Query("DELETE FROM play_history WHERE playedAt < :cutoff")
     suspend fun deleteOlderThan(cutoff: Long)
+
+    @Query("SELECT COUNT(*) FROM play_history")
+    suspend fun countAll(): Int
+
+    @Query("SELECT COUNT(*) FROM play_history WHERE playedAt >= :sinceMs")
+    suspend fun countSince(sinceMs: Long): Int
+
+    @Query(
+        """
+        SELECT t.id, t.title, t.artist, t.album, t.artworkPath,
+               COUNT(h.id) AS playCount
+        FROM play_history h
+        INNER JOIN tracks t ON t.id = h.trackId
+        GROUP BY t.id
+        ORDER BY playCount DESC, t.title ASC
+        LIMIT :limit
+        """,
+    )
+    suspend fun topPlayedTracks(limit: Int): List<TrackPlayStatRow>
+
+    @Query(
+        """
+        SELECT t.artist AS name, COUNT(h.id) AS playCount
+        FROM play_history h
+        INNER JOIN tracks t ON t.id = h.trackId
+        WHERE t.artist != ''
+        GROUP BY t.artist
+        ORDER BY playCount DESC, t.artist ASC
+        LIMIT :limit
+        """,
+    )
+    suspend fun topPlayedArtists(limit: Int): List<NamedPlayStatRow>
 }
 
 @Dao

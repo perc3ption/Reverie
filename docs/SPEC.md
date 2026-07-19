@@ -42,13 +42,13 @@ Gated via `AppFeature` / `FeatureAccessChecker`. Entitlements are currently a **
 | Tags | Partial | Add/remove tags on Song Detail; Library browse still stubbed |
 | Collections | Planned | Custom listening collections |
 | Smart Playlists | Planned | Rule-based playlists that update automatically |
-| Playback Scope | Planned | Control what plays and shuffles across the library |
+| Playback Scope | Dropped | Covered by queue source (folder / album / playlist / etc.) |
 | Advanced Visualizers | Done | Scope, Radial, VU, Starburst skins |
 | Advanced Search | Planned | Filters and saved searches |
 | Lyrics | Done | Sidecar `.lrc` / `.txt`; import via + on empty Lyrics tab; synced highlight |
 | Metadata Editing | Partial | Edit title/artist/album/year/genre on Song Detail; writes to file + Room |
 | Album Art Editing | Done | Premium: empty-art import on Player + Song Detail; reimport via cover icon on Song Detail; cache + Room (album-scoped) |
-| Library Stats | Planned | Collection insights and statistics |
+| Library Stats | Done | Premium: Stats screen — library counts, play totals, top tracks/artists (on-demand from play_history) |
 | Play Billing purchase / restore | Planned | Replace mock premium toggle |
 
 ## Supported audio formats

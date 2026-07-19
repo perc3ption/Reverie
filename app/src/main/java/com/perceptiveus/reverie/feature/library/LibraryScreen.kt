@@ -30,8 +30,8 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.QueryStats
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
@@ -84,6 +84,7 @@ fun LibraryScreen(
     onPlaylistClick: (Playlist) -> Unit,
     onNavigateToPlayer: () -> Unit,
     onNavigateToSearch: () -> Unit,
+    onNavigateToStats: () -> Unit,
     tabRequests: Flow<LibraryTab>? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -431,7 +432,9 @@ fun LibraryScreen(
 
             item {
                 Spacer(modifier = Modifier.height(16.dp))
-                SectionHeader(title = "Quick Access")
+                if (isPremium) {
+                    SectionHeader(title = "Quick Access")
+                }
             }
 
             if (isPremium) {
@@ -443,49 +446,53 @@ fun LibraryScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         QuickAccessCard(
+                            title = "Stats",
+                            description = "Library insights",
+                            icon = Icons.Default.QueryStats,
+                            modifier = Modifier.weight(1f),
+                            onClick = onNavigateToStats,
+                        )
+                        QuickAccessCard(
                             title = "Smart Playlists",
                             description = "Rule-based auto playlists",
                             icon = Icons.Default.AutoAwesome,
                             modifier = Modifier.weight(1f),
                             onClick = { viewModel.notifyFeatureComingSoon("Smart Playlists") },
                         )
-                        QuickAccessCard(
-                            title = "Playback Scope",
-                            description = "Control what plays and shuffles",
-                            icon = Icons.Default.Tune,
-                            modifier = Modifier.weight(1f),
-                            onClick = { viewModel.notifyFeatureComingSoon("Playback Scope") },
-                        )
                     }
                 }
             } else {
                 item {
-                    LockedFeatureCard(
-                        title = "Smart Playlists",
-                        description = "Rule-based auto playlists",
-                        icon = Icons.Default.AutoAwesome,
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        onClick = {
-                            lockedFeature = AppFeature.SMART_PLAYLISTS
-                            showUpgradeDialog = true
-                        },
-                    )
-                }
-                item {
-                    Spacer(modifier = Modifier.height(12.dp))
                     SectionHeader(title = "Premium Features")
                 }
                 item {
-                    LockedFeatureCard(
-                        title = "Tags",
-                        description = "Organize with custom tags",
-                        icon = Icons.Default.Label,
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        onClick = {
-                            lockedFeature = AppFeature.TAGS
-                            showUpgradeDialog = true
-                        },
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        LockedFeatureCard(
+                            title = "Stats",
+                            description = "Library insights",
+                            icon = Icons.Default.QueryStats,
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                lockedFeature = AppFeature.LIBRARY_STATS
+                                showUpgradeDialog = true
+                            },
+                        )
+                        LockedFeatureCard(
+                            title = "Smart Playlists",
+                            description = "Rule-based auto playlists",
+                            icon = Icons.Default.AutoAwesome,
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                lockedFeature = AppFeature.SMART_PLAYLISTS
+                                showUpgradeDialog = true
+                            },
+                        )
+                    }
                 }
                 item {
                     Spacer(modifier = Modifier.height(12.dp))
@@ -496,22 +503,22 @@ fun LibraryScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         LockedFeatureCard(
+                            title = "Tags",
+                            description = "Organize with custom tags",
+                            icon = Icons.Default.Label,
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                lockedFeature = AppFeature.TAGS
+                                showUpgradeDialog = true
+                            },
+                        )
+                        LockedFeatureCard(
                             title = "Playlist",
                             description = "Custom listening playlists",
                             icon = Icons.Default.Collections,
                             modifier = Modifier.weight(1f),
                             onClick = {
                                 lockedFeature = AppFeature.COLLECTIONS
-                                showUpgradeDialog = true
-                            },
-                        )
-                        LockedFeatureCard(
-                            title = "Playback Scope",
-                            description = "Control what plays and shuffles",
-                            icon = Icons.Default.Tune,
-                            modifier = Modifier.weight(1f),
-                            onClick = {
-                                lockedFeature = AppFeature.PLAYBACK_SCOPE
                                 showUpgradeDialog = true
                             },
                         )

@@ -30,6 +30,8 @@ import com.perceptiveus.reverie.feature.search.SearchScreen
 import com.perceptiveus.reverie.feature.search.SearchViewModel
 import com.perceptiveus.reverie.feature.settings.SettingsScreen
 import com.perceptiveus.reverie.feature.settings.SettingsViewModel
+import com.perceptiveus.reverie.feature.stats.LibraryStatsScreen
+import com.perceptiveus.reverie.feature.stats.LibraryStatsViewModel
 import androidx.compose.runtime.remember
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
@@ -92,6 +94,9 @@ fun ReverieNavGraph(
                 onNavigateToSongDetails = { track ->
                     navController.navigate(ReverieDestination.SongDetail.createRoute(track.id))
                 },
+                onNavigateToStats = {
+                    navController.navigate(ReverieDestination.LibraryStats.route)
+                },
             )
         }
 
@@ -122,7 +127,18 @@ fun ReverieNavGraph(
                         launchSingleTop = true
                     }
                 },
+                onNavigateToStats = {
+                    navController.navigate(ReverieDestination.LibraryStats.route)
+                },
                 tabRequests = libraryTabRequests,
+            )
+        }
+
+        composable(ReverieDestination.LibraryStats.route) {
+            val viewModel: LibraryStatsViewModel = viewModel(factory = factory)
+            LibraryStatsScreen(
+                viewModel = viewModel,
+                onNavigateBack = { navController.navigateUp() },
             )
         }
 

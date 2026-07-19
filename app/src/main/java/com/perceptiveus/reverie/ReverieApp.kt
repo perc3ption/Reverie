@@ -38,6 +38,7 @@ fun ReverieApp(container: AppContainer) {
             currentRoute != ReverieDestination.Player.route &&
             currentRoute != ReverieDestination.SongDetail.route &&
             currentRoute != ReverieDestination.PlaylistDetail.route &&
+            currentRoute != ReverieDestination.LibraryStats.route &&
             playbackState.currentTrack != null
 
         // Keep a tab highlighted on detail screens so the bottom bar never sits in an
@@ -45,6 +46,7 @@ fun ReverieApp(container: AppContainer) {
         val selectedTabRoute = when (currentRoute) {
             ReverieDestination.SongDetail.route,
             ReverieDestination.PlaylistDetail.route,
+            ReverieDestination.LibraryStats.route,
             -> {
                 val previous = navController.previousBackStackEntry?.destination?.route
                 when (previous) {

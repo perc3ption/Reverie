@@ -10,19 +10,21 @@ import com.perceptiveus.reverie.core.settings.RoomSettingsRepository
 import com.perceptiveus.reverie.core.settings.SettingsRepository
 import com.perceptiveus.reverie.data.local.DatabaseSeeder
 import com.perceptiveus.reverie.data.local.ReverieDatabase
+import com.perceptiveus.reverie.data.repository.LibraryStatsRepository
 import com.perceptiveus.reverie.data.repository.Media3PlaybackRepository
 import com.perceptiveus.reverie.data.repository.MusicLibraryRepository
 import com.perceptiveus.reverie.data.repository.PlaybackRepository
 import com.perceptiveus.reverie.data.repository.PlaylistRepository
+import com.perceptiveus.reverie.data.repository.RoomLibraryStatsRepository
+import com.perceptiveus.reverie.data.repository.RoomMusicLibraryRepository
+import com.perceptiveus.reverie.data.repository.RoomPlaylistRepository
+import com.perceptiveus.reverie.data.repository.RoomSongTagRepository
 import com.perceptiveus.reverie.data.repository.SongTagRepository
 import com.perceptiveus.reverie.data.import.AlbumArtCache
 import com.perceptiveus.reverie.data.import.AudioMetadataReader
 import com.perceptiveus.reverie.data.import.AudioMetadataWriter
 import com.perceptiveus.reverie.data.import.MusicIndexer
 import com.perceptiveus.reverie.data.import.MusicImportRepository
-import com.perceptiveus.reverie.data.repository.RoomMusicLibraryRepository
-import com.perceptiveus.reverie.data.repository.RoomPlaylistRepository
-import com.perceptiveus.reverie.data.repository.RoomSongTagRepository
 import com.perceptiveus.reverie.data.storage.MusicLibraryStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -95,6 +97,11 @@ class AppContainer(context: Context) {
     val songTagRepository: SongTagRepository = RoomSongTagRepository(
         songTagDao = database.songTagDao(),
         featureAccessChecker = featureAccessChecker,
+    )
+    val libraryStatsRepository: LibraryStatsRepository = RoomLibraryStatsRepository(
+        trackDao = database.trackDao(),
+        playlistDao = database.playlistDao(),
+        playHistoryDao = database.playHistoryDao(),
     )
     val playbackRepository: PlaybackRepository = Media3PlaybackRepository(
         context = appContext,

@@ -66,6 +66,13 @@ sealed class ReverieDestination(
         unselectedIcon = Icons.Outlined.Home,
     )
 
+    data object LibraryStats : ReverieDestination(
+        route = "library_stats",
+        label = "Stats",
+        selectedIcon = Icons.Filled.Home,
+        unselectedIcon = Icons.Outlined.Home,
+    )
+
     data object SongDetail : ReverieDestination(
         route = "song/{trackId}",
         label = "Song",
@@ -96,6 +103,7 @@ sealed class ReverieDestination(
             Player.route,
             Settings.route,
             Search.route,
+            LibraryStats.route,
             SongDetail.route,
             PlaylistDetail.route,
         )

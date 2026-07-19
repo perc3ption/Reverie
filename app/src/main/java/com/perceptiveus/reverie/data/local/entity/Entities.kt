@@ -148,3 +148,19 @@ data class UserSettingsEntity(
         const val SETTINGS_ROW_ID = 1
     }
 }
+
+/** Room projection for top played tracks. */
+data class TrackPlayStatRow(
+    val id: String,
+    val title: String,
+    val artist: String,
+    val album: String,
+    val artworkPath: String,
+    val playCount: Int,
+)
+
+/** Room projection for top played artists (or similar named groups). */
+data class NamedPlayStatRow(
+    val name: String,
+    val playCount: Int,
+)

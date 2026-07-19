@@ -17,11 +17,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.QueryStats
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -63,6 +64,7 @@ fun HomeScreen(
     onNavigateToPremium: () -> Unit,
     onNavigateToSearch: () -> Unit,
     onNavigateToSongDetails: (Track) -> Unit,
+    onNavigateToStats: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val recentlyPlayed by viewModel.recentlyPlayed.collectAsState()
@@ -74,7 +76,7 @@ fun HomeScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var showQueueSheet by remember { mutableStateOf(false) }
     var showPlaylistDialog by remember { mutableStateOf(false) }
-    var showPlaybackScopeUpgrade by remember { mutableStateOf(false) }
+    var upgradeFeature by remember { mutableStateOf<AppFeature?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.userMessages.collectLatest { message ->
@@ -82,12 +84,12 @@ fun HomeScreen(
         }
     }
 
-    if (showPlaybackScopeUpgrade) {
+    upgradeFeature?.let { feature ->
         UpgradeDialog(
-            feature = AppFeature.PLAYBACK_SCOPE,
-            onDismiss = { showPlaybackScopeUpgrade = false },
+            feature = feature,
+            onDismiss = { upgradeFeature = null },
             onUpgradeClick = {
-                showPlaybackScopeUpgrade = false
+                upgradeFeature = null
                 onNavigateToPremium()
             },
         )
@@ -168,15 +170,22 @@ fun HomeScreen(
             }
             item {
                 QuickAccessGrid(
+                    isPremium = isPremium,
                     onImportClick = onNavigateToImport,
                     onLibraryClick = onNavigateToLibrary,
                     onPlaylistsClick = onNavigateToLibraryPlaylists,
-                    canAccessPlaybackScope = viewModel.canAccessPlaybackScope(),
-                    onPlaybackScopeClick = {
-                        if (viewModel.canAccessPlaybackScope()) {
-                            viewModel.notifyFeatureComingSoon("Playback Scope")
+                    onStatsClick = {
+                        if (isPremium) {
+                            onNavigateToStats()
                         } else {
-                            showPlaybackScopeUpgrade = true
+                            upgradeFeature = AppFeature.LIBRARY_STATS
+                        }
+                    },
+                    onSmartPlaylistsClick = {
+                        if (isPremium) {
+                            viewModel.notifyFeatureComingSoon("Smart Playlists")
+                        } else {
+                            upgradeFeature = AppFeature.SMART_PLAYLISTS
                         }
                     },
                 )
@@ -275,11 +284,12 @@ private fun RecentlyPlayedRow(
 
 @Composable
 private fun QuickAccessGrid(
+    isPremium: Boolean,
     onImportClick: () -> Unit,
     onLibraryClick: () -> Unit,
     onPlaylistsClick: () -> Unit,
-    canAccessPlaybackScope: Boolean,
-    onPlaybackScopeClick: () -> Unit,
+    onStatsClick: () -> Unit,
+    onSmartPlaylistsClick: () -> Unit,
 ) {
     Column(
         modifier = Modifier.padding(horizontal = 16.dp),
@@ -301,29 +311,43 @@ private fun QuickAccessGrid(
                 onClick = onLibraryClick,
             )
         }
+        QuickAccessCard(
+            title = "Playlists",
+            description = "Your playlists and mixes",
+            icon = Icons.Default.LibraryMusic,
+            modifier = Modifier.fillMaxWidth(),
+            onClick = onPlaylistsClick,
+        )
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            QuickAccessCard(
-                title = "Playlists",
-                description = "Your playlists and mixes",
-                icon = Icons.Default.LibraryMusic,
-                modifier = Modifier.weight(1f),
-                onClick = onPlaylistsClick,
-            )
-            if (canAccessPlaybackScope) {
+            if (isPremium) {
                 QuickAccessCard(
-                    title = "Playback Scope",
-                    description = "Control what plays and shuffles",
-                    icon = Icons.Default.Tune,
+                    title = "Stats",
+                    description = "Library insights",
+                    icon = Icons.Default.QueryStats,
                     modifier = Modifier.weight(1f),
-                    onClick = onPlaybackScopeClick,
+                    onClick = onStatsClick,
+                )
+                QuickAccessCard(
+                    title = "Smart Playlists",
+                    description = "Rule-based auto playlists",
+                    icon = Icons.Default.AutoAwesome,
+                    modifier = Modifier.weight(1f),
+                    onClick = onSmartPlaylistsClick,
                 )
             } else {
                 LockedFeatureCard(
-                    title = "Playback Scope",
-                    description = "Control what plays and shuffles",
-                    icon = Icons.Default.Tune,
+                    title = "Stats",
+                    description = "Library insights",
+                    icon = Icons.Default.QueryStats,
                     modifier = Modifier.weight(1f),
-                    onClick = onPlaybackScopeClick,
+                    onClick = onStatsClick,
+                )
+                LockedFeatureCard(
+                    title = "Smart Playlists",
+                    description = "Rule-based auto playlists",
+                    icon = Icons.Default.AutoAwesome,
+                    modifier = Modifier.weight(1f),
+                    onClick = onSmartPlaylistsClick,
                 )
             }
         }
