@@ -12,6 +12,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.perceptiveus.reverie.AppContainer
 import com.perceptiveus.reverie.ReverieViewModelFactory
+import com.perceptiveus.reverie.feature.audiofx.AudioFxScreen
+import com.perceptiveus.reverie.feature.audiofx.AudioFxViewModel
 import com.perceptiveus.reverie.feature.home.HomeScreen
 import com.perceptiveus.reverie.feature.home.HomeViewModel
 import com.perceptiveus.reverie.feature.importmusic.ImportMusicScreen
@@ -106,6 +108,9 @@ fun ReverieNavGraph(
                 onNavigateToSmartPlaylists = {
                     navController.navigate(ReverieDestination.SmartPlaylists.route)
                 },
+                onNavigateToAudioFx = {
+                    navController.navigate(ReverieDestination.AudioFx.route)
+                },
             )
         }
 
@@ -145,6 +150,9 @@ fun ReverieNavGraph(
                 onNavigateToImport = {
                     navController.navigate(ReverieDestination.ImportMusic.route)
                 },
+                onNavigateToAudioFx = {
+                    navController.navigate(ReverieDestination.AudioFx.route)
+                },
                 tabRequests = libraryTabRequests,
             )
         }
@@ -154,6 +162,17 @@ fun ReverieNavGraph(
             LibraryStatsScreen(
                 viewModel = viewModel,
                 onNavigateBack = { navController.navigateUp() },
+            )
+        }
+
+        composable(ReverieDestination.AudioFx.route) {
+            val viewModel: AudioFxViewModel = viewModel(factory = factory)
+            AudioFxScreen(
+                viewModel = viewModel,
+                onNavigateBack = { navController.navigateUp() },
+                onNavigateToPremium = {
+                    navController.navigate(ReverieDestination.PremiumFeatures.route)
+                },
             )
         }
 

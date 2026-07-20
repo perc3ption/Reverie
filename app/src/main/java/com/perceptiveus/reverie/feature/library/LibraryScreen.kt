@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Label
@@ -88,6 +89,7 @@ fun LibraryScreen(
     onNavigateToStats: () -> Unit,
     onNavigateToSmartPlaylists: () -> Unit,
     onNavigateToImport: () -> Unit,
+    onNavigateToAudioFx: () -> Unit,
     tabRequests: Flow<LibraryTab>? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -445,13 +447,35 @@ fun LibraryScreen(
                         .padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    QuickAccessCard(
-                        title = "Import Music",
-                        description = "Add songs or folders",
-                        icon = Icons.Default.FolderOpen,
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = onNavigateToImport,
-                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        QuickAccessCard(
+                            title = "Import Music",
+                            description = "Add songs or folders",
+                            icon = Icons.Default.FolderOpen,
+                            modifier = Modifier.weight(1f),
+                            onClick = onNavigateToImport,
+                        )
+                        if (isPremium) {
+                            QuickAccessCard(
+                                title = "Audio FX",
+                                description = "EQ, bass, loudness, crossfade",
+                                icon = Icons.Default.Equalizer,
+                                modifier = Modifier.weight(1f),
+                                onClick = onNavigateToAudioFx,
+                            )
+                        } else {
+                            LockedFeatureCard(
+                                title = "Audio FX",
+                                description = "EQ, bass, loudness, crossfade",
+                                icon = Icons.Default.Equalizer,
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    lockedFeature = AppFeature.AUDIO_FX
+                                    showUpgradeDialog = true
+                                },
+                            )
+                        }
+                    }
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         if (isPremium) {
                             QuickAccessCard(

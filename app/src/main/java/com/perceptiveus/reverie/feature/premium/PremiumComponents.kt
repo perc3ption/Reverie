@@ -143,4 +143,5 @@ private fun featureDescription(feature: AppFeature): String = when (feature) {
     AppFeature.ADVANCED_VISUALIZERS -> "Access premium spectrum and waveform visualizers."
     AppFeature.ADVANCED_SEARCH -> "Use advanced filters and saved searches."
     AppFeature.LIBRARY_STATS -> "View detailed library statistics and insights."
+    AppFeature.AUDIO_FX -> "Equalizer, bass boost, loudness leveling, crossfade, and gapless playback."
 }

@@ -33,7 +33,12 @@ class PlaybackService : MediaSessionService() {
                 return DefaultAudioSink.Builder(context)
                     .setEnableFloatOutput(enableFloatOutput)
                     .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
-                    .setAudioProcessors(arrayOf(PlaybackAudioAnalyzer.teeProcessor))
+                    .setAudioProcessors(
+                        arrayOf(
+                            com.perceptiveus.reverie.playback.audiofx.AudioFxController.equalizerProcessor,
+                            PlaybackAudioAnalyzer.teeProcessor,
+                        ),
+                    )
                     .build()
             }
         }

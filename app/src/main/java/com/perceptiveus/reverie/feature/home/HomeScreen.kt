@@ -18,8 +18,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.QueryStats
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
@@ -66,6 +68,7 @@ fun HomeScreen(
     onNavigateToSongDetails: (Track) -> Unit,
     onNavigateToStats: () -> Unit,
     onNavigateToSmartPlaylists: () -> Unit,
+    onNavigateToAudioFx: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val recentlyPlayed by viewModel.recentlyPlayed.collectAsState()
@@ -174,11 +177,11 @@ fun HomeScreen(
                     isPremium = isPremium,
                     onImportClick = onNavigateToImport,
                     onPlaylistsClick = onNavigateToLibraryPlaylists,
-                    onStatsClick = {
+                    onAudioFxClick = {
                         if (isPremium) {
-                            onNavigateToStats()
+                            onNavigateToAudioFx()
                         } else {
-                            upgradeFeature = AppFeature.LIBRARY_STATS
+                            upgradeFeature = AppFeature.AUDIO_FX
                         }
                     },
                     onSmartPlaylistsClick = {
@@ -187,6 +190,16 @@ fun HomeScreen(
                         } else {
                             upgradeFeature = AppFeature.SMART_PLAYLISTS
                         }
+                    },
+                    onStatsClick = {
+                        if (isPremium) {
+                            onNavigateToStats()
+                        } else {
+                            upgradeFeature = AppFeature.LIBRARY_STATS
+                        }
+                    },
+                    onTutorialClick = {
+                        // Placeholder — tutorial flow comes later.
                     },
                 )
             }
@@ -287,8 +300,10 @@ private fun QuickAccessGrid(
     isPremium: Boolean,
     onImportClick: () -> Unit,
     onPlaylistsClick: () -> Unit,
-    onStatsClick: () -> Unit,
+    onAudioFxClick: () -> Unit,
     onSmartPlaylistsClick: () -> Unit,
+    onStatsClick: () -> Unit,
+    onTutorialClick: () -> Unit,
 ) {
     Column(
         modifier = Modifier.padding(horizontal = 16.dp),
@@ -313,11 +328,11 @@ private fun QuickAccessGrid(
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             if (isPremium) {
                 QuickAccessCard(
-                    title = "Stats",
-                    description = "Library insights",
-                    icon = Icons.Default.QueryStats,
+                    title = "Audio FX",
+                    description = "EQ, bass, loudness, crossfade",
+                    icon = Icons.Default.Equalizer,
                     modifier = Modifier.weight(1f),
-                    onClick = onStatsClick,
+                    onClick = onAudioFxClick,
                 )
                 QuickAccessCard(
                     title = "Smart Playlists",
@@ -328,11 +343,11 @@ private fun QuickAccessGrid(
                 )
             } else {
                 LockedFeatureCard(
-                    title = "Stats",
-                    description = "Library insights",
-                    icon = Icons.Default.QueryStats,
+                    title = "Audio FX",
+                    description = "EQ, bass, loudness, crossfade",
+                    icon = Icons.Default.Equalizer,
                     modifier = Modifier.weight(1f),
-                    onClick = onStatsClick,
+                    onClick = onAudioFxClick,
                 )
                 LockedFeatureCard(
                     title = "Smart Playlists",
@@ -342,6 +357,32 @@ private fun QuickAccessGrid(
                     onClick = onSmartPlaylistsClick,
                 )
             }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (isPremium) {
+                QuickAccessCard(
+                    title = "Stats",
+                    description = "Library insights",
+                    icon = Icons.Default.QueryStats,
+                    modifier = Modifier.weight(1f),
+                    onClick = onStatsClick,
+                )
+            } else {
+                LockedFeatureCard(
+                    title = "Stats",
+                    description = "Library insights",
+                    icon = Icons.Default.QueryStats,
+                    modifier = Modifier.weight(1f),
+                    onClick = onStatsClick,
+                )
+            }
+            QuickAccessCard(
+                title = "Tutorial",
+                description = "Learn the ropes",
+                icon = Icons.Default.MenuBook,
+                modifier = Modifier.weight(1f),
+                onClick = onTutorialClick,
+            )
         }
     }
 }

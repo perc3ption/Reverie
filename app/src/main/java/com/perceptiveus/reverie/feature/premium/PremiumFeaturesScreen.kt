@@ -129,6 +129,7 @@ private val premiumFeatureItems = listOf(
     PremiumFeatureItem(AppFeature.SMART_PLAYLISTS, "Smart Playlists", "Rule-based auto playlists.", Icons.Default.AutoAwesome),
     PremiumFeatureItem(AppFeature.PLAYBACK_SCOPE, "Playback Scope", "Control shuffle and play scope.", Icons.Default.Tune),
     PremiumFeatureItem(AppFeature.ADVANCED_VISUALIZERS, "Advanced Visualizers", "Premium spectrum effects.", Icons.Default.Slideshow),
+    PremiumFeatureItem(AppFeature.AUDIO_FX, "Audio FX", "EQ, bass boost, loudness, crossfade.", Icons.Default.Tune),
     PremiumFeatureItem(AppFeature.ADVANCED_SEARCH, "Advanced Search", "Filters and saved searches.", Icons.Default.ManageSearch),
     PremiumFeatureItem(AppFeature.LYRICS, "Lyrics", "Synced lyrics display.", Icons.Default.MusicNote),
     PremiumFeatureItem(AppFeature.METADATA_EDITING, "Metadata Editing", "Edit track info.", Icons.Default.Tune),

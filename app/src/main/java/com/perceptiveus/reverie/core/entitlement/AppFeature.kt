@@ -17,5 +17,6 @@ enum class AppFeature {
     SMART_PLAYLISTS,
     ADVANCED_VISUALIZERS,
     ADVANCED_SEARCH,
+    AUDIO_FX,
     LIBRARY_STATS,
 }

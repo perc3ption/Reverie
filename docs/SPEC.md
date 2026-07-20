@@ -49,6 +49,7 @@ Gated via `AppFeature` / `FeatureAccessChecker`. Entitlements are currently a **
 | Metadata Editing | Partial | Edit title/artist/album/year/genre on Song Detail; writes to file + Room |
 | Album Art Editing | Done | Premium: empty-art import on Player + Song Detail; reimport via cover icon on Song Detail; cache + Room (album-scoped) |
 | Library Stats | Done | Premium: Stats screen — library counts, play totals, top tracks/artists (on-demand from play_history) |
+| Audio FX | Done | Premium: 10-band EQ + preamp + bass boost + presets; loudness leveling; crossfade; gapless/track-gap |
 | Play Billing purchase / restore | Planned | Replace mock premium toggle |
 
 ## Supported audio formats

@@ -73,6 +73,13 @@ sealed class ReverieDestination(
         unselectedIcon = Icons.Outlined.Home,
     )
 
+    data object AudioFx : ReverieDestination(
+        route = "audio_fx",
+        label = "Audio FX",
+        selectedIcon = Icons.Filled.Home,
+        unselectedIcon = Icons.Outlined.Home,
+    )
+
     data object SmartPlaylists : ReverieDestination(
         route = "smart_playlists",
         label = "Smart Playlists",
@@ -131,6 +138,7 @@ sealed class ReverieDestination(
             Settings.route,
             Search.route,
             LibraryStats.route,
+            AudioFx.route,
             SmartPlaylists.route,
             SmartPlaylistDetail.route,
             SmartPlaylistEditor.route,

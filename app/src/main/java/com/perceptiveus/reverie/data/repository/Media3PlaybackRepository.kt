@@ -19,6 +19,7 @@ import com.perceptiveus.reverie.domain.model.RepeatMode
 import com.perceptiveus.reverie.domain.model.Track
 import com.perceptiveus.reverie.playback.PlaybackAudioAnalyzer
 import com.perceptiveus.reverie.playback.PlaybackService
+import com.perceptiveus.reverie.playback.audiofx.AudioFxSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -38,6 +39,7 @@ class Media3PlaybackRepository(
     context: Context,
     private val playHistoryDao: PlayHistoryDao,
     private val scope: CoroutineScope,
+    private val audioFxSettings: StateFlow<AudioFxSettings>,
 ) : PlaybackRepository {
 
     private val appContext = context.applicationContext
@@ -56,8 +58,11 @@ class Media3PlaybackRepository(
     private var queueSource: QueueSource = QueueSource.Unknown
     private var disabledTrackIds: Set<String> = emptySet()
     private var positionJob: Job? = null
+    private var fadeInJob: Job? = null
+    private var gapJob: Job? = null
     private var lastRecordedTrackId: String? = null
     private val connecting = AtomicBoolean(false)
+    private var fadeInActive = false
 
     private var pendingAction: (() -> Unit)? = null
     /** Avoid recursive skip loops when auto-advancing past muted tracks. */
@@ -73,6 +78,20 @@ class Media3PlaybackRepository(
                 events.contains(Player.EVENT_IS_PLAYING_CHANGED)
             ) {
                 maybeRecordPlayHistory(player)
+            }
+        }
+
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            val player = controller ?: return
+            val fx = audioFxSettings.value
+            when {
+                fx.crossfadeMs > 0 -> startFadeIn(player, fx.crossfadeMs)
+                !fx.gaplessEnabled &&
+                    reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO -> insertTrackGap(player)
+                else -> {
+                    fadeInActive = false
+                    player.volume = 1f
+                }
             }
         }
     }
@@ -305,9 +324,57 @@ class Media3PlaybackRepository(
             while (isActive) {
                 val player = controller
                 if (player != null) {
-                    mainHandler.post { syncFromPlayer(player) }
+                    mainHandler.post {
+                        applyOutgoingCrossfade(player)
+                        syncFromPlayer(player)
+                    }
                 }
                 delay(POSITION_POLL_MS)
+            }
+        }
+    }
+
+    private fun applyOutgoingCrossfade(player: Player) {
+        val crossfadeMs = audioFxSettings.value.crossfadeMs
+        if (crossfadeMs <= 0 || fadeInActive || !player.isPlaying) return
+        val duration = player.duration
+        if (duration <= 0L) return
+        val remaining = duration - player.currentPosition
+        if (remaining in 1 until crossfadeMs) {
+            player.volume = (remaining.toFloat() / crossfadeMs).coerceIn(0f, 1f)
+        }
+    }
+
+    private fun startFadeIn(player: Player, crossfadeMs: Int) {
+        fadeInJob?.cancel()
+        gapJob?.cancel()
+        fadeInActive = true
+        player.volume = 0f
+        val steps = (crossfadeMs / POSITION_POLL_MS.toInt()).coerceIn(4, 40)
+        val stepMs = (crossfadeMs / steps).coerceAtLeast(16)
+        fadeInJob = scope.launch {
+            for (i in 1..steps) {
+                delay(stepMs.toLong())
+                val volume = i / steps.toFloat()
+                mainHandler.post { player.volume = volume.coerceIn(0f, 1f) }
+            }
+            mainHandler.post {
+                player.volume = 1f
+                fadeInActive = false
+            }
+        }
+    }
+
+    private fun insertTrackGap(player: Player) {
+        fadeInJob?.cancel()
+        gapJob?.cancel()
+        fadeInActive = false
+        player.volume = 1f
+        player.pause()
+        gapJob = scope.launch {
+            delay(TRACK_GAP_MS)
+            mainHandler.post {
+                if (!player.isPlaying) player.play()
             }
         }
     }
@@ -475,5 +542,6 @@ class Media3PlaybackRepository(
     companion object {
         private const val POSITION_POLL_MS = 500L
         private const val RESTART_THRESHOLD_MS = 3_000L
+        private const val TRACK_GAP_MS = 400L
     }
 }

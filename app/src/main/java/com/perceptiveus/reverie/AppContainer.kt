@@ -116,9 +116,15 @@ class AppContainer(context: Context) {
         context = appContext,
         playHistoryDao = database.playHistoryDao(),
         scope = appScope,
+        audioFxSettings = settingsRepository.audioFxSettings,
     )
 
     init {
+        appScope.launch {
+            settingsRepository.audioFxSettings.collect { settings ->
+                com.perceptiveus.reverie.playback.audiofx.AudioFxController.apply(settings)
+            }
+        }
         appScope.launch {
             initializeLibraryStorage()
             DatabaseSeeder.seedSettingsIfNeeded(database.userSettingsDao())
