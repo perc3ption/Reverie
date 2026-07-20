@@ -14,6 +14,7 @@ import com.perceptiveus.reverie.data.repository.MusicLibraryRepository
 import com.perceptiveus.reverie.data.repository.PlaybackRepository
 import com.perceptiveus.reverie.domain.model.LyricsDocument
 import com.perceptiveus.reverie.domain.model.PlaybackState
+import com.perceptiveus.reverie.domain.model.PlayerProgress
 import com.perceptiveus.reverie.playback.PlaybackAudioAnalyzer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -37,7 +38,8 @@ class PlayerViewModel(
 ) : AndroidViewModel(application) {
 
     val playbackState: StateFlow<PlaybackState> = playbackRepository.playbackState
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PlaybackState())
+
+    val playerProgress: StateFlow<PlayerProgress> = playbackRepository.playerProgress
 
     val visualizerFrame = playbackRepository.visualizerFrame
         .stateIn(

@@ -16,6 +16,7 @@ import androidx.media3.session.SessionToken
 import com.perceptiveus.reverie.data.local.dao.PlayHistoryDao
 import com.perceptiveus.reverie.data.local.entity.PlayHistoryEntity
 import com.perceptiveus.reverie.domain.model.PlaybackState
+import com.perceptiveus.reverie.domain.model.PlayerProgress
 import com.perceptiveus.reverie.domain.model.QueueSource
 import com.perceptiveus.reverie.domain.model.RepeatMode
 import com.perceptiveus.reverie.domain.model.Track
@@ -49,6 +50,9 @@ class Media3PlaybackRepository(
 
     private val _playbackState = MutableStateFlow(PlaybackState())
     override val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
+
+    private val _playerProgress = MutableStateFlow(PlayerProgress())
+    override val playerProgress: StateFlow<PlayerProgress> = _playerProgress.asStateFlow()
 
     override val visualizerFrame: StateFlow<PlaybackAudioAnalyzer.Frame> =
         PlaybackAudioAnalyzer.frame
@@ -85,7 +89,17 @@ class Media3PlaybackRepository(
             if (events.contains(Player.EVENT_IS_PLAYING_CHANGED) && player.isPlaying) {
                 consecutiveFailures = 0
             }
-            syncFromPlayer(player)
+            // Structural fields only on meaningful events; progress always refreshes.
+            val sessionEvent = events.contains(Player.EVENT_MEDIA_ITEM_TRANSITION) ||
+                events.contains(Player.EVENT_TIMELINE_CHANGED) ||
+                events.contains(Player.EVENT_REPEAT_MODE_CHANGED) ||
+                events.contains(Player.EVENT_SHUFFLE_MODE_ENABLED_CHANGED) ||
+                events.contains(Player.EVENT_PLAYER_ERROR) ||
+                events.contains(Player.EVENT_PLAYBACK_STATE_CHANGED)
+            if (sessionEvent || events.contains(Player.EVENT_IS_PLAYING_CHANGED)) {
+                syncSessionFromPlayer(player)
+            }
+            syncProgressFromPlayer(player)
             if (events.contains(Player.EVENT_MEDIA_ITEM_TRANSITION) ||
                 events.contains(Player.EVENT_IS_PLAYING_CHANGED)
             ) {
@@ -435,7 +449,8 @@ class Media3PlaybackRepository(
             consecutiveFailures++
             val message = error.message?.takeIf { it.isNotBlank() }
                 ?: error.errorCodeName
-            _playbackState.update { it.copy(isPlaying = false, errorMessage = message) }
+            _playbackState.update { it.copy(errorMessage = message) }
+            _playerProgress.update { it.copy(isPlaying = false) }
 
             val canSkip = player.mediaItemCount > 1 &&
                 consecutiveFailures <= MAX_AUTO_SKIP_ON_ERROR
@@ -475,7 +490,8 @@ class Media3PlaybackRepository(
                 if (player != null && player.isConnected) {
                     mainHandler.post {
                         applyOutgoingCrossfade(player)
-                        syncFromPlayer(player)
+                        // Position ticks must not rebuild queue/session state.
+                        syncProgressFromPlayer(player)
                     }
                 }
                 delay(POSITION_POLL_MS)
@@ -543,6 +559,31 @@ class Media3PlaybackRepository(
     }
 
     private fun syncFromPlayer(player: Player) {
+        syncSessionFromPlayer(player)
+        syncProgressFromPlayer(player)
+    }
+
+    private fun syncProgressFromPlayer(player: Player) {
+        val duration = when {
+            player.duration > 0 -> player.duration
+            else -> {
+                val mediaId = player.currentMediaItem?.mediaId
+                queue.firstOrNull { it.id == mediaId }?.durationMs?.takeIf { it > 0 } ?: 0L
+            }
+        }
+        val position = player.currentPosition.coerceAtLeast(0L).let { pos ->
+            if (duration > 0) pos.coerceAtMost(duration) else pos
+        }
+        val next = PlayerProgress(
+            positionMs = position,
+            isPlaying = player.isPlaying,
+        )
+        if (_playerProgress.value != next) {
+            _playerProgress.value = next
+        }
+    }
+
+    private fun syncSessionFromPlayer(player: Player) {
         val mediaId = player.currentMediaItem?.mediaId
         val current = queue.firstOrNull { it.id == mediaId }
             ?: player.currentMediaItem?.toTrackFallback()
@@ -553,33 +594,47 @@ class Media3PlaybackRepository(
             current != null && current.durationMs > 0 -> current.durationMs
             else -> 0L
         }
-        val position = player.currentPosition.coerceAtLeast(0L).let { pos ->
-            if (duration > 0) pos.coerceAtMost(duration) else pos
+        val track = current?.copy(durationMs = duration.takeIf { it > 0 } ?: current.durationMs)
+        val errorMessage = when {
+            player.isPlaying -> null
+            player.playerError != null ->
+                player.playerError?.message?.takeIf { it.isNotBlank() }
+                    ?: player.playerError?.errorCodeName
+                    ?: _playbackState.value.errorMessage
+            else -> _playbackState.value.errorMessage
         }
-
-        _playbackState.update {
-            PlaybackState(
-                currentTrack = current?.copy(durationMs = duration.takeIf { it > 0 } ?: current.durationMs),
-                isPlaying = player.isPlaying,
-                positionMs = position,
-                shuffleEnabled = player.shuffleModeEnabled,
-                repeatMode = player.repeatMode.toDomain(),
-                queueSize = player.mediaItemCount.takeIf { it > 0 } ?: queue.size,
-                nextTrack = next,
-                queue = queue,
-                queueIndex = queueIndex,
-                queueSource = queueSource,
-                disabledTrackIds = disabledTrackIds,
-                errorMessage = when {
-                    player.isPlaying -> null
-                    player.playerError != null ->
-                        player.playerError?.message?.takeIf { it.isNotBlank() }
-                            ?: player.playerError?.errorCodeName
-                            ?: it.errorMessage
-                    else -> it.errorMessage
-                },
-            )
+        val prev = _playbackState.value
+        if (
+            prev.currentTrack?.id == track?.id &&
+            prev.currentTrack?.title == track?.title &&
+            prev.currentTrack?.artist == track?.artist &&
+            prev.currentTrack?.album == track?.album &&
+            prev.currentTrack?.artworkPath == track?.artworkPath &&
+            prev.currentTrack?.durationMs == track?.durationMs &&
+            prev.shuffleEnabled == player.shuffleModeEnabled &&
+            prev.repeatMode == player.repeatMode.toDomain() &&
+            prev.queueSize == (player.mediaItemCount.takeIf { it > 0 } ?: queue.size) &&
+            prev.queueIndex == queueIndex &&
+            prev.nextTrack?.id == next?.id &&
+            prev.queueSource == queueSource &&
+            prev.disabledTrackIds == disabledTrackIds &&
+            prev.errorMessage == errorMessage &&
+            prev.queue === queue
+        ) {
+            return
         }
+        _playbackState.value = PlaybackState(
+            currentTrack = track,
+            shuffleEnabled = player.shuffleModeEnabled,
+            repeatMode = player.repeatMode.toDomain(),
+            queueSize = player.mediaItemCount.takeIf { it > 0 } ?: queue.size,
+            nextTrack = next,
+            queue = queue,
+            queueIndex = queueIndex,
+            queueSource = queueSource,
+            disabledTrackIds = disabledTrackIds,
+            errorMessage = errorMessage,
+        )
     }
 
     private fun skipCurrentIfDisabled(player: Player) {

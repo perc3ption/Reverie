@@ -5,6 +5,7 @@ import com.perceptiveus.reverie.domain.model.Album
 import com.perceptiveus.reverie.domain.model.Artist
 import com.perceptiveus.reverie.domain.model.MusicFolder
 import com.perceptiveus.reverie.domain.model.PlaybackState
+import com.perceptiveus.reverie.domain.model.PlayerProgress
 import com.perceptiveus.reverie.domain.model.QueueSource
 import com.perceptiveus.reverie.domain.model.RepeatMode
 import com.perceptiveus.reverie.domain.model.Track
@@ -46,7 +47,13 @@ interface MusicLibraryRepository {
 
 /** Playback state backed by Media3 ExoPlayer via [com.perceptiveus.reverie.playback.PlaybackService]. */
 interface PlaybackRepository {
+    /**
+     * Structural session state (track, queue, shuffle/repeat).
+     * Does not tick every position update — use [playerProgress] for that.
+     */
     val playbackState: StateFlow<PlaybackState>
+    /** High-frequency position / isPlaying for seek bars and play buttons. */
+    val playerProgress: StateFlow<PlayerProgress>
     /** Live spectrum/waveform from decoded PCM (no mic permission). */
     val visualizerFrame: StateFlow<PlaybackAudioAnalyzer.Frame>
 

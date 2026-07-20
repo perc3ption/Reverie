@@ -9,6 +9,7 @@ import com.perceptiveus.reverie.data.repository.PlaybackRepository
 import com.perceptiveus.reverie.data.repository.PlaylistLimitException
 import com.perceptiveus.reverie.data.repository.PlaylistRepository
 import com.perceptiveus.reverie.domain.model.PlaybackState
+import com.perceptiveus.reverie.domain.model.PlayerProgress
 import com.perceptiveus.reverie.domain.model.Playlist
 import com.perceptiveus.reverie.domain.model.QueueSource
 import com.perceptiveus.reverie.domain.model.Track
@@ -55,7 +56,8 @@ class HomeViewModel(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     val playbackState: StateFlow<PlaybackState> = playbackRepository.playbackState
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PlaybackState())
+
+    val playerProgress: StateFlow<PlayerProgress> = playbackRepository.playerProgress
 
     val availablePlaylists: StateFlow<List<Playlist>> =
         playbackState

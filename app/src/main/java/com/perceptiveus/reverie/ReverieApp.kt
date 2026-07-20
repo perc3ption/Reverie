@@ -23,11 +23,14 @@ import com.perceptiveus.reverie.core.design.components.MiniPlayerBar
 import com.perceptiveus.reverie.core.navigation.EdgeSwipeBackHost
 import com.perceptiveus.reverie.core.navigation.ReverieDestination
 import com.perceptiveus.reverie.core.navigation.ReverieNavGraph
+import com.perceptiveus.reverie.data.repository.PlaybackRepository
+import com.perceptiveus.reverie.domain.model.Track
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 
 @Composable
 fun ReverieApp(container: AppContainer) {
     val themePreference by container.settingsRepository.themePreference.collectAsState()
-    val playbackState by container.playbackRepository.playbackState.collectAsState()
 
     ReverieTheme(themePreference = themePreference) {
         val navController = rememberNavController()
@@ -36,7 +39,7 @@ fun ReverieApp(container: AppContainer) {
         val currentRoute = navBackStackEntry?.destination?.route
 
         val showBottomBar = currentRoute in ReverieDestination.bottomBarVisibleRoutes
-        val showMiniPlayer = showBottomBar &&
+        val miniPlayerAllowed = showBottomBar &&
             currentRoute != ReverieDestination.Player.route &&
             currentRoute != ReverieDestination.SongDetail.route &&
             currentRoute != ReverieDestination.PlaylistDetail.route &&
@@ -46,8 +49,7 @@ fun ReverieApp(container: AppContainer) {
             currentRoute != ReverieDestination.TutorialChapter.route &&
             currentRoute != ReverieDestination.SmartPlaylists.route &&
             currentRoute != ReverieDestination.SmartPlaylistDetail.route &&
-            currentRoute != ReverieDestination.SmartPlaylistEditor.route &&
-            playbackState.currentTrack != null
+            currentRoute != ReverieDestination.SmartPlaylistEditor.route
 
         // Keep a tab highlighted on detail screens so the bottom bar never sits in an
         // "nothing selected" state (which can mis-fire navigation back to Home).
@@ -78,13 +80,9 @@ fun ReverieApp(container: AppContainer) {
             bottomBar = {
                 if (showBottomBar) {
                     Column {
-                        if (showMiniPlayer) {
-                            MiniPlayerBar(
-                                track = playbackState.currentTrack,
-                                isPlaying = playbackState.isPlaying,
-                                onPlayPause = container.playbackRepository::togglePlayPause,
-                                onNext = container.playbackRepository::skipToNext,
-                                onPrevious = container.playbackRepository::skipToPrevious,
+                        if (miniPlayerAllowed) {
+                            ReverieMiniPlayer(
+                                playbackRepository = container.playbackRepository,
                                 onClick = {
                                     navController.navigate(ReverieDestination.Player.route) {
                                         popUpTo(navController.graph.findStartDestination().id) {
@@ -124,6 +122,38 @@ fun ReverieApp(container: AppContainer) {
         }
     }
 }
+
+/**
+ * Collects track + progress here so position ticks do not recompose the whole app scaffold.
+ */
+@Composable
+private fun ReverieMiniPlayer(
+    playbackRepository: PlaybackRepository,
+    onClick: () -> Unit,
+) {
+    val track by remember(playbackRepository) {
+        playbackRepository.playbackState
+            .map { it.currentTrack }
+            .distinctUntilChanged(::sameMiniPlayerTrack)
+    }.collectAsState(initial = playbackRepository.playbackState.value.currentTrack)
+    val progress by playbackRepository.playerProgress.collectAsState()
+
+    val current = track ?: return
+    MiniPlayerBar(
+        track = current,
+        isPlaying = progress.isPlaying,
+        onPlayPause = playbackRepository::togglePlayPause,
+        onNext = playbackRepository::skipToNext,
+        onPrevious = playbackRepository::skipToPrevious,
+        onClick = onClick,
+    )
+}
+
+private fun sameMiniPlayerTrack(old: Track?, new: Track?): Boolean =
+    old?.id == new?.id &&
+        old?.title == new?.title &&
+        old?.artist == new?.artist &&
+        old?.artworkPath == new?.artworkPath
 
 @Composable
 private fun ReverieBottomBar(

@@ -61,6 +61,7 @@ import com.perceptiveus.reverie.core.design.components.PremiumBadge
 import com.perceptiveus.reverie.core.design.components.RetroScreenTitle
 import com.perceptiveus.reverie.core.entitlement.AppFeature
 import com.perceptiveus.reverie.domain.model.LyricsDocument
+import com.perceptiveus.reverie.domain.model.PlayerProgress
 import com.perceptiveus.reverie.domain.model.QueueSource
 import com.perceptiveus.reverie.domain.model.RepeatMode
 import com.perceptiveus.reverie.domain.model.Track
@@ -69,6 +70,7 @@ import com.perceptiveus.reverie.feature.player.visualizer.MusicVisualizer
 import com.perceptiveus.reverie.feature.player.visualizer.VisualizerStyle
 import com.perceptiveus.reverie.feature.premium.UpgradeDialog
 import com.perceptiveus.reverie.playback.PlaybackAudioAnalyzer
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 
 private enum class PlayerMediaView {
@@ -184,8 +186,7 @@ fun PlayerScreen(
                         }
                     },
                     visualizerFrame = visualizerFrame,
-                    isPlaying = playbackState.isPlaying,
-                    positionMs = playbackState.positionMs,
+                    playerProgress = viewModel.playerProgress,
                     selectedStyle = selectedStyle,
                     canAccessVisualizers = canAccessVisualizers,
                     onStyleSelected = { selectedStyle = it },
@@ -273,15 +274,12 @@ fun PlayerScreen(
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                PlaybackProgress(
-                    positionMs = playbackState.positionMs,
+                PlayerTransportControls(
+                    playerProgress = viewModel.playerProgress,
                     durationMs = track?.durationMs ?: 1L,
-                    onSeek = viewModel::seekTo,
-                )
-                PlaybackControls(
-                    isPlaying = playbackState.isPlaying,
                     shuffleEnabled = playbackState.shuffleEnabled,
                     repeatMode = playbackState.repeatMode,
+                    onSeek = viewModel::seekTo,
                     onPlayPause = viewModel::togglePlayPause,
                     onNext = viewModel::skipToNext,
                     onPrevious = viewModel::skipToPrevious,
@@ -354,8 +352,7 @@ private fun PlayerMediaDisplay(
     selectedView: PlayerMediaView,
     onViewSelected: (PlayerMediaView) -> Unit,
     visualizerFrame: PlaybackAudioAnalyzer.Frame,
-    isPlaying: Boolean,
-    positionMs: Long,
+    playerProgress: StateFlow<PlayerProgress>,
     selectedStyle: VisualizerStyle,
     canAccessVisualizers: Boolean,
     onStyleSelected: (VisualizerStyle) -> Unit,
@@ -394,9 +391,10 @@ private fun PlayerMediaDisplay(
             }
 
             PlayerMediaView.VISUALIZER -> {
+                val progress by playerProgress.collectAsState()
                 MusicVisualizer(
                     frame = visualizerFrame,
-                    isPlaying = isPlaying,
+                    isPlaying = progress.isPlaying,
                     selectedStyle = selectedStyle,
                     canAccessPremium = canAccessVisualizers,
                     onStyleSelected = onStyleSelected,
@@ -405,9 +403,10 @@ private fun PlayerMediaDisplay(
             }
 
             PlayerMediaView.LYRICS -> {
+                val progress by playerProgress.collectAsState()
                 LyricsPanel(
                     lyrics = lyrics,
-                    positionMs = positionMs,
+                    positionMs = progress.positionMs,
                     hasAccess = canAccessLyrics,
                     canImport = canImportLyrics,
                     onLockedClick = onLyricsLocked,
@@ -416,6 +415,37 @@ private fun PlayerMediaDisplay(
             }
         }
     }
+}
+
+@Composable
+private fun PlayerTransportControls(
+    playerProgress: StateFlow<PlayerProgress>,
+    durationMs: Long,
+    shuffleEnabled: Boolean,
+    repeatMode: RepeatMode,
+    onSeek: (Long) -> Unit,
+    onPlayPause: () -> Unit,
+    onNext: () -> Unit,
+    onPrevious: () -> Unit,
+    onShuffle: () -> Unit,
+    onRepeat: () -> Unit,
+) {
+    val progress by playerProgress.collectAsState()
+    PlaybackProgress(
+        positionMs = progress.positionMs,
+        durationMs = durationMs,
+        onSeek = onSeek,
+    )
+    PlaybackControls(
+        isPlaying = progress.isPlaying,
+        shuffleEnabled = shuffleEnabled,
+        repeatMode = repeatMode,
+        onPlayPause = onPlayPause,
+        onNext = onNext,
+        onPrevious = onPrevious,
+        onShuffle = onShuffle,
+        onRepeat = onRepeat,
+    )
 }
 
 @Composable

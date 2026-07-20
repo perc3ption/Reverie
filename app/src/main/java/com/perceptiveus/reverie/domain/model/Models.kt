@@ -92,8 +92,6 @@ sealed class QueueSource {
 
 data class PlaybackState(
     val currentTrack: Track? = null,
-    val isPlaying: Boolean = false,
-    val positionMs: Long = 0L,
     val shuffleEnabled: Boolean = false,
     val repeatMode: RepeatMode = RepeatMode.OFF,
     val queueSize: Int = 0,
@@ -111,4 +109,13 @@ data class PlaybackState(
     val disabledTrackIds: Set<String> = emptySet(),
     /** Last player error message, cleared when playback recovers. */
     val errorMessage: String? = null,
+)
+
+/**
+ * High-frequency playback clock. Updated independently from [PlaybackState]
+ * so seek-bar ticks do not recompose queue / Now Playing metadata.
+ */
+data class PlayerProgress(
+    val positionMs: Long = 0L,
+    val isPlaying: Boolean = false,
 )

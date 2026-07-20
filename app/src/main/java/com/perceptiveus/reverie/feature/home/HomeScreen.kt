@@ -56,6 +56,8 @@ import com.perceptiveus.reverie.feature.library.AddToPlaylistDialog
 import com.perceptiveus.reverie.feature.player.QueueSheet
 import com.perceptiveus.reverie.feature.premium.UpgradeDialog
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 
 @Composable
 fun HomeScreen(
@@ -175,16 +177,10 @@ fun HomeScreen(
             }
             item {
                 Spacer(modifier = Modifier.height(4.dp))
-                HomeNowPlayingCard(
-                    track = playbackState.currentTrack,
-                    isPlaying = playbackState.isPlaying,
-                    positionMs = playbackState.positionMs,
-                    onPlayPause = viewModel::togglePlayPause,
-                    onNext = viewModel::skipToNext,
-                    onPrevious = viewModel::skipToPrevious,
-                    onSeek = viewModel::seekTo,
-                    onClick = onNavigateToPlayer,
-                    onSongDetailsClick = onNavigateToSongDetails,
+                HomeNowPlayingSection(
+                    viewModel = viewModel,
+                    onNavigateToPlayer = onNavigateToPlayer,
+                    onNavigateToSongDetails = onNavigateToSongDetails,
                     onViewQueueClick = { showQueueSheet = true },
                     onAddToPlaylistClick = { showPlaylistDialog = true },
                 )
@@ -249,6 +245,43 @@ fun HomeScreen(
                 .padding(16.dp),
         )
     }
+}
+
+@Composable
+private fun HomeNowPlayingSection(
+    viewModel: HomeViewModel,
+    onNavigateToPlayer: () -> Unit,
+    onNavigateToSongDetails: (Track) -> Unit,
+    onViewQueueClick: () -> Unit,
+    onAddToPlaylistClick: () -> Unit,
+) {
+    val track by remember(viewModel) {
+        viewModel.playbackState
+            .map { it.currentTrack }
+            .distinctUntilChanged { old, new ->
+                old?.id == new?.id &&
+                    old?.title == new?.title &&
+                    old?.artist == new?.artist &&
+                    old?.album == new?.album &&
+                    old?.artworkPath == new?.artworkPath &&
+                    old?.durationMs == new?.durationMs
+            }
+    }.collectAsState(initial = viewModel.playbackState.value.currentTrack)
+    val progress by viewModel.playerProgress.collectAsState()
+
+    HomeNowPlayingCard(
+        track = track,
+        isPlaying = progress.isPlaying,
+        positionMs = progress.positionMs,
+        onPlayPause = viewModel::togglePlayPause,
+        onNext = viewModel::skipToNext,
+        onPrevious = viewModel::skipToPrevious,
+        onSeek = viewModel::seekTo,
+        onClick = onNavigateToPlayer,
+        onSongDetailsClick = onNavigateToSongDetails,
+        onViewQueueClick = onViewQueueClick,
+        onAddToPlaylistClick = onAddToPlaylistClick,
+    )
 }
 
 @Composable
