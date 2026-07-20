@@ -40,6 +40,8 @@ fun ReverieApp(container: AppContainer) {
             currentRoute != ReverieDestination.PlaylistDetail.route &&
             currentRoute != ReverieDestination.LibraryStats.route &&
             currentRoute != ReverieDestination.AudioFx.route &&
+            currentRoute != ReverieDestination.Tutorial.route &&
+            currentRoute != ReverieDestination.TutorialChapter.route &&
             currentRoute != ReverieDestination.SmartPlaylists.route &&
             currentRoute != ReverieDestination.SmartPlaylistDetail.route &&
             currentRoute != ReverieDestination.SmartPlaylistEditor.route &&
@@ -52,6 +54,8 @@ fun ReverieApp(container: AppContainer) {
             ReverieDestination.PlaylistDetail.route,
             ReverieDestination.LibraryStats.route,
             ReverieDestination.AudioFx.route,
+            ReverieDestination.Tutorial.route,
+            ReverieDestination.TutorialChapter.route,
             ReverieDestination.SmartPlaylists.route,
             ReverieDestination.SmartPlaylistDetail.route,
             ReverieDestination.SmartPlaylistEditor.route,

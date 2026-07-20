@@ -29,6 +29,7 @@ Status key: **Done** · **Partial** · **Planned**
 | Album art display | Done | Embedded + folder covers cached on disk; Coil in UI |
 | Play from album / artist / folder | Done | Play song or Play All from folder / artist / album browsers |
 | Queue UI (“next up” management) | Done | Queue sheet: tap to play, session mute, reorder (up/down); Add to Queue from Library / Search / Song Detail |
+| Tutorial / Discover Reverie | Done | Home tile + chapter hub; first-run welcome when library empty; Try-it deep links; progress persisted |
 
 ## Premium
 
@@ -50,6 +51,7 @@ Gated via `AppFeature` / `FeatureAccessChecker`. Entitlements are currently a **
 | Album Art Editing | Done | Premium: empty-art import on Player + Song Detail; reimport via cover icon on Song Detail; cache + Room (album-scoped) |
 | Library Stats | Done | Premium: Stats screen — library counts, play totals, top tracks/artists (on-demand from play_history) |
 | Audio FX | Done | Premium: 10-band EQ + preamp + bass boost + presets; loudness leveling; crossfade; gapless/track-gap |
+| Tutorial / Discover Reverie | Done | (Listed under Core) Home hub + first-run; screenshot slots ready for assets |
 | Play Billing purchase / restore | Planned | Replace mock premium toggle |
 
 ## Supported audio formats

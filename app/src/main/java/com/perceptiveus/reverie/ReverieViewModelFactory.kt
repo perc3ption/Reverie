@@ -11,6 +11,7 @@ import com.perceptiveus.reverie.feature.search.SearchViewModel
 import com.perceptiveus.reverie.feature.settings.SettingsViewModel
 import com.perceptiveus.reverie.feature.smartplaylist.SmartPlaylistListViewModel
 import com.perceptiveus.reverie.feature.stats.LibraryStatsViewModel
+import com.perceptiveus.reverie.feature.tutorial.TutorialViewModel
 
 class ReverieViewModelFactory(
     private val container: AppContainer,
@@ -24,6 +25,7 @@ class ReverieViewModelFactory(
                 container.playbackRepository,
                 container.playlistRepository,
                 container.featureAccessChecker,
+                container.settingsRepository,
             )
             modelClass.isAssignableFrom(ImportMusicViewModel::class.java) -> ImportMusicViewModel(
                 container.musicLibraryRepository,
@@ -44,6 +46,10 @@ class ReverieViewModelFactory(
             modelClass.isAssignableFrom(AudioFxViewModel::class.java) -> AudioFxViewModel(
                 container.settingsRepository,
                 container.featureAccessChecker,
+            )
+            modelClass.isAssignableFrom(TutorialViewModel::class.java) -> TutorialViewModel(
+                container.settingsRepository,
+                container.musicLibraryRepository,
             )
             modelClass.isAssignableFrom(SmartPlaylistListViewModel::class.java) -> SmartPlaylistListViewModel(
                 container.smartPlaylistRepository,

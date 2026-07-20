@@ -145,6 +145,8 @@ data class UserSettingsEntity(
     val themePreference: String = "SYSTEM",
     /** JSON blob for [com.perceptiveus.reverie.playback.audiofx.AudioFxSettings]. */
     val audioFxJson: String = "",
+    /** JSON blob for [com.perceptiveus.reverie.feature.tutorial.TutorialProgress]. */
+    val tutorialJson: String = "",
 ) {
     companion object {
         const val SETTINGS_ROW_ID = 1

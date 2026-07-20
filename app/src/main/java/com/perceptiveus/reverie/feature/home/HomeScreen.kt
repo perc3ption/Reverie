@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.QueryStats
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -69,12 +70,14 @@ fun HomeScreen(
     onNavigateToStats: () -> Unit,
     onNavigateToSmartPlaylists: () -> Unit,
     onNavigateToAudioFx: () -> Unit,
+    onNavigateToTutorial: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val recentlyPlayed by viewModel.recentlyPlayed.collectAsState()
     val songs by viewModel.songs.collectAsState()
     val playbackState by viewModel.playbackState.collectAsState()
     val availablePlaylists by viewModel.availablePlaylists.collectAsState()
+    val showFirstRunWelcome by viewModel.showFirstRunWelcome.collectAsState()
     val isPremium = viewModel.isPremium()
     val displayTracks = recentlyPlayed.ifEmpty { songs.take(12) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -86,6 +89,38 @@ fun HomeScreen(
         viewModel.userMessages.collectLatest { message ->
             snackbarHostState.showSnackbar(message)
         }
+    }
+
+    if (showFirstRunWelcome) {
+        AlertDialog(
+            onDismissRequest = viewModel::dismissFirstRunWelcome,
+            title = { Text("Welcome to Reverie") },
+            text = {
+                Text(
+                    "Your music lives on this device. Import a few songs or a folder, then explore Library, Player, and Discover Reverie anytime from Home.",
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.dismissFirstRunWelcome()
+                        onNavigateToImport()
+                    },
+                ) {
+                    Text("Import music")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.dismissFirstRunWelcome()
+                        onNavigateToTutorial()
+                    },
+                ) {
+                    Text("Browse tutorial")
+                }
+            },
+        )
     }
 
     upgradeFeature?.let { feature ->
@@ -198,9 +233,7 @@ fun HomeScreen(
                             upgradeFeature = AppFeature.LIBRARY_STATS
                         }
                     },
-                    onTutorialClick = {
-                        // Placeholder — tutorial flow comes later.
-                    },
+                    onTutorialClick = onNavigateToTutorial,
                 )
             }
             if (!isPremium) {

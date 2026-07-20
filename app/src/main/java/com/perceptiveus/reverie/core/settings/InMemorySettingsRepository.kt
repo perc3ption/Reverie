@@ -1,5 +1,6 @@
 package com.perceptiveus.reverie.core.settings
 
+import com.perceptiveus.reverie.feature.tutorial.TutorialProgress
 import com.perceptiveus.reverie.playback.audiofx.AudioFxSettings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,6 +18,9 @@ class InMemorySettingsRepository : SettingsRepository {
     private val _audioFxSettings = MutableStateFlow(AudioFxSettings.Default)
     override val audioFxSettings: StateFlow<AudioFxSettings> = _audioFxSettings.asStateFlow()
 
+    private val _tutorialProgress = MutableStateFlow(TutorialProgress.Default)
+    override val tutorialProgress: StateFlow<TutorialProgress> = _tutorialProgress.asStateFlow()
+
     override suspend fun setDisplayName(name: String) {
         _displayName.value = name
     }
@@ -27,5 +31,9 @@ class InMemorySettingsRepository : SettingsRepository {
 
     override suspend fun setAudioFxSettings(settings: AudioFxSettings) {
         _audioFxSettings.value = settings
+    }
+
+    override suspend fun setTutorialProgress(progress: TutorialProgress) {
+        _tutorialProgress.value = progress
     }
 }

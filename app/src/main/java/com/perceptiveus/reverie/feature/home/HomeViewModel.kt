@@ -3,6 +3,7 @@ package com.perceptiveus.reverie.feature.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.perceptiveus.reverie.core.entitlement.FeatureAccessChecker
+import com.perceptiveus.reverie.core.settings.SettingsRepository
 import com.perceptiveus.reverie.data.repository.MusicLibraryRepository
 import com.perceptiveus.reverie.data.repository.PlaybackRepository
 import com.perceptiveus.reverie.data.repository.PlaylistLimitException
@@ -11,6 +12,7 @@ import com.perceptiveus.reverie.domain.model.PlaybackState
 import com.perceptiveus.reverie.domain.model.Playlist
 import com.perceptiveus.reverie.domain.model.QueueSource
 import com.perceptiveus.reverie.domain.model.Track
+import com.perceptiveus.reverie.feature.tutorial.TutorialProgress
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -31,6 +33,7 @@ class HomeViewModel(
     private val playbackRepository: PlaybackRepository,
     private val playlistRepository: PlaylistRepository,
     private val featureAccessChecker: FeatureAccessChecker,
+    private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
     private val library = musicLibraryRepository
@@ -40,6 +43,16 @@ class HomeViewModel(
 
     val songs: StateFlow<List<Track>> = library.songs
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val songCount: StateFlow<Int> = library.songCount
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    val tutorialProgress: StateFlow<TutorialProgress> = settingsRepository.tutorialProgress
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TutorialProgress.Default)
+
+    val showFirstRunWelcome: StateFlow<Boolean> = combine(tutorialProgress, songCount) { progress, count ->
+        !progress.firstRunDismissed && count == 0
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     val playbackState: StateFlow<PlaybackState> = playbackRepository.playbackState
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PlaybackState())
@@ -124,6 +137,13 @@ class HomeViewModel(
     }
 
     fun isPremium(): Boolean = featureAccessChecker.isPremium()
+
+    fun dismissFirstRunWelcome() {
+        viewModelScope.launch {
+            val current = settingsRepository.tutorialProgress.value
+            settingsRepository.setTutorialProgress(current.copy(firstRunDismissed = true))
+        }
+    }
 
     fun notifyFeatureComingSoon(featureName: String) {
         viewModelScope.launch {

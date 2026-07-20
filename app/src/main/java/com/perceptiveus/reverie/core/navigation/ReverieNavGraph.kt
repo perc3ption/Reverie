@@ -1,6 +1,10 @@
 package com.perceptiveus.reverie.core.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -34,13 +38,16 @@ import com.perceptiveus.reverie.feature.settings.SettingsScreen
 import com.perceptiveus.reverie.feature.settings.SettingsViewModel
 import com.perceptiveus.reverie.feature.stats.LibraryStatsScreen
 import com.perceptiveus.reverie.feature.stats.LibraryStatsViewModel
+import com.perceptiveus.reverie.feature.tutorial.TutorialChapterScreen
+import com.perceptiveus.reverie.feature.tutorial.TutorialHubScreen
+import com.perceptiveus.reverie.feature.tutorial.TutorialTryIt
+import com.perceptiveus.reverie.feature.tutorial.TutorialViewModel
 import com.perceptiveus.reverie.feature.smartplaylist.SmartPlaylistDetailScreen
 import com.perceptiveus.reverie.feature.smartplaylist.SmartPlaylistDetailViewModel
 import com.perceptiveus.reverie.feature.smartplaylist.SmartPlaylistEditorScreen
 import com.perceptiveus.reverie.feature.smartplaylist.SmartPlaylistEditorViewModel
 import com.perceptiveus.reverie.feature.smartplaylist.SmartPlaylistListScreen
 import com.perceptiveus.reverie.feature.smartplaylist.SmartPlaylistListViewModel
-import androidx.compose.runtime.remember
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 
@@ -111,6 +118,9 @@ fun ReverieNavGraph(
                 onNavigateToAudioFx = {
                     navController.navigate(ReverieDestination.AudioFx.route)
                 },
+                onNavigateToTutorial = {
+                    navController.navigate(ReverieDestination.Tutorial.route)
+                },
             )
         }
 
@@ -174,6 +184,85 @@ fun ReverieNavGraph(
                     navController.navigate(ReverieDestination.PremiumFeatures.route)
                 },
             )
+        }
+
+        composable(ReverieDestination.Tutorial.route) {
+            val viewModel: TutorialViewModel = viewModel(factory = factory)
+            TutorialHubScreen(
+                viewModel = viewModel,
+                onNavigateBack = { navController.navigateUp() },
+                onOpenChapter = { chapter ->
+                    navController.navigate(ReverieDestination.TutorialChapter.createRoute(chapter.id))
+                },
+                onStartImport = {
+                    navController.navigate(ReverieDestination.ImportMusic.route)
+                },
+            )
+        }
+
+        composable(
+            route = ReverieDestination.TutorialChapter.route,
+            arguments = listOf(
+                navArgument(ReverieDestination.TUTORIAL_CHAPTER_ID_ARG) {
+                    type = NavType.StringType
+                },
+            ),
+        ) { entry ->
+            val chapterId = entry.arguments
+                ?.getString(ReverieDestination.TUTORIAL_CHAPTER_ID_ARG)
+                .orEmpty()
+            val viewModel: TutorialViewModel = viewModel(factory = factory)
+            val progress by viewModel.progress.collectAsState()
+            val chapter = viewModel.chapter(chapterId)
+            if (chapter == null) {
+                LaunchedEffect(chapterId) { navController.navigateUp() }
+            } else {
+                TutorialChapterScreen(
+                    chapter = chapter,
+                    completed = progress.isCompleted(chapter.id),
+                    onNavigateBack = { navController.navigateUp() },
+                    onMarkComplete = { viewModel.markChapterCompleted(chapter.id) },
+                    onTryIt = { action ->
+                        when (action) {
+                            TutorialTryIt.IMPORT ->
+                                navController.navigate(ReverieDestination.ImportMusic.route)
+                            TutorialTryIt.LIBRARY ->
+                                navController.navigate(ReverieDestination.Library.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            TutorialTryIt.PLAYER ->
+                                navController.navigate(ReverieDestination.Player.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            TutorialTryIt.SEARCH ->
+                                navController.navigate(ReverieDestination.Search.route)
+                            TutorialTryIt.AUDIO_FX ->
+                                navController.navigate(ReverieDestination.AudioFx.route)
+                            TutorialTryIt.SMART_PLAYLISTS ->
+                                navController.navigate(ReverieDestination.SmartPlaylists.route)
+                            TutorialTryIt.STATS ->
+                                navController.navigate(ReverieDestination.LibraryStats.route)
+                            TutorialTryIt.SETTINGS ->
+                                navController.navigate(ReverieDestination.Settings.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            TutorialTryIt.NONE -> Unit
+                        }
+                    },
+                )
+            }
         }
 
         composable(ReverieDestination.SmartPlaylists.route) {

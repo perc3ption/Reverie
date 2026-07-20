@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.ManageSearch
@@ -127,9 +128,9 @@ private val premiumFeatureItems = listOf(
     PremiumFeatureItem(AppFeature.RATINGS, "Ratings", "Rate tracks out of 5 stars.", Icons.Default.Star),
     PremiumFeatureItem(AppFeature.TAGS, "Tags", "Organize with custom tags.", Icons.Default.Label),
     PremiumFeatureItem(AppFeature.SMART_PLAYLISTS, "Smart Playlists", "Rule-based auto playlists.", Icons.Default.AutoAwesome),
+    PremiumFeatureItem(AppFeature.AUDIO_FX, "Audio FX", "EQ, bass boost, loudness, crossfade, and gapless.", Icons.Default.Equalizer),
     PremiumFeatureItem(AppFeature.PLAYBACK_SCOPE, "Playback Scope", "Control shuffle and play scope.", Icons.Default.Tune),
     PremiumFeatureItem(AppFeature.ADVANCED_VISUALIZERS, "Advanced Visualizers", "Premium spectrum effects.", Icons.Default.Slideshow),
-    PremiumFeatureItem(AppFeature.AUDIO_FX, "Audio FX", "EQ, bass boost, loudness, crossfade.", Icons.Default.Tune),
     PremiumFeatureItem(AppFeature.ADVANCED_SEARCH, "Advanced Search", "Filters and saved searches.", Icons.Default.ManageSearch),
     PremiumFeatureItem(AppFeature.LYRICS, "Lyrics", "Synced lyrics display.", Icons.Default.MusicNote),
     PremiumFeatureItem(AppFeature.METADATA_EDITING, "Metadata Editing", "Edit track info.", Icons.Default.Tune),

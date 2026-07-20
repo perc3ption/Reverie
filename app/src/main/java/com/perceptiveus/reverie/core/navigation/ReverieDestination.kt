@@ -80,6 +80,22 @@ sealed class ReverieDestination(
         unselectedIcon = Icons.Outlined.Home,
     )
 
+    data object Tutorial : ReverieDestination(
+        route = "tutorial",
+        label = "Tutorial",
+        selectedIcon = Icons.Filled.Home,
+        unselectedIcon = Icons.Outlined.Home,
+    )
+
+    data object TutorialChapter : ReverieDestination(
+        route = "tutorial/{chapterId}",
+        label = "Tutorial",
+        selectedIcon = Icons.Filled.Home,
+        unselectedIcon = Icons.Outlined.Home,
+    ) {
+        fun createRoute(chapterId: String): String = "tutorial/$chapterId"
+    }
+
     data object SmartPlaylists : ReverieDestination(
         route = "smart_playlists",
         label = "Smart Playlists",
@@ -128,6 +144,7 @@ sealed class ReverieDestination(
         const val SONG_TRACK_ID_ARG = "trackId"
         const val PLAYLIST_ID_ARG = "playlistId"
         const val SMART_PLAYLIST_ID_ARG = "smartPlaylistId"
+        const val TUTORIAL_CHAPTER_ID_ARG = "chapterId"
         val bottomNavItems = listOf(Home, Library, Player, Settings)
 
         /** Routes where the bottom bar stays mounted (avoids tearing down nav chrome). */
@@ -139,6 +156,8 @@ sealed class ReverieDestination(
             Search.route,
             LibraryStats.route,
             AudioFx.route,
+            Tutorial.route,
+            TutorialChapter.route,
             SmartPlaylists.route,
             SmartPlaylistDetail.route,
             SmartPlaylistEditor.route,
