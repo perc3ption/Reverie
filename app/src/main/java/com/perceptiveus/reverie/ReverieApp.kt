@@ -1,6 +1,7 @@
 package com.perceptiveus.reverie
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -19,6 +20,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.perceptiveus.reverie.core.design.ReverieTheme
 import com.perceptiveus.reverie.core.design.components.MiniPlayerBar
+import com.perceptiveus.reverie.core.navigation.EdgeSwipeBackHost
 import com.perceptiveus.reverie.core.navigation.ReverieDestination
 import com.perceptiveus.reverie.core.navigation.ReverieNavGraph
 
@@ -110,13 +112,15 @@ fun ReverieApp(container: AppContainer) {
                 }
             },
         ) { innerPadding ->
-            ReverieNavGraph(
-                modifier = Modifier.padding(innerPadding),
-                navController = navController,
-                container = container,
-                factory = factory,
-                startDestination = ReverieDestination.Home.route,
-            )
+            EdgeSwipeBackHost(modifier = Modifier.padding(innerPadding)) {
+                ReverieNavGraph(
+                    modifier = Modifier.fillMaxSize(),
+                    navController = navController,
+                    container = container,
+                    factory = factory,
+                    startDestination = ReverieDestination.Home.route,
+                )
+            }
         }
     }
 }

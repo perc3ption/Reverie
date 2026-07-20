@@ -114,6 +114,11 @@ fun PlayerScreen(
         }
     }
 
+    LaunchedEffect(playbackState.errorMessage) {
+        val message = playbackState.errorMessage ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(message)
+    }
+
     if (showUpgradeDialog) {
         UpgradeDialog(
             feature = upgradeFeature,

@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -147,6 +148,46 @@ class LibraryViewModel(
         val all = songs.value
         if (all.isEmpty()) return
         playbackRepository.play(all, 0, QueueSource.Library)
+    }
+
+    fun playPlaylist(playlist: Playlist) {
+        viewModelScope.launch {
+            val tracks = playlistRepository.observePlaylistTracks(playlist.id).first()
+            if (tracks.isEmpty()) {
+                _userMessages.emit("Playlist is empty.")
+                return@launch
+            }
+            playbackRepository.play(
+                tracks,
+                0,
+                QueueSource.Playlist(
+                    name = playlist.name,
+                    description = playlist.description,
+                    coverPath = playlist.coverPath,
+                ),
+            )
+        }
+    }
+
+    /** Handles system / edge back for in-Library drill-downs. Returns true if consumed. */
+    fun handleLibraryBack(): Boolean {
+        if (_showAllSongs.value) {
+            _showAllSongs.value = false
+            return true
+        }
+        if (_selectedArtistName.value != null) {
+            _selectedArtistName.value = null
+            return true
+        }
+        if (_selectedAlbumKey.value != null) {
+            _selectedAlbumKey.value = null
+            return true
+        }
+        if (_folderPath.value.isNotEmpty()) {
+            navigateFolderUp()
+            return true
+        }
+        return false
     }
 
     fun createPlaylist(name: String) {

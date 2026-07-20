@@ -45,7 +45,7 @@ class EqualizerAudioProcessor : BaseAudioProcessor() {
             throw AudioProcessor.UnhandledAudioFormatException(inputAudioFormat)
         }
         sampleRateHz = inputAudioFormat.sampleRate
-        channelCount = inputAudioFormat.channelCount
+        channelCount = inputAudioFormat.channelCount.coerceAtLeast(1)
         encoding = inputAudioFormat.encoding
         rebuildFilters()
         return inputAudioFormat

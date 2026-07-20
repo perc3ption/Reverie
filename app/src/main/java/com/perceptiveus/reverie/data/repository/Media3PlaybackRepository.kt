@@ -4,10 +4,12 @@ import android.content.ComponentName
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
@@ -63,15 +65,25 @@ class Media3PlaybackRepository(
     private var lastRecordedTrackId: String? = null
     private val connecting = AtomicBoolean(false)
     private var fadeInActive = false
+    private var connectAttempts = 0
 
     private var pendingAction: (() -> Unit)? = null
     /** Avoid recursive skip loops when auto-advancing past muted tracks. */
     private var skippingDisabled = false
+    /** Invalidates in-flight crossfade volume updates when a newer fade/play starts. */
+    private var fadeGeneration = 0
+    /** Consecutive playback failures while trying to keep music going. */
+    private var consecutiveFailures = 0
+    /** True while an automatic error-recovery seek/prepare is in progress. */
+    private var recoveringFromError = false
 
     private val playerListener = object : Player.Listener {
         override fun onEvents(player: Player, events: Player.Events) {
             if (events.contains(Player.EVENT_MEDIA_ITEM_TRANSITION)) {
                 skipCurrentIfDisabled(player)
+            }
+            if (events.contains(Player.EVENT_IS_PLAYING_CHANGED) && player.isPlaying) {
+                consecutiveFailures = 0
             }
             syncFromPlayer(player)
             if (events.contains(Player.EVENT_MEDIA_ITEM_TRANSITION) ||
@@ -79,6 +91,12 @@ class Media3PlaybackRepository(
             ) {
                 maybeRecordPlayHistory(player)
             }
+        }
+
+        override fun onPlayerError(error: PlaybackException) {
+            Log.e(TAG, "Player error: ${error.errorCodeName} — ${error.message}", error)
+            val player = controller ?: return
+            mainHandler.post { handlePlayerError(player, error) }
         }
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -101,7 +119,7 @@ class Media3PlaybackRepository(
     }
 
     private fun connect() {
-        if (controller != null || !connecting.compareAndSet(false, true)) return
+        if (controller?.isConnected == true || !connecting.compareAndSet(false, true)) return
 
         val token = SessionToken(
             appContext,
@@ -113,15 +131,26 @@ class Media3PlaybackRepository(
                 try {
                     val mediaController = future.get()
                     controller = mediaController
+                    connectAttempts = 0
                     mediaController.addListener(playerListener)
                     syncFromPlayer(mediaController)
                     startPositionUpdates()
-                    pendingAction?.invoke()
+                    val pending = pendingAction
                     pendingAction = null
-                } catch (_: Exception) {
-                    // Controller failed; next play() will retry connect().
+                    pending?.invoke()
+                } catch (e: Exception) {
+                    Log.e(TAG, "MediaController connect failed", e)
+                    controller = null
+                    connectAttempts++
+                    // Keep pendingAction so the next play() retries connect().
                 } finally {
                     connecting.set(false)
+                    if (pendingAction != null &&
+                        controller == null &&
+                        connectAttempts in 1..MAX_CONNECT_ATTEMPTS
+                    ) {
+                        mainHandler.postDelayed({ connect() }, CONNECT_RETRY_MS)
+                    }
                 }
             },
             ContextCompat.getMainExecutor(appContext),
@@ -135,7 +164,13 @@ class Media3PlaybackRepository(
     ) {
         val intended = tracks.getOrNull(startIndex.coerceIn(0, tracks.lastIndex.coerceAtLeast(0)))
         val playable = tracks.filterPlayable()
-        if (playable.isEmpty()) return
+        if (playable.isEmpty()) {
+            Log.w(TAG, "play() ignored — no playable files (missing on disk?)")
+            _playbackState.update {
+                it.copy(errorMessage = "Couldn't play — file missing or unreadable.")
+            }
+            return
+        }
         val index = intended?.let { target ->
             playable.indexOfFirst { it.id == target.id }
         }?.takeIf { it >= 0 } ?: 0
@@ -154,9 +189,15 @@ class Media3PlaybackRepository(
         queueSource = source
         disabledTrackIds = emptySet()
         lastRecordedTrackId = null
+        consecutiveFailures = 0
         val mediaItems = playable.map { it.toMediaItem() }
         val player = controller ?: return
         val index = startIndex.coerceIn(0, playable.lastIndex)
+        resetVolumeAndFades(player)
+        // Clearing a prior error requires leaving the errored state before loading.
+        if (player.playerError != null) {
+            player.stop()
+        }
         player.setMediaItems(mediaItems, index, /* startPositionMs = */ 0L)
         player.prepare()
         player.play()
@@ -173,6 +214,8 @@ class Media3PlaybackRepository(
                 // Explicitly choosing a muted song re-enables it for this session.
                 disabledTrackIds = disabledTrackIds - trackId
             }
+            resetVolumeAndFades(player)
+            recoverFromError(player)
             player.seekTo(index, /* positionMs = */ 0L)
             player.play()
             syncFromPlayer(player)
@@ -282,7 +325,17 @@ class Media3PlaybackRepository(
     override fun togglePlayPause() {
         runWhenReady {
             val player = controller ?: return@runWhenReady
-            if (player.isPlaying) player.pause() else player.play()
+            if (player.isPlaying) {
+                player.pause()
+            } else {
+                if (player.mediaItemCount == 0) {
+                    syncFromPlayer(player)
+                    return@runWhenReady
+                }
+                resetVolumeAndFades(player)
+                recoverFromError(player)
+                player.play()
+            }
             syncFromPlayer(player)
         }
     }
@@ -290,7 +343,9 @@ class Media3PlaybackRepository(
     override fun skipToNext() {
         runWhenReady {
             val player = controller ?: return@runWhenReady
+            recoverFromError(player)
             seekToNextEnabled(player)
+            player.play()
             syncFromPlayer(player)
         }
     }
@@ -298,11 +353,13 @@ class Media3PlaybackRepository(
     override fun skipToPrevious() {
         runWhenReady {
             val player = controller ?: return@runWhenReady
+            recoverFromError(player)
             if (player.currentPosition > RESTART_THRESHOLD_MS) {
                 player.seekTo(0L)
             } else {
                 seekToPreviousEnabled(player)
             }
+            player.play()
             syncFromPlayer(player)
         }
     }
@@ -310,6 +367,7 @@ class Media3PlaybackRepository(
     override fun seekTo(positionMs: Long) {
         runWhenReady {
             val player = controller ?: return@runWhenReady
+            recoverFromError(player)
             player.seekTo(positionMs.coerceAtLeast(0L))
             syncFromPlayer(player)
         }
@@ -337,11 +395,75 @@ class Media3PlaybackRepository(
 
     private fun runWhenReady(action: () -> Unit) {
         val player = controller
-        if (player != null) {
-            mainHandler.post(action)
-        } else {
-            pendingAction = action
-            connect()
+        when {
+            player != null && player.isConnected -> mainHandler.post(action)
+            else -> {
+                if (player != null && !player.isConnected) {
+                    runCatching { player.release() }
+                    controller = null
+                }
+                pendingAction = action
+                connect()
+            }
+        }
+    }
+
+    /**
+     * Clears [Player.playerError] / IDLE so subsequent play/seek commands work.
+     * Plain [Player.play] is a no-op while the player is in STATE_ERROR.
+     */
+    private fun recoverFromError(player: Player) {
+        if (player.playerError != null || player.playbackState == Player.STATE_IDLE) {
+            if (player.mediaItemCount > 0) {
+                player.prepare()
+            }
+        }
+        if (!fadeInActive && player.volume < 0.05f) {
+            player.volume = 1f
+        }
+    }
+
+    /**
+     * Auto-recover from runtime/IO errors so the user isn't stuck with a dead play button.
+     * Strategy: retry current item once, then skip forward a few times, then surface the error.
+     */
+    private fun handlePlayerError(player: Player, error: PlaybackException) {
+        if (recoveringFromError) return
+        recoveringFromError = true
+        try {
+            resetVolumeAndFades(player)
+            consecutiveFailures++
+            val message = error.message?.takeIf { it.isNotBlank() }
+                ?: error.errorCodeName
+            _playbackState.update { it.copy(isPlaying = false, errorMessage = message) }
+
+            val canSkip = player.mediaItemCount > 1 &&
+                consecutiveFailures <= MAX_AUTO_SKIP_ON_ERROR
+            val shouldRetrySame = consecutiveFailures == 1
+
+            when {
+                shouldRetrySame && player.mediaItemCount > 0 -> {
+                    Log.i(TAG, "Retrying current item after error")
+                    player.prepare()
+                    player.play()
+                }
+                canSkip -> {
+                    Log.i(TAG, "Skipping to next item after error ($consecutiveFailures)")
+                    seekToNextEnabled(player)
+                    player.prepare()
+                    player.play()
+                }
+                else -> {
+                    Log.w(TAG, "Giving up auto-recovery after $consecutiveFailures failures")
+                    // Leave queue loaded; next user tap on play will recoverFromError().
+                    if (player.mediaItemCount > 0) {
+                        player.prepare()
+                    }
+                }
+            }
+            syncFromPlayer(player)
+        } finally {
+            recoveringFromError = false
         }
     }
 
@@ -350,7 +472,7 @@ class Media3PlaybackRepository(
         positionJob = scope.launch {
             while (isActive) {
                 val player = controller
-                if (player != null) {
+                if (player != null && player.isConnected) {
                     mainHandler.post {
                         applyOutgoingCrossfade(player)
                         syncFromPlayer(player)
@@ -372,6 +494,16 @@ class Media3PlaybackRepository(
         }
     }
 
+    private fun resetVolumeAndFades(player: Player) {
+        fadeGeneration++
+        fadeInJob?.cancel()
+        gapJob?.cancel()
+        fadeInJob = null
+        gapJob = null
+        fadeInActive = false
+        player.volume = 1f
+    }
+
     private fun startFadeIn(player: Player, crossfadeMs: Int) {
         fadeInJob?.cancel()
         gapJob?.cancel()
@@ -379,24 +511,28 @@ class Media3PlaybackRepository(
         player.volume = 0f
         val steps = (crossfadeMs / POSITION_POLL_MS.toInt()).coerceIn(4, 40)
         val stepMs = (crossfadeMs / steps).coerceAtLeast(16)
+        val fadeToken = ++fadeGeneration
         fadeInJob = scope.launch {
             for (i in 1..steps) {
                 delay(stepMs.toLong())
                 val volume = i / steps.toFloat()
-                mainHandler.post { player.volume = volume.coerceIn(0f, 1f) }
+                mainHandler.post {
+                    if (fadeGeneration == fadeToken) {
+                        player.volume = volume.coerceIn(0f, 1f)
+                    }
+                }
             }
             mainHandler.post {
-                player.volume = 1f
-                fadeInActive = false
+                if (fadeGeneration == fadeToken) {
+                    player.volume = 1f
+                    fadeInActive = false
+                }
             }
         }
     }
 
     private fun insertTrackGap(player: Player) {
-        fadeInJob?.cancel()
-        gapJob?.cancel()
-        fadeInActive = false
-        player.volume = 1f
+        resetVolumeAndFades(player)
         player.pause()
         gapJob = scope.launch {
             delay(TRACK_GAP_MS)
@@ -434,6 +570,14 @@ class Media3PlaybackRepository(
                 queueIndex = queueIndex,
                 queueSource = queueSource,
                 disabledTrackIds = disabledTrackIds,
+                errorMessage = when {
+                    player.isPlaying -> null
+                    player.playerError != null ->
+                        player.playerError?.message?.takeIf { it.isNotBlank() }
+                            ?: player.playerError?.errorCodeName
+                            ?: it.errorMessage
+                    else -> it.errorMessage
+                },
             )
         }
     }
@@ -567,8 +711,12 @@ class Media3PlaybackRepository(
     }
 
     companion object {
+        private const val TAG = "Media3Playback"
         private const val POSITION_POLL_MS = 500L
         private const val RESTART_THRESHOLD_MS = 3_000L
         private const val TRACK_GAP_MS = 400L
+        private const val CONNECT_RETRY_MS = 400L
+        private const val MAX_CONNECT_ATTEMPTS = 3
+        private const val MAX_AUTO_SKIP_ON_ERROR = 5
     }
 }

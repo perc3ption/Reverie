@@ -3,10 +3,7 @@ package com.perceptiveus.reverie.playback
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.audio.AudioSink
-import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 
@@ -14,8 +11,9 @@ import androidx.media3.session.MediaSessionService
  * Hosts ExoPlayer + MediaSession so playback continues in the background
  * with a system media notification.
  *
- * PCM is teed through [PlaybackAudioAnalyzer] for in-app visualizers
- * (no RECORD_AUDIO / system Visualizer).
+ * Note: custom AudioProcessors (EQ / PCM tee) were removed from the sink after
+ * they put the player into STATE_ERROR ("Unexpected runtime error") and made
+ * play/pause no-ops. Visualizer/EQ can be reintroduced behind a safer chain later.
  */
 @OptIn(UnstableApi::class)
 class PlaybackService : MediaSessionService() {
@@ -24,26 +22,7 @@ class PlaybackService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
-        val renderersFactory = object : DefaultRenderersFactory(this) {
-            override fun buildAudioSink(
-                context: android.content.Context,
-                enableFloatOutput: Boolean,
-                enableAudioTrackPlaybackParams: Boolean,
-            ): AudioSink {
-                return DefaultAudioSink.Builder(context)
-                    .setEnableFloatOutput(enableFloatOutput)
-                    .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
-                    .setAudioProcessors(
-                        arrayOf(
-                            com.perceptiveus.reverie.playback.audiofx.AudioFxController.equalizerProcessor,
-                            PlaybackAudioAnalyzer.teeProcessor,
-                        ),
-                    )
-                    .build()
-            }
-        }
         val player = ExoPlayer.Builder(this)
-            .setRenderersFactory(renderersFactory)
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(C.USAGE_MEDIA)

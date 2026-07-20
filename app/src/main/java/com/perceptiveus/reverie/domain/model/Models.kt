@@ -109,4 +109,6 @@ data class PlaybackState(
      * Cleared when a new queue is started.
      */
     val disabledTrackIds: Set<String> = emptySet(),
+    /** Last player error message, cleared when playback recovers. */
+    val errorMessage: String? = null,
 )

@@ -1,5 +1,6 @@
 package com.perceptiveus.reverie.feature.library
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -113,6 +114,15 @@ fun LibraryScreen(
     val albumBrowser by viewModel.albumBrowser.collectAsState()
     val showAllSongs by viewModel.showAllSongs.collectAsState()
     val isPremium = viewModel.isPremium()
+
+    val libraryCanGoBack = showAllSongs ||
+        artistBrowser.selectedArtist != null ||
+        albumBrowser.selectedAlbum != null ||
+        folderBrowser.canNavigateUp
+
+    BackHandler(enabled = libraryCanGoBack) {
+        viewModel.handleLibraryBack()
+    }
 
     LaunchedEffect(viewModel) {
         viewModel.userMessages.collectLatest { message ->
@@ -257,6 +267,12 @@ fun LibraryScreen(
                                     PlaylistListItem(
                                         playlist = playlist,
                                         onClick = { onPlaylistClick(playlist) },
+                                        onPlayClick = {
+                                            viewModel.playPlaylist(playlist)
+                                            if (playlist.trackCount > 0) {
+                                                onNavigateToPlayer()
+                                            }
+                                        },
                                         onDeleteClick = { playlistPendingDelete = playlist },
                                     )
                                 }
@@ -688,6 +704,7 @@ private fun PlaylistsSectionHeader(onCreateClick: () -> Unit) {
 private fun PlaylistListItem(
     playlist: Playlist,
     onClick: () -> Unit,
+    onPlayClick: () -> Unit,
     onDeleteClick: () -> Unit,
 ) {
     Surface(
@@ -734,6 +751,16 @@ private fun PlaylistListItem(
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            IconButton(
+                onClick = onPlayClick,
+                enabled = playlist.trackCount > 0,
+            ) {
+                Icon(
+                    Icons.Default.PlayArrow,
+                    contentDescription = "Play playlist",
+                    tint = MaterialTheme.colorScheme.primary,
                 )
             }
             IconButton(onClick = onDeleteClick) {
