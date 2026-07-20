@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import androidx.room.Upsert
 import com.perceptiveus.reverie.data.local.entity.AlbumAggregate
 import com.perceptiveus.reverie.data.local.entity.ArtistAggregate
 import com.perceptiveus.reverie.data.local.entity.FolderWithCounts
@@ -116,10 +117,10 @@ interface TrackDao {
     )
     fun observeRecentlyPlayed(limit: Int = 20): Flow<List<TrackEntity>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun insertAll(tracks: List<TrackEntity>)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun insert(track: TrackEntity)
 
     @Query("SELECT * FROM tracks")

@@ -71,6 +71,16 @@ interface PlaybackRepository {
      * so Now Playing reflects the change without restarting playback.
      */
     fun updateQueueArtwork(artist: String, album: String, artworkPath: String)
+    /**
+     * Updates title/artist/album on a queue item after metadata edit
+     * so Home / Player / Queue stay in sync without restarting playback.
+     */
+    fun updateQueueTrackMetadata(
+        trackId: String,
+        title: String,
+        artist: String,
+        album: String,
+    )
     fun togglePlayPause()
     fun skipToNext()
     fun skipToPrevious()

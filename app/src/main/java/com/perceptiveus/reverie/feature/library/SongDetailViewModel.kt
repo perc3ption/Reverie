@@ -173,6 +173,15 @@ class SongDetailViewModel(
             _isSavingMetadata.value = false
             result
                 .onSuccess {
+                    val cleanedTitle = title.trim().ifBlank { track.value?.title.orEmpty() }
+                    val cleanedArtist = artist.trim().ifBlank { track.value?.artist.orEmpty() }
+                    val cleanedAlbum = album.trim().ifBlank { track.value?.album.orEmpty() }
+                    playbackRepository.updateQueueTrackMetadata(
+                        trackId = trackId,
+                        title = cleanedTitle,
+                        artist = cleanedArtist,
+                        album = cleanedAlbum,
+                    )
                     _metadataSaved.emit(Unit)
                     _userMessages.emit("Metadata saved to file.")
                 }

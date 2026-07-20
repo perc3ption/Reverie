@@ -252,6 +252,33 @@ class Media3PlaybackRepository(
         }
     }
 
+    override fun updateQueueTrackMetadata(
+        trackId: String,
+        title: String,
+        artist: String,
+        album: String,
+    ) {
+        runWhenReady {
+            var updatedIndex = -1
+            queue = queue.mapIndexed { index, track ->
+                if (track.id == trackId) {
+                    updatedIndex = index
+                    track.copy(title = title, artist = artist, album = album)
+                } else {
+                    track
+                }
+            }
+            val player = controller
+            if (player != null && updatedIndex >= 0 && updatedIndex < queue.size) {
+                // Keep Media3 item metadata (notification / fallback) aligned with the edit.
+                player.replaceMediaItem(updatedIndex, queue[updatedIndex].toMediaItem())
+                syncFromPlayer(player)
+            } else if (player != null) {
+                syncFromPlayer(player)
+            }
+        }
+    }
+
     override fun togglePlayPause() {
         runWhenReady {
             val player = controller ?: return@runWhenReady
