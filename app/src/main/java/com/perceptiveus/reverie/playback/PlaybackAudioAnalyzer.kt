@@ -19,8 +19,11 @@ import kotlin.math.sqrt
 /**
  * Taps PCM from ExoPlayer via [TeeAudioProcessor] and publishes spectrum / waveform
  * frames for the player visualizer — no microphone / RECORD_AUDIO required.
+ *
+ * Create a **new** tee per [PlaybackService] session via [createTeeProcessor]
+ * (Media3 sinks must not reuse processor instances).
  */
-@OptIn(UnstableApi::class)
+@UnstableApi
 object PlaybackAudioAnalyzer {
 
     data class Frame(
@@ -32,12 +35,11 @@ object PlaybackAudioAnalyzer {
     private val _frame = MutableStateFlow(Frame())
     val frame: StateFlow<Frame> = _frame.asStateFlow()
 
-    val teeProcessor: AudioProcessor = TeeAudioProcessor(Sink())
-
     private const val FFT_SIZE = 1024
     private const val BAR_COUNT = 48
     private const val WAVEFORM_POINTS = 96
-    private const val MIN_EMIT_INTERVAL_MS = 16L
+    /** ~30 FPS — keeps audio-thread work bounded. */
+    private const val MIN_EMIT_INTERVAL_MS = 33L
 
     private val sampleRing = FloatArray(FFT_SIZE)
     private var sampleWriteIndex = 0
@@ -63,6 +65,9 @@ object PlaybackAudioAnalyzer {
 
     private val lock = Any()
 
+    /** Fresh tee for each ExoPlayer / AudioSink. */
+    fun createTeeProcessor(): AudioProcessor = TeeAudioProcessor(SafeSink())
+
     fun reset() {
         synchronized(lock) {
             sampleWriteIndex = 0
@@ -74,35 +79,47 @@ object PlaybackAudioAnalyzer {
         }
     }
 
-    private class Sink : TeeAudioProcessor.AudioBufferSink {
+    /**
+     * Never throws — exceptions on the audio thread become ExoPlayer STATE_ERROR.
+     */
+    private class SafeSink : TeeAudioProcessor.AudioBufferSink {
         override fun flush(sampleRateHz: Int, channelCount: Int, encoding: Int) {
-            PlaybackAudioAnalyzer.channelCount = channelCount.coerceAtLeast(1)
-            PlaybackAudioAnalyzer.encoding = encoding
-            synchronized(lock) {
-                sampleWriteIndex = 0
-                samplesFilled = 0
+            try {
+                PlaybackAudioAnalyzer.channelCount = channelCount.coerceIn(1, 8)
+                PlaybackAudioAnalyzer.encoding = encoding
+                synchronized(lock) {
+                    sampleWriteIndex = 0
+                    samplesFilled = 0
+                }
+            } catch (_: Throwable) {
+                // ignore
             }
         }
 
         override fun handleBuffer(buffer: ByteBuffer) {
             if (!buffer.hasRemaining()) return
-            val channels = channelCount
-            val enc = encoding
-            // Read-only duplicate so we never disturb ExoPlayer's buffer position.
-            val view = buffer.asReadOnlyBuffer().order(ByteOrder.nativeOrder())
-            synchronized(lock) {
-                when (enc) {
-                    C.ENCODING_PCM_16BIT -> ingestPcm16(view, channels)
-                    C.ENCODING_PCM_FLOAT -> ingestPcmFloat(view, channels)
-                    else -> ingestPcm16(view, channels)
+            try {
+                val channels = channelCount.coerceIn(1, 8)
+                val enc = encoding
+                val view = buffer.asReadOnlyBuffer().order(ByteOrder.nativeOrder())
+                synchronized(lock) {
+                    when (enc) {
+                        C.ENCODING_PCM_16BIT -> ingestPcm16(view, channels)
+                        C.ENCODING_PCM_FLOAT -> ingestPcmFloat(view, channels)
+                        else -> return
+                    }
+                    maybePublishLocked()
                 }
-                maybePublishLocked()
+            } catch (_: Throwable) {
+                // Drop this buffer; never fail the sink.
             }
         }
     }
 
     private fun ingestPcm16(buffer: ByteBuffer, channels: Int) {
-        val frames = buffer.remaining() / (2 * channels)
+        val bytesPerFrame = 2 * channels
+        if (bytesPerFrame <= 0) return
+        val frames = buffer.remaining() / bytesPerFrame
         var i = 0
         while (i < frames) {
             var sum = 0f
@@ -117,7 +134,9 @@ object PlaybackAudioAnalyzer {
     }
 
     private fun ingestPcmFloat(buffer: ByteBuffer, channels: Int) {
-        val frames = buffer.remaining() / (4 * channels)
+        val bytesPerFrame = 4 * channels
+        if (bytesPerFrame <= 0) return
+        val frames = buffer.remaining() / bytesPerFrame
         var i = 0
         while (i < frames) {
             var sum = 0f
@@ -132,7 +151,8 @@ object PlaybackAudioAnalyzer {
     }
 
     private fun pushSample(sample: Float) {
-        sampleRing[sampleWriteIndex] = sample.coerceIn(-1f, 1f)
+        val s = if (sample.isFinite()) sample.coerceIn(-1f, 1f) else 0f
+        sampleRing[sampleWriteIndex] = s
         sampleWriteIndex = (sampleWriteIndex + 1) % FFT_SIZE
         if (samplesFilled < FFT_SIZE) samplesFilled++
     }
@@ -143,7 +163,6 @@ object PlaybackAudioAnalyzer {
         if (now - lastEmitAt < MIN_EMIT_INTERVAL_MS) return
         lastEmitAt = now
 
-        // Copy ring chronologically into FFT buffer with Hann window.
         val start = (sampleWriteIndex - min(samplesFilled, FFT_SIZE) + FFT_SIZE) % FFT_SIZE
         val count = min(samplesFilled, FFT_SIZE)
         fftImag.fill(0f)
@@ -168,12 +187,10 @@ object PlaybackAudioAnalyzer {
             if (mag > maxMag) maxMag = mag
         }
 
-        // Log-ish band groups across usable bins (skip DC).
         val usable = (half - 1).coerceAtLeast(1)
         for (bar in 0 until BAR_COUNT) {
             val t0 = bar / BAR_COUNT.toFloat()
             val t1 = (bar + 1) / BAR_COUNT.toFloat()
-            // Emphasize lower frequencies slightly (music feels bass-weighted).
             val startBin = 1 + (logMap(t0) * usable).toInt()
             val endBin = 1 + (logMap(t1) * usable).toInt().coerceAtLeast(startBin + 1)
             var peak = 0f
@@ -195,7 +212,6 @@ object PlaybackAudioAnalyzer {
             }
         }
 
-        // Waveform from recent samples.
         val waveStart = (sampleWriteIndex - WAVEFORM_POINTS + FFT_SIZE) % FFT_SIZE
         for (i in 0 until WAVEFORM_POINTS) {
             waveform[i] = sampleRing[(waveStart + i) % FFT_SIZE]
@@ -209,12 +225,10 @@ object PlaybackAudioAnalyzer {
     }
 
     private fun logMap(t: Float): Float {
-        // Map 0..1 to 0..1 with mild log curve for bass emphasis.
         val clamped = t.coerceIn(0f, 1f)
         return ((ln(1.0 + 9.0 * clamped) / ln(10.0)).toFloat())
     }
 
-    /** In-place radix-2 Cooley–Tukey FFT. */
     private fun fftInPlace(real: FloatArray, imag: FloatArray) {
         val n = real.size
         var j = 0

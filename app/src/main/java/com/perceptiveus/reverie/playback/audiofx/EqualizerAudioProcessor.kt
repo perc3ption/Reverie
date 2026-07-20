@@ -6,74 +6,110 @@ import androidx.media3.common.audio.BaseAudioProcessor
 import androidx.media3.common.util.UnstableApi
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.sqrt
-import java.util.concurrent.atomic.AtomicReference
 
 /**
  * PCM equalizer + optional soft loudness leveling for ExoPlayer's audio chain.
+ *
+ * Designed to be **allocation-light** and **fail-open**: any processing error
+ * falls back to a straight buffer copy so playback never enters STATE_ERROR.
+ *
+ * Do not share one instance across multiple [androidx.media3.exoplayer.audio.AudioSink]s.
  */
-@OptIn(UnstableApi::class)
+@UnstableApi
 class EqualizerAudioProcessor : BaseAudioProcessor() {
 
     private val settingsRef = AtomicReference(AudioFxSettings.Default)
 
+    @Volatile
     private var sampleRateHz: Int = 44_100
+
+    @Volatile
     private var channelCount: Int = 2
+
+    @Volatile
     private var encoding: Int = C.ENCODING_PCM_16BIT
 
-    private var peakingFilters: Array<Biquad> = emptyArray()
-    private var bassShelf: Biquad = Biquad.passthrough()
-    private var preampGain: Float = 1f
+    /** Swapped atomically so the audio thread never sees a half-built filter set. */
+    @Volatile
+    private var bank: FilterBank = FilterBank.identity(MAX_CHANNELS)
 
-    // Soft loudness AGC state
+    // Soft loudness AGC state (audio thread only after flush)
     private var loudnessEnvelope: Float = 0.05f
     private var loudnessGain: Float = 1f
 
+    /** Scratch for one interleaved frame — reused to avoid per-callback allocations. */
+    private val frameScratch = FloatArray(MAX_CHANNELS)
+
     fun applySettings(settings: AudioFxSettings) {
         settingsRef.set(settings)
-        rebuildFilters()
+        bank = FilterBank.build(settings, sampleRateHz, channelCount)
     }
 
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
         if (inputAudioFormat.encoding != C.ENCODING_PCM_16BIT &&
             inputAudioFormat.encoding != C.ENCODING_PCM_FLOAT
         ) {
-            throw AudioProcessor.UnhandledAudioFormatException(inputAudioFormat)
+            // Skip this processor for unsupported PCM encodings instead of failing the sink.
+            return AudioProcessor.AudioFormat.NOT_SET
         }
-        sampleRateHz = inputAudioFormat.sampleRate
-        channelCount = inputAudioFormat.channelCount.coerceAtLeast(1)
+        val channels = inputAudioFormat.channelCount
+        if (channels <= 0 || channels > MAX_CHANNELS) {
+            return AudioProcessor.AudioFormat.NOT_SET
+        }
+        sampleRateHz = inputAudioFormat.sampleRate.coerceAtLeast(8_000)
+        channelCount = channels
         encoding = inputAudioFormat.encoding
-        rebuildFilters()
+        bank = FilterBank.build(settingsRef.get(), sampleRateHz, channelCount)
         return inputAudioFormat
     }
 
     override fun queueInput(inputBuffer: ByteBuffer) {
-        val settings = settingsRef.get()
-        if (!settings.eqEnabled && !settings.loudnessEnabled) {
-            val out = replaceOutputBuffer(inputBuffer.remaining())
-            out.put(inputBuffer)
+        if (!inputBuffer.hasRemaining()) return
+        val startPos = inputBuffer.position()
+        try {
+            val settings = settingsRef.get()
+            if (!settings.eqEnabled && !settings.loudnessEnabled) {
+                passthrough(inputBuffer)
+                return
+            }
+            val remaining = inputBuffer.remaining()
+            val out = replaceOutputBuffer(remaining)
+            val view = inputBuffer.order(ByteOrder.nativeOrder())
+            when (encoding) {
+                C.ENCODING_PCM_FLOAT -> processFloat(view, out, settings)
+                else -> processPcm16(view, out, settings)
+            }
+            // Copy any leftover partial frame bytes untouched.
+            if (view.hasRemaining()) {
+                out.put(view)
+            }
             out.flip()
-            return
+        } catch (_: Throwable) {
+            // Never take down ExoPlayer — deliver original PCM.
+            try {
+                inputBuffer.position(startPos)
+                passthrough(inputBuffer)
+            } catch (_: Throwable) {
+                inputBuffer.position(inputBuffer.limit())
+                replaceOutputBuffer(0).flip()
+            }
         }
+    }
 
-        val remaining = inputBuffer.remaining()
-        val out = replaceOutputBuffer(remaining)
-        val view = inputBuffer.order(ByteOrder.nativeOrder())
-
-        when (encoding) {
-            C.ENCODING_PCM_FLOAT -> processFloat(view, out, settings)
-            else -> processPcm16(view, out, settings)
-        }
+    private fun passthrough(inputBuffer: ByteBuffer) {
+        val out = replaceOutputBuffer(inputBuffer.remaining())
+        out.put(inputBuffer)
         out.flip()
     }
 
     override fun onFlush() {
-        peakingFilters.forEach { it.reset() }
-        bassShelf.reset()
+        bank.reset()
         loudnessEnvelope = 0.05f
         loudnessGain = 1f
     }
@@ -84,18 +120,19 @@ class EqualizerAudioProcessor : BaseAudioProcessor() {
 
     private fun processPcm16(input: ByteBuffer, output: ByteBuffer, settings: AudioFxSettings) {
         val channels = channelCount
+        val scratch = frameScratch
+        val active = bank
         while (input.remaining() >= 2 * channels) {
-            val samples = FloatArray(channels)
             var rmsAcc = 0f
             for (c in 0 until channels) {
                 var s = input.short / 32768f
-                s = processSample(s, c, settings)
-                samples[c] = s
+                s = active.process(s, c, settings)
+                scratch[c] = s
                 rmsAcc += s * s
             }
             val gain = loudnessGainFor(settings, sqrt(rmsAcc / channels))
             for (c in 0 until channels) {
-                val v = (samples[c] * gain).coerceIn(-1f, 1f)
+                val v = (scratch[c] * gain).coerceIn(-1f, 1f)
                 output.putShort((v * 32767f).toInt().toShort())
             }
         }
@@ -103,34 +140,21 @@ class EqualizerAudioProcessor : BaseAudioProcessor() {
 
     private fun processFloat(input: ByteBuffer, output: ByteBuffer, settings: AudioFxSettings) {
         val channels = channelCount
+        val scratch = frameScratch
+        val active = bank
         while (input.remaining() >= 4 * channels) {
-            val samples = FloatArray(channels)
             var rmsAcc = 0f
             for (c in 0 until channels) {
                 var s = input.float
-                s = processSample(s, c, settings)
-                samples[c] = s
+                s = active.process(s, c, settings)
+                scratch[c] = s
                 rmsAcc += s * s
             }
             val gain = loudnessGainFor(settings, sqrt(rmsAcc / channels))
             for (c in 0 until channels) {
-                output.putFloat((samples[c] * gain).coerceIn(-1f, 1f))
+                output.putFloat((scratch[c] * gain).coerceIn(-1f, 1f))
             }
         }
-    }
-
-    private fun processSample(sample: Float, channel: Int, settings: AudioFxSettings): Float {
-        var s = sample
-        if (settings.eqEnabled) {
-            s *= preampGain
-            if (settings.bassBoostDb > 0.05f) {
-                s = bassShelf.process(s, channel)
-            }
-            for (filter in peakingFilters) {
-                s = filter.process(s, channel)
-            }
-        }
-        return s
     }
 
     private fun loudnessGainFor(settings: AudioFxSettings, frameRms: Float): Float {
@@ -155,39 +179,76 @@ class EqualizerAudioProcessor : BaseAudioProcessor() {
         return loudnessGain
     }
 
-    private fun rebuildFilters() {
-        val settings = settingsRef.get()
-        val sr = sampleRateHz.toFloat().coerceAtLeast(8_000f)
-        preampGain = dbToGain(settings.preampDb)
-
-        peakingFilters = Array(AudioFxSettings.BAND_COUNT) { i ->
-            val freq = AudioFxSettings.BAND_FREQUENCIES_HZ[i].toFloat().coerceAtMost(sr / 2f - 100f)
-            val gainDb = settings.band(i)
-            if (kotlin.math.abs(gainDb) < 0.05f) {
-                Biquad.passthrough()
-            } else {
-                Biquad.peaking(sr, freq, q = 1.4f, gainDb = gainDb, channels = channelCount)
+    /**
+     * Immutable filter set for the audio thread.
+     */
+    private class FilterBank(
+        private val preampGain: Float,
+        private val peaking: Array<Biquad>,
+        private val bassShelf: Biquad,
+        private val bassBoostActive: Boolean,
+    ) {
+        fun process(sample: Float, channel: Int, settings: AudioFxSettings): Float {
+            if (!settings.eqEnabled) return sample
+            var s = sample * preampGain
+            if (bassBoostActive) {
+                s = bassShelf.process(s, channel)
             }
+            for (filter in peaking) {
+                s = filter.process(s, channel)
+            }
+            return s
         }
 
-        bassShelf = if (settings.bassBoostDb > 0.05f) {
-            Biquad.lowshelf(
-                sampleRate = sr,
-                freq = 100f,
-                q = 0.707f,
-                gainDb = settings.bassBoostDb,
-                channels = channelCount,
+        fun reset() {
+            peaking.forEach { it.reset() }
+            bassShelf.reset()
+        }
+
+        companion object {
+            fun identity(channels: Int): FilterBank = FilterBank(
+                preampGain = 1f,
+                peaking = emptyArray(),
+                bassShelf = Biquad.passthrough(channels),
+                bassBoostActive = false,
             )
-        } else {
-            Biquad.passthrough()
+
+            fun build(settings: AudioFxSettings, sampleRateHz: Int, channelCount: Int): FilterBank {
+                val channels = channelCount.coerceIn(1, MAX_CHANNELS)
+                val sr = sampleRateHz.toFloat().coerceAtLeast(8_000f)
+                val nyquistGuard = (sr / 2f - 100f).coerceAtLeast(100f)
+                val peaking = Array(AudioFxSettings.BAND_COUNT) { i ->
+                    val freq = AudioFxSettings.BAND_FREQUENCIES_HZ[i].toFloat()
+                        .coerceIn(20f, nyquistGuard)
+                    val gainDb = settings.band(i)
+                    if (kotlin.math.abs(gainDb) < 0.05f) {
+                        Biquad.passthrough(channels)
+                    } else {
+                        Biquad.peaking(sr, freq, q = 1.4f, gainDb = gainDb, channels = channels)
+                    }
+                }
+                val bassBoost = settings.bassBoostDb > 0.05f
+                val shelf = if (bassBoost) {
+                    Biquad.lowshelf(
+                        sampleRate = sr,
+                        freq = 100f,
+                        q = 0.707f,
+                        gainDb = settings.bassBoostDb,
+                        channels = channels,
+                    )
+                } else {
+                    Biquad.passthrough(channels)
+                }
+                return FilterBank(
+                    preampGain = 10f.pow(settings.preampDb / 20f),
+                    peaking = peaking,
+                    bassShelf = shelf,
+                    bassBoostActive = bassBoost,
+                )
+            }
         }
     }
 
-    private fun dbToGain(db: Float): Float = 10f.pow(db / 20f)
-
-    /**
-     * Per-channel biquad (Direct Form I).
-     */
     private class Biquad(
         private val b0: Float,
         private val b1: Float,
@@ -196,14 +257,16 @@ class EqualizerAudioProcessor : BaseAudioProcessor() {
         private val a2: Float,
         channels: Int,
     ) {
-        private val x1 = FloatArray(channels)
-        private val x2 = FloatArray(channels)
-        private val y1 = FloatArray(channels)
-        private val y2 = FloatArray(channels)
+        private val x1 = FloatArray(channels.coerceAtLeast(1))
+        private val x2 = FloatArray(channels.coerceAtLeast(1))
+        private val y1 = FloatArray(channels.coerceAtLeast(1))
+        private val y2 = FloatArray(channels.coerceAtLeast(1))
 
         fun process(input: Float, channel: Int): Float {
+            if (x1.isEmpty()) return input
             val c = channel.coerceIn(0, x1.lastIndex)
             val y = b0 * input + b1 * x1[c] + b2 * x2[c] - a1 * y1[c] - a2 * y2[c]
+            if (!y.isFinite()) return input
             x2[c] = x1[c]
             x1[c] = input
             y2[c] = y1[c]
@@ -219,7 +282,8 @@ class EqualizerAudioProcessor : BaseAudioProcessor() {
         }
 
         companion object {
-            fun passthrough(): Biquad = Biquad(1f, 0f, 0f, 0f, 0f, channels = 8)
+            fun passthrough(channels: Int): Biquad =
+                Biquad(1f, 0f, 0f, 0f, 0f, channels = channels.coerceAtLeast(1))
 
             fun peaking(
                 sampleRate: Float,
@@ -244,7 +308,7 @@ class EqualizerAudioProcessor : BaseAudioProcessor() {
                     b2 = (b2 / a0).toFloat(),
                     a1 = (a1 / a0).toFloat(),
                     a2 = (a2 / a0).toFloat(),
-                    channels = channels.coerceAtLeast(1),
+                    channels = channels,
                 )
             }
 
@@ -272,9 +336,13 @@ class EqualizerAudioProcessor : BaseAudioProcessor() {
                     b2 = (b2 / a0).toFloat(),
                     a1 = (a1 / a0).toFloat(),
                     a2 = (a2 / a0).toFloat(),
-                    channels = channels.coerceAtLeast(1),
+                    channels = channels,
                 )
             }
         }
+    }
+
+    companion object {
+        private const val MAX_CHANNELS = 8
     }
 }

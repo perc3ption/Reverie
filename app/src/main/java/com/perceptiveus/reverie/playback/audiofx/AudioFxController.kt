@@ -1,20 +1,35 @@
 package com.perceptiveus.reverie.playback.audiofx
 
 import org.json.JSONObject
+import java.util.concurrent.atomic.AtomicReference
 
 /**
- * Process-wide audio FX bridge: settings → ExoPlayer [EqualizerAudioProcessor].
+ * Process-wide audio FX bridge: persisted settings → the active ExoPlayer
+ * [EqualizerAudioProcessor] owned by [com.perceptiveus.reverie.playback.PlaybackService].
+ *
+ * Processors are **not** shared across sinks (Media3 requirement). The service
+ * creates a fresh processor and [attach]s it; [apply] pushes the latest settings.
  */
 object AudioFxController {
-    val equalizerProcessor = EqualizerAudioProcessor()
+
+    private val activeEqualizer = AtomicReference<EqualizerAudioProcessor?>(null)
 
     @Volatile
     var settings: AudioFxSettings = AudioFxSettings.Default
         private set
 
+    fun attach(processor: EqualizerAudioProcessor) {
+        activeEqualizer.set(processor)
+        processor.applySettings(settings)
+    }
+
+    fun detach(processor: EqualizerAudioProcessor) {
+        activeEqualizer.compareAndSet(processor, null)
+    }
+
     fun apply(settings: AudioFxSettings) {
         this.settings = settings
-        equalizerProcessor.applySettings(settings)
+        activeEqualizer.get()?.applySettings(settings)
     }
 }
 
