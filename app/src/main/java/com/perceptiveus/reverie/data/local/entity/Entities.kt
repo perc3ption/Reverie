@@ -164,3 +164,59 @@ data class NamedPlayStatRow(
     val name: String,
     val playCount: Int,
 )
+
+@Entity(tableName = "smart_playlists")
+data class SmartPlaylistEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    /** [com.perceptiveus.reverie.domain.model.SmartPlaylistSort] name. */
+    val sortOrder: String = "TITLE",
+    val trackLimit: Int = 100,
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis(),
+)
+
+@Entity(
+    tableName = "smart_playlist_rules",
+    foreignKeys = [
+        ForeignKey(
+            entity = SmartPlaylistEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["playlistId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index("playlistId")],
+)
+data class SmartPlaylistRuleEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val playlistId: String,
+    /** [com.perceptiveus.reverie.domain.model.SmartPlaylistField] name. */
+    val field: String,
+    /** [com.perceptiveus.reverie.domain.model.SmartPlaylistOperator] name. */
+    val operator: String,
+    val value: String = "",
+    /** Secondary value (e.g. year upper bound). */
+    val valueSecondary: String = "",
+    val position: Int = 0,
+)
+
+data class SmartPlaylistWithRuleCount(
+    val id: String,
+    val name: String,
+    val sortOrder: String,
+    val trackLimit: Int,
+    val createdAt: Long,
+    val updatedAt: Long,
+    val ruleCount: Int,
+)
+
+data class TrackPlayCountRow(
+    val trackId: String,
+    val playCount: Int,
+)
+
+data class TrackTimestampRow(
+    val trackId: String,
+    val timestamp: Long,
+)

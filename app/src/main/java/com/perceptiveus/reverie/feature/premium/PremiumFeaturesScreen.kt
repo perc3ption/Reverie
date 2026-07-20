@@ -9,7 +9,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.ManageSearch
@@ -127,7 +126,6 @@ private val premiumFeatureItems = listOf(
     PremiumFeatureItem(AppFeature.UNLIMITED_LIBRARY, "Unlimited Library", "No song limit on imports.", Icons.Default.LibraryMusic),
     PremiumFeatureItem(AppFeature.RATINGS, "Ratings", "Rate tracks out of 5 stars.", Icons.Default.Star),
     PremiumFeatureItem(AppFeature.TAGS, "Tags", "Organize with custom tags.", Icons.Default.Label),
-    PremiumFeatureItem(AppFeature.COLLECTIONS, "Collections", "Custom listening collections.", Icons.Default.Collections),
     PremiumFeatureItem(AppFeature.SMART_PLAYLISTS, "Smart Playlists", "Rule-based auto playlists.", Icons.Default.AutoAwesome),
     PremiumFeatureItem(AppFeature.PLAYBACK_SCOPE, "Playback Scope", "Control shuffle and play scope.", Icons.Default.Tune),
     PremiumFeatureItem(AppFeature.ADVANCED_VISUALIZERS, "Advanced Visualizers", "Premium spectrum effects.", Icons.Default.Slideshow),

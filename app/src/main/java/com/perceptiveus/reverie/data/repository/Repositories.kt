@@ -9,6 +9,7 @@ import com.perceptiveus.reverie.domain.model.QueueSource
 import com.perceptiveus.reverie.domain.model.RepeatMode
 import com.perceptiveus.reverie.domain.model.Track
 import com.perceptiveus.reverie.domain.model.LibraryScanResult
+import com.perceptiveus.reverie.playback.PlaybackAudioAnalyzer
 import kotlinx.coroutines.flow.StateFlow
 
 /** Library data sourced from Room. */
@@ -46,6 +47,8 @@ interface MusicLibraryRepository {
 /** Playback state backed by Media3 ExoPlayer via [com.perceptiveus.reverie.playback.PlaybackService]. */
 interface PlaybackRepository {
     val playbackState: StateFlow<PlaybackState>
+    /** Live spectrum/waveform from decoded PCM (no mic permission). */
+    val visualizerFrame: StateFlow<PlaybackAudioAnalyzer.Frame>
 
     fun play(
         tracks: List<Track>,

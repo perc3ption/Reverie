@@ -39,6 +39,9 @@ fun ReverieApp(container: AppContainer) {
             currentRoute != ReverieDestination.SongDetail.route &&
             currentRoute != ReverieDestination.PlaylistDetail.route &&
             currentRoute != ReverieDestination.LibraryStats.route &&
+            currentRoute != ReverieDestination.SmartPlaylists.route &&
+            currentRoute != ReverieDestination.SmartPlaylistDetail.route &&
+            currentRoute != ReverieDestination.SmartPlaylistEditor.route &&
             playbackState.currentTrack != null
 
         // Keep a tab highlighted on detail screens so the bottom bar never sits in an
@@ -47,11 +50,15 @@ fun ReverieApp(container: AppContainer) {
             ReverieDestination.SongDetail.route,
             ReverieDestination.PlaylistDetail.route,
             ReverieDestination.LibraryStats.route,
+            ReverieDestination.SmartPlaylists.route,
+            ReverieDestination.SmartPlaylistDetail.route,
+            ReverieDestination.SmartPlaylistEditor.route,
             -> {
                 val previous = navController.previousBackStackEntry?.destination?.route
                 when (previous) {
                     ReverieDestination.Player.route -> ReverieDestination.Player.route
                     ReverieDestination.Library.route -> ReverieDestination.Library.route
+                    ReverieDestination.Home.route -> ReverieDestination.Home.route
                     else -> ReverieDestination.Library.route
                 }
             }

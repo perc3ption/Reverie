@@ -41,7 +41,7 @@ Gated via `AppFeature` / `FeatureAccessChecker`. Entitlements are currently a **
 | Song Ratings | Done | Premium: 1–5 stars on Song Detail; tap same star to clear; replaces Favorites |
 | Tags | Partial | Add/remove tags on Song Detail; Library browse still stubbed |
 | Collections | Planned | Custom listening collections |
-| Smart Playlists | Planned | Rule-based playlists that update automatically |
+| Smart Playlists | Done | Premium: rule-based playlists (artist/album/genre/year/rating/tag/date added/play count/recent); evaluate on open |
 | Playback Scope | Dropped | Covered by queue source (folder / album / playlist / etc.) |
 | Advanced Visualizers | Done | Scope, Radial, VU, Starburst skins |
 | Advanced Search | Planned | Filters and saved searches |

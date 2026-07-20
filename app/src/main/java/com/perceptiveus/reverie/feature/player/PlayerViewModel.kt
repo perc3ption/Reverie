@@ -14,6 +14,7 @@ import com.perceptiveus.reverie.data.repository.MusicLibraryRepository
 import com.perceptiveus.reverie.data.repository.PlaybackRepository
 import com.perceptiveus.reverie.domain.model.LyricsDocument
 import com.perceptiveus.reverie.domain.model.PlaybackState
+import com.perceptiveus.reverie.playback.PlaybackAudioAnalyzer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,6 +38,13 @@ class PlayerViewModel(
 
     val playbackState: StateFlow<PlaybackState> = playbackRepository.playbackState
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PlaybackState())
+
+    val visualizerFrame = playbackRepository.visualizerFrame
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            PlaybackAudioAnalyzer.Frame(),
+        )
 
     private val _lyrics = MutableStateFlow<LyricsDocument?>(null)
     val lyrics: StateFlow<LyricsDocument?> = _lyrics.asStateFlow()

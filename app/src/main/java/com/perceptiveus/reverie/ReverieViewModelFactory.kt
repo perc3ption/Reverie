@@ -8,6 +8,7 @@ import com.perceptiveus.reverie.feature.library.LibraryViewModel
 import com.perceptiveus.reverie.feature.player.PlayerViewModel
 import com.perceptiveus.reverie.feature.search.SearchViewModel
 import com.perceptiveus.reverie.feature.settings.SettingsViewModel
+import com.perceptiveus.reverie.feature.smartplaylist.SmartPlaylistListViewModel
 import com.perceptiveus.reverie.feature.stats.LibraryStatsViewModel
 
 class ReverieViewModelFactory(
@@ -37,6 +38,10 @@ class ReverieViewModelFactory(
             )
             modelClass.isAssignableFrom(LibraryStatsViewModel::class.java) -> LibraryStatsViewModel(
                 container.libraryStatsRepository,
+                container.featureAccessChecker,
+            )
+            modelClass.isAssignableFrom(SmartPlaylistListViewModel::class.java) -> SmartPlaylistListViewModel(
+                container.smartPlaylistRepository,
                 container.featureAccessChecker,
             )
             modelClass.isAssignableFrom(PlayerViewModel::class.java) -> PlayerViewModel(

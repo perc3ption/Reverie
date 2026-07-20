@@ -14,10 +14,15 @@ import com.perceptiveus.reverie.data.local.entity.PlayHistoryEntity
 import com.perceptiveus.reverie.data.local.entity.PlaylistEntity
 import com.perceptiveus.reverie.data.local.entity.PlaylistTrackCrossRef
 import com.perceptiveus.reverie.data.local.entity.PlaylistWithCount
+import com.perceptiveus.reverie.data.local.entity.SmartPlaylistEntity
+import com.perceptiveus.reverie.data.local.entity.SmartPlaylistRuleEntity
+import com.perceptiveus.reverie.data.local.entity.SmartPlaylistWithRuleCount
 import com.perceptiveus.reverie.data.local.entity.TagEntity
 import com.perceptiveus.reverie.data.local.entity.TrackEntity
+import com.perceptiveus.reverie.data.local.entity.TrackPlayCountRow
 import com.perceptiveus.reverie.data.local.entity.TrackPlayStatRow
 import com.perceptiveus.reverie.data.local.entity.TrackTagCrossRef
+import com.perceptiveus.reverie.data.local.entity.TrackTimestampRow
 import com.perceptiveus.reverie.data.local.entity.UserSettingsEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -187,6 +192,24 @@ interface PlayHistoryDao {
         """,
     )
     suspend fun topPlayedArtists(limit: Int): List<NamedPlayStatRow>
+
+    @Query(
+        """
+        SELECT trackId, COUNT(*) AS playCount
+        FROM play_history
+        GROUP BY trackId
+        """,
+    )
+    suspend fun playCountsByTrack(): List<TrackPlayCountRow>
+
+    @Query(
+        """
+        SELECT trackId, MAX(playedAt) AS timestamp
+        FROM play_history
+        GROUP BY trackId
+        """,
+    )
+    suspend fun lastPlayedAtByTrack(): List<TrackTimestampRow>
 }
 
 @Dao
@@ -291,6 +314,12 @@ interface SongTagDao {
     )
     fun observeTagsForTrack(trackId: String): Flow<List<TagEntity>>
 
+    @Query("SELECT * FROM tags ORDER BY name COLLATE NOCASE ASC")
+    suspend fun getAllTags(): List<TagEntity>
+
+    @Query("SELECT * FROM track_tags")
+    suspend fun getAllTrackTags(): List<TrackTagCrossRef>
+
     @Query("SELECT * FROM tags WHERE name = :name COLLATE NOCASE LIMIT 1")
     suspend fun getByName(name: String): TagEntity?
 
@@ -302,6 +331,66 @@ interface SongTagDao {
 
     @Query("DELETE FROM track_tags WHERE trackId = :trackId AND tagId = :tagId")
     suspend fun deleteTrackTag(trackId: String, tagId: String)
+}
+
+@Dao
+interface SmartPlaylistDao {
+
+    @Query(
+        """
+        SELECT p.id, p.name, p.sortOrder, p.trackLimit, p.createdAt, p.updatedAt,
+               COUNT(r.id) AS ruleCount
+        FROM smart_playlists p
+        LEFT JOIN smart_playlist_rules r ON r.playlistId = p.id
+        GROUP BY p.id
+        ORDER BY p.updatedAt DESC
+        """,
+    )
+    fun observeAllWithRuleCounts(): Flow<List<SmartPlaylistWithRuleCount>>
+
+    @Query("SELECT * FROM smart_playlists WHERE id = :id LIMIT 1")
+    fun observeById(id: String): Flow<SmartPlaylistEntity?>
+
+    @Query("SELECT * FROM smart_playlists WHERE id = :id LIMIT 1")
+    suspend fun getById(id: String): SmartPlaylistEntity?
+
+    @Query(
+        """
+        SELECT * FROM smart_playlist_rules
+        WHERE playlistId = :playlistId
+        ORDER BY position ASC, id ASC
+        """,
+    )
+    fun observeRules(playlistId: String): Flow<List<SmartPlaylistRuleEntity>>
+
+    @Query(
+        """
+        SELECT * FROM smart_playlist_rules
+        WHERE playlistId = :playlistId
+        ORDER BY position ASC, id ASC
+        """,
+    )
+    suspend fun getRules(playlistId: String): List<SmartPlaylistRuleEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPlaylist(playlist: SmartPlaylistEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRules(rules: List<SmartPlaylistRuleEntity>)
+
+    @Query("DELETE FROM smart_playlist_rules WHERE playlistId = :playlistId")
+    suspend fun deleteRulesForPlaylist(playlistId: String)
+
+    @Query("DELETE FROM smart_playlists WHERE id = :id")
+    suspend fun deletePlaylist(id: String)
+
+    @Transaction
+    suspend fun replacePlaylistRules(playlistId: String, rules: List<SmartPlaylistRuleEntity>) {
+        deleteRulesForPlaylist(playlistId)
+        if (rules.isNotEmpty()) {
+            insertRules(rules)
+        }
+    }
 }
 
 @Dao

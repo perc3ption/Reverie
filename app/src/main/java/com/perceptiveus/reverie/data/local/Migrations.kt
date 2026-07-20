@@ -156,3 +156,37 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
         db.execSQL("CREATE INDEX IF NOT EXISTS index_tracks_filePath ON tracks(filePath)")
     }
 }
+
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS smart_playlists (
+                id TEXT NOT NULL PRIMARY KEY,
+                name TEXT NOT NULL,
+                sortOrder TEXT NOT NULL,
+                trackLimit INTEGER NOT NULL,
+                createdAt INTEGER NOT NULL,
+                updatedAt INTEGER NOT NULL
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS smart_playlist_rules (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                playlistId TEXT NOT NULL,
+                field TEXT NOT NULL,
+                operator TEXT NOT NULL,
+                value TEXT NOT NULL,
+                valueSecondary TEXT NOT NULL,
+                position INTEGER NOT NULL,
+                FOREIGN KEY(playlistId) REFERENCES smart_playlists(id) ON DELETE CASCADE
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS index_smart_playlist_rules_playlistId ON smart_playlist_rules(playlistId)",
+        )
+    }
+}

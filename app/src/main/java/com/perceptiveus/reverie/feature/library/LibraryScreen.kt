@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
@@ -85,6 +86,8 @@ fun LibraryScreen(
     onNavigateToPlayer: () -> Unit,
     onNavigateToSearch: () -> Unit,
     onNavigateToStats: () -> Unit,
+    onNavigateToSmartPlaylists: () -> Unit,
+    onNavigateToImport: () -> Unit,
     tabRequests: Flow<LibraryTab>? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -432,70 +435,71 @@ fun LibraryScreen(
 
             item {
                 Spacer(modifier = Modifier.height(16.dp))
-                if (isPremium) {
-                    SectionHeader(title = "Quick Access")
+                SectionHeader(title = "Quick Access")
+            }
+
+            item {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    QuickAccessCard(
+                        title = "Import Music",
+                        description = "Add songs or folders",
+                        icon = Icons.Default.FolderOpen,
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = onNavigateToImport,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if (isPremium) {
+                            QuickAccessCard(
+                                title = "Smart Playlists",
+                                description = "Rule-based auto playlists",
+                                icon = Icons.Default.AutoAwesome,
+                                modifier = Modifier.weight(1f),
+                                onClick = onNavigateToSmartPlaylists,
+                            )
+                            QuickAccessCard(
+                                title = "Stats",
+                                description = "Library insights",
+                                icon = Icons.Default.QueryStats,
+                                modifier = Modifier.weight(1f),
+                                onClick = onNavigateToStats,
+                            )
+                        } else {
+                            LockedFeatureCard(
+                                title = "Smart Playlists",
+                                description = "Rule-based auto playlists",
+                                icon = Icons.Default.AutoAwesome,
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    lockedFeature = AppFeature.SMART_PLAYLISTS
+                                    showUpgradeDialog = true
+                                },
+                            )
+                            LockedFeatureCard(
+                                title = "Stats",
+                                description = "Library insights",
+                                icon = Icons.Default.QueryStats,
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    lockedFeature = AppFeature.LIBRARY_STATS
+                                    showUpgradeDialog = true
+                                },
+                            )
+                        }
+                    }
                 }
             }
 
-            if (isPremium) {
+            if (!isPremium) {
                 item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        QuickAccessCard(
-                            title = "Stats",
-                            description = "Library insights",
-                            icon = Icons.Default.QueryStats,
-                            modifier = Modifier.weight(1f),
-                            onClick = onNavigateToStats,
-                        )
-                        QuickAccessCard(
-                            title = "Smart Playlists",
-                            description = "Rule-based auto playlists",
-                            icon = Icons.Default.AutoAwesome,
-                            modifier = Modifier.weight(1f),
-                            onClick = { viewModel.notifyFeatureComingSoon("Smart Playlists") },
-                        )
-                    }
-                }
-            } else {
-                item {
+                    Spacer(modifier = Modifier.height(8.dp))
                     SectionHeader(title = "Premium Features")
                 }
                 item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        LockedFeatureCard(
-                            title = "Stats",
-                            description = "Library insights",
-                            icon = Icons.Default.QueryStats,
-                            modifier = Modifier.weight(1f),
-                            onClick = {
-                                lockedFeature = AppFeature.LIBRARY_STATS
-                                showUpgradeDialog = true
-                            },
-                        )
-                        LockedFeatureCard(
-                            title = "Smart Playlists",
-                            description = "Rule-based auto playlists",
-                            icon = Icons.Default.AutoAwesome,
-                            modifier = Modifier.weight(1f),
-                            onClick = {
-                                lockedFeature = AppFeature.SMART_PLAYLISTS
-                                showUpgradeDialog = true
-                            },
-                        )
-                    }
-                }
-                item {
-                    Spacer(modifier = Modifier.height(12.dp))
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()

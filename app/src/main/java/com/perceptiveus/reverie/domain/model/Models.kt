@@ -85,6 +85,7 @@ sealed class QueueSource {
         val artworkPath: String = "",
     ) : QueueSource()
     data class Folder(val name: String) : QueueSource()
+    data class SmartPlaylist(val name: String) : QueueSource()
     data object RecentlyPlayed : QueueSource()
     data object Unknown : QueueSource()
 }
@@ -101,8 +102,6 @@ data class PlaybackState(
     val queue: List<Track> = emptyList(),
     /** Index of [currentTrack] within [queue], or -1 when empty. */
     val queueIndex: Int = -1,
-    /** ExoPlayer audio session id for [android.media.audiofx.Visualizer]; 0 when unset. */
-    val audioSessionId: Int = 0,
     /** Origin of the active queue. */
     val queueSource: QueueSource = QueueSource.Unknown,
     /**

@@ -32,6 +32,12 @@ import com.perceptiveus.reverie.feature.settings.SettingsScreen
 import com.perceptiveus.reverie.feature.settings.SettingsViewModel
 import com.perceptiveus.reverie.feature.stats.LibraryStatsScreen
 import com.perceptiveus.reverie.feature.stats.LibraryStatsViewModel
+import com.perceptiveus.reverie.feature.smartplaylist.SmartPlaylistDetailScreen
+import com.perceptiveus.reverie.feature.smartplaylist.SmartPlaylistDetailViewModel
+import com.perceptiveus.reverie.feature.smartplaylist.SmartPlaylistEditorScreen
+import com.perceptiveus.reverie.feature.smartplaylist.SmartPlaylistEditorViewModel
+import com.perceptiveus.reverie.feature.smartplaylist.SmartPlaylistListScreen
+import com.perceptiveus.reverie.feature.smartplaylist.SmartPlaylistListViewModel
 import androidx.compose.runtime.remember
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
@@ -97,6 +103,9 @@ fun ReverieNavGraph(
                 onNavigateToStats = {
                     navController.navigate(ReverieDestination.LibraryStats.route)
                 },
+                onNavigateToSmartPlaylists = {
+                    navController.navigate(ReverieDestination.SmartPlaylists.route)
+                },
             )
         }
 
@@ -130,6 +139,12 @@ fun ReverieNavGraph(
                 onNavigateToStats = {
                     navController.navigate(ReverieDestination.LibraryStats.route)
                 },
+                onNavigateToSmartPlaylists = {
+                    navController.navigate(ReverieDestination.SmartPlaylists.route)
+                },
+                onNavigateToImport = {
+                    navController.navigate(ReverieDestination.ImportMusic.route)
+                },
                 tabRequests = libraryTabRequests,
             )
         }
@@ -139,6 +154,94 @@ fun ReverieNavGraph(
             LibraryStatsScreen(
                 viewModel = viewModel,
                 onNavigateBack = { navController.navigateUp() },
+            )
+        }
+
+        composable(ReverieDestination.SmartPlaylists.route) {
+            val viewModel: SmartPlaylistListViewModel = viewModel(factory = factory)
+            SmartPlaylistListScreen(
+                viewModel = viewModel,
+                onNavigateBack = { navController.navigateUp() },
+                onCreateClick = {
+                    navController.navigate(ReverieDestination.SmartPlaylistEditor.createRoute())
+                },
+                onPlaylistClick = { playlist ->
+                    navController.navigate(ReverieDestination.SmartPlaylistDetail.createRoute(playlist.id))
+                },
+            )
+        }
+
+        composable(
+            route = ReverieDestination.SmartPlaylistDetail.route,
+            arguments = listOf(
+                navArgument(ReverieDestination.SMART_PLAYLIST_ID_ARG) {
+                    type = NavType.StringType
+                },
+            ),
+        ) { backStackEntry ->
+            val smartPlaylistId = backStackEntry.arguments
+                ?.getString(ReverieDestination.SMART_PLAYLIST_ID_ARG)
+                .orEmpty()
+            val viewModel: SmartPlaylistDetailViewModel = viewModel(
+                key = smartPlaylistId,
+                factory = SmartPlaylistDetailViewModel.factory(
+                    playlistId = smartPlaylistId,
+                    smartPlaylistRepository = container.smartPlaylistRepository,
+                    playbackRepository = container.playbackRepository,
+                ),
+            )
+            SmartPlaylistDetailScreen(
+                viewModel = viewModel,
+                onNavigateBack = { navController.navigateUp() },
+                onEditClick = {
+                    navController.navigate(
+                        ReverieDestination.SmartPlaylistEditor.createRoute(smartPlaylistId),
+                    )
+                },
+                onNavigateToPlayer = {
+                    navController.navigate(ReverieDestination.Player.route) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+                onSongDetailsClick = { track ->
+                    navController.navigate(ReverieDestination.SongDetail.createRoute(track.id))
+                },
+            )
+        }
+
+        composable(
+            route = ReverieDestination.SmartPlaylistEditor.route,
+            arguments = listOf(
+                navArgument(ReverieDestination.SMART_PLAYLIST_ID_ARG) {
+                    type = NavType.StringType
+                },
+            ),
+        ) { backStackEntry ->
+            val rawId = backStackEntry.arguments
+                ?.getString(ReverieDestination.SMART_PLAYLIST_ID_ARG)
+                .orEmpty()
+            val playlistId = rawId.takeUnless { it == ReverieDestination.SmartPlaylistEditor.NEW_ID }
+            val viewModel: SmartPlaylistEditorViewModel = viewModel(
+                key = rawId,
+                factory = SmartPlaylistEditorViewModel.factory(
+                    playlistId = playlistId,
+                    smartPlaylistRepository = container.smartPlaylistRepository,
+                    songTagRepository = container.songTagRepository,
+                ),
+            )
+            SmartPlaylistEditorScreen(
+                viewModel = viewModel,
+                onNavigateBack = { navController.navigateUp() },
+                onSaved = { savedId ->
+                    navController.navigate(ReverieDestination.SmartPlaylistDetail.createRoute(savedId)) {
+                        popUpTo(ReverieDestination.SmartPlaylists.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                },
             )
         }
 

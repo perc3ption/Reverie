@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.History
@@ -268,6 +269,13 @@ private fun queueHeaderPresentation(
             subtitle = songCountLabel,
             artworkPath = firstArt,
             fallbackIcon = Icons.Default.Folder,
+        )
+        is QueueSource.SmartPlaylist -> QueueHeaderPresentation(
+            kindLabel = "SMART PLAYLIST",
+            title = source.name,
+            subtitle = songCountLabel,
+            artworkPath = firstArt,
+            fallbackIcon = Icons.Default.AutoAwesome,
         )
         QueueSource.RecentlyPlayed -> QueueHeaderPresentation(
             kindLabel = "QUEUE",

@@ -68,6 +68,7 @@ import com.perceptiveus.reverie.feature.player.lyrics.LyricsPanel
 import com.perceptiveus.reverie.feature.player.visualizer.MusicVisualizer
 import com.perceptiveus.reverie.feature.player.visualizer.VisualizerStyle
 import com.perceptiveus.reverie.feature.premium.UpgradeDialog
+import com.perceptiveus.reverie.playback.PlaybackAudioAnalyzer
 import kotlinx.coroutines.flow.collectLatest
 
 private enum class PlayerMediaView {
@@ -85,6 +86,7 @@ fun PlayerScreen(
 ) {
     val playbackState by viewModel.playbackState.collectAsState()
     val lyrics by viewModel.lyrics.collectAsState()
+    val visualizerFrame by viewModel.visualizerFrame.collectAsState()
     val track = playbackState.currentTrack
     var showUpgradeDialog by remember { mutableStateOf(false) }
     var upgradeFeature by remember { mutableStateOf(AppFeature.ADVANCED_VISUALIZERS) }
@@ -176,7 +178,7 @@ fun PlayerScreen(
                             else -> mediaView = requested
                         }
                     },
-                    audioSessionId = playbackState.audioSessionId,
+                    visualizerFrame = visualizerFrame,
                     isPlaying = playbackState.isPlaying,
                     positionMs = playbackState.positionMs,
                     selectedStyle = selectedStyle,
@@ -310,6 +312,7 @@ private fun QueueSourceLabel(
         }
         is QueueSource.Artist -> "Artist · ${source.name}"
         is QueueSource.Folder -> "Folder · ${source.name}"
+        is QueueSource.SmartPlaylist -> "Smart playlist · ${source.name}"
         QueueSource.RecentlyPlayed -> "Recently played"
         QueueSource.Unknown -> if (queueSize > 0) "Queue" else return
     }
@@ -345,7 +348,7 @@ private fun PlayerMediaDisplay(
     trackTitle: String?,
     selectedView: PlayerMediaView,
     onViewSelected: (PlayerMediaView) -> Unit,
-    audioSessionId: Int,
+    visualizerFrame: PlaybackAudioAnalyzer.Frame,
     isPlaying: Boolean,
     positionMs: Long,
     selectedStyle: VisualizerStyle,
@@ -387,9 +390,8 @@ private fun PlayerMediaDisplay(
 
             PlayerMediaView.VISUALIZER -> {
                 MusicVisualizer(
-                    audioSessionId = audioSessionId,
+                    frame = visualizerFrame,
                     isPlaying = isPlaying,
-                    positionMs = positionMs,
                     selectedStyle = selectedStyle,
                     canAccessPremium = canAccessVisualizers,
                     onStyleSelected = onStyleSelected,

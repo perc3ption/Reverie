@@ -65,6 +65,7 @@ fun HomeScreen(
     onNavigateToSearch: () -> Unit,
     onNavigateToSongDetails: (Track) -> Unit,
     onNavigateToStats: () -> Unit,
+    onNavigateToSmartPlaylists: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val recentlyPlayed by viewModel.recentlyPlayed.collectAsState()
@@ -172,7 +173,6 @@ fun HomeScreen(
                 QuickAccessGrid(
                     isPremium = isPremium,
                     onImportClick = onNavigateToImport,
-                    onLibraryClick = onNavigateToLibrary,
                     onPlaylistsClick = onNavigateToLibraryPlaylists,
                     onStatsClick = {
                         if (isPremium) {
@@ -183,7 +183,7 @@ fun HomeScreen(
                     },
                     onSmartPlaylistsClick = {
                         if (isPremium) {
-                            viewModel.notifyFeatureComingSoon("Smart Playlists")
+                            onNavigateToSmartPlaylists()
                         } else {
                             upgradeFeature = AppFeature.SMART_PLAYLISTS
                         }
@@ -286,7 +286,6 @@ private fun RecentlyPlayedRow(
 private fun QuickAccessGrid(
     isPremium: Boolean,
     onImportClick: () -> Unit,
-    onLibraryClick: () -> Unit,
     onPlaylistsClick: () -> Unit,
     onStatsClick: () -> Unit,
     onSmartPlaylistsClick: () -> Unit,
@@ -304,20 +303,13 @@ private fun QuickAccessGrid(
                 onClick = onImportClick,
             )
             QuickAccessCard(
-                title = "Library",
-                description = "Browse your collection",
+                title = "Playlists",
+                description = "Your playlists and mixes",
                 icon = Icons.Default.LibraryMusic,
                 modifier = Modifier.weight(1f),
-                onClick = onLibraryClick,
+                onClick = onPlaylistsClick,
             )
         }
-        QuickAccessCard(
-            title = "Playlists",
-            description = "Your playlists and mixes",
-            icon = Icons.Default.LibraryMusic,
-            modifier = Modifier.fillMaxWidth(),
-            onClick = onPlaylistsClick,
-        )
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             if (isPremium) {
                 QuickAccessCard(

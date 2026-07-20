@@ -20,8 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,21 +28,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.perceptiveus.reverie.core.design.ReveriePurple
+import com.perceptiveus.reverie.playback.PlaybackAudioAnalyzer
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 
 /** Matches album art / lyrics media area so Now Playing stays above the fold. */
 private val MediaAreaHeight = 220.dp
 
 /**
- * Early-2000s style music visualizer with selectable skins.
+ * Early-2000s style music visualizer driven by decoded PCM from ExoPlayer.
  */
 @Composable
 fun MusicVisualizer(
-    audioSessionId: Int,
+    frame: PlaybackAudioAnalyzer.Frame,
     isPlaying: Boolean,
-    positionMs: Long,
     selectedStyle: VisualizerStyle,
     canAccessPremium: Boolean,
     onStyleSelected: (VisualizerStyle) -> Unit,
@@ -51,38 +51,42 @@ fun MusicVisualizer(
     modifier: Modifier = Modifier,
 ) {
     var spectrum by remember {
-        mutableStateOf(FloatArray(AudioSpectrumCollector.DEFAULT_BAR_COUNT))
+        mutableStateOf(FloatArray(PlaybackAudioAnalyzer.DEFAULT_BAR_COUNT))
     }
     var peaks by remember {
-        mutableStateOf(FloatArray(AudioSpectrumCollector.DEFAULT_BAR_COUNT))
+        mutableStateOf(FloatArray(PlaybackAudioAnalyzer.DEFAULT_BAR_COUNT))
     }
     var waveform by remember {
-        mutableStateOf(FloatArray(AudioSpectrumCollector.WAVEFORM_POINTS))
-    }
-    var captureMode by remember {
-        mutableStateOf(AudioSpectrumCollector.CaptureMode.FALLBACK)
+        mutableStateOf(FloatArray(PlaybackAudioAnalyzer.DEFAULT_WAVEFORM_POINTS))
     }
 
-    val collector = remember {
-        AudioSpectrumCollector(
-            onFrame = { spectrumFrame, peaksFrame, waveformFrame ->
-                spectrum = spectrumFrame
-                peaks = peaksFrame
-                waveform = waveformFrame
-            },
-            onModeChanged = { mode ->
-                captureMode = mode
-            },
-        )
-    }
-
-    DisposableEffect(Unit) {
-        collector.start()
-        onDispose { collector.stop() }
-    }
-
-    SideEffect {
-        collector.updatePlayback(audioSessionId, isPlaying, positionMs)
+    LaunchedEffect(frame, isPlaying) {
+        if (isPlaying) {
+            spectrum = frame.spectrum
+            peaks = frame.peaks
+            waveform = frame.waveform
+        } else {
+            // Gentle idle decay when paused / stopped.
+            while (isActive) {
+                var any = false
+                val nextSpectrum = FloatArray(spectrum.size) { i ->
+                    val v = spectrum[i] * 0.88f
+                    if (v > 0.01f) any = true
+                    if (v < 0.01f) 0f else v
+                }
+                val nextPeaks = FloatArray(peaks.size) { i ->
+                    val v = peaks[i] * 0.92f
+                    if (v > 0.01f) any = true
+                    if (v < 0.01f) 0f else v
+                }
+                val nextWave = FloatArray(waveform.size) { i -> waveform[i] * 0.85f }
+                spectrum = nextSpectrum
+                peaks = nextPeaks
+                waveform = nextWave
+                if (!any) break
+                delay(33)
+            }
+        }
     }
 
     Surface(
@@ -99,10 +103,9 @@ fun MusicVisualizer(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                CaptureModeBadge(mode = captureMode)
                 StylePickerButton(
                     selected = selectedStyle,
                     canAccessPremium = canAccessPremium,
@@ -123,26 +126,6 @@ fun MusicVisualizer(
                     .clip(RoundedCornerShape(12.dp)),
             )
         }
-    }
-}
-
-@Composable
-private fun CaptureModeBadge(mode: AudioSpectrumCollector.CaptureMode) {
-    val isLive = mode == AudioSpectrumCollector.CaptureMode.LIVE
-    Surface(
-        shape = RoundedCornerShape(4.dp),
-        color = if (isLive) {
-            Color(0xFF1B5E20).copy(alpha = 0.85f)
-        } else {
-            Color(0xFF4E342E).copy(alpha = 0.9f)
-        },
-    ) {
-        Text(
-            text = if (isLive) "LIVE" else "FALLBACK",
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-            style = MaterialTheme.typography.labelSmall,
-            color = if (isLive) Color(0xFFB9F6CA) else Color(0xFFFFCC80),
-        )
     }
 }
 

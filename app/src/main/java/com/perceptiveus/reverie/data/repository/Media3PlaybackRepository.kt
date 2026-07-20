@@ -17,6 +17,7 @@ import com.perceptiveus.reverie.domain.model.PlaybackState
 import com.perceptiveus.reverie.domain.model.QueueSource
 import com.perceptiveus.reverie.domain.model.RepeatMode
 import com.perceptiveus.reverie.domain.model.Track
+import com.perceptiveus.reverie.playback.PlaybackAudioAnalyzer
 import com.perceptiveus.reverie.playback.PlaybackService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -44,6 +45,9 @@ class Media3PlaybackRepository(
 
     private val _playbackState = MutableStateFlow(PlaybackState())
     override val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
+
+    override val visualizerFrame: StateFlow<PlaybackAudioAnalyzer.Frame> =
+        PlaybackAudioAnalyzer.frame
 
     @Volatile
     private var controller: MediaController? = null
@@ -334,7 +338,6 @@ class Media3PlaybackRepository(
                 nextTrack = next,
                 queue = queue,
                 queueIndex = queueIndex,
-                audioSessionId = player.audioSessionId,
                 queueSource = queueSource,
                 disabledTrackIds = disabledTrackIds,
             )

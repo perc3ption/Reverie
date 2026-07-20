@@ -19,6 +19,8 @@ import com.perceptiveus.reverie.data.repository.RoomLibraryStatsRepository
 import com.perceptiveus.reverie.data.repository.RoomMusicLibraryRepository
 import com.perceptiveus.reverie.data.repository.RoomPlaylistRepository
 import com.perceptiveus.reverie.data.repository.RoomSongTagRepository
+import com.perceptiveus.reverie.data.repository.RoomSmartPlaylistRepository
+import com.perceptiveus.reverie.data.repository.SmartPlaylistRepository
 import com.perceptiveus.reverie.data.repository.SongTagRepository
 import com.perceptiveus.reverie.data.import.AlbumArtCache
 import com.perceptiveus.reverie.data.import.AudioMetadataReader
@@ -102,6 +104,13 @@ class AppContainer(context: Context) {
         trackDao = database.trackDao(),
         playlistDao = database.playlistDao(),
         playHistoryDao = database.playHistoryDao(),
+    )
+    val smartPlaylistRepository: SmartPlaylistRepository = RoomSmartPlaylistRepository(
+        smartPlaylistDao = database.smartPlaylistDao(),
+        trackDao = database.trackDao(),
+        playHistoryDao = database.playHistoryDao(),
+        songTagDao = database.songTagDao(),
+        featureAccessChecker = featureAccessChecker,
     )
     val playbackRepository: PlaybackRepository = Media3PlaybackRepository(
         context = appContext,
