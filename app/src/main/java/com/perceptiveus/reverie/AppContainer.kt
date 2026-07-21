@@ -36,6 +36,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import com.perceptiveus.reverie.domain.model.LibraryScanResult
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -97,7 +98,7 @@ class AppContainer(context: Context) {
         storage = musicLibraryStorage,
         trackDao = database.trackDao(),
         featureAccessChecker = featureAccessChecker,
-        scanLibrary = { musicLibraryRepository.scanLibrary() },
+        scanLibrary = { scanLibrary() },
     )
     val playlistRepository: PlaylistRepository = RoomPlaylistRepository(
         playlistDao = database.playlistDao(),
@@ -128,10 +129,13 @@ class AppContainer(context: Context) {
         audioFxSettings = settingsRepository.audioFxSettings,
     )
 
-    private val deferredScanStarted = AtomicBoolean(false)
     private val _libraryScanInProgress = MutableStateFlow(false)
-    /** True while the deferred startup library scan is running. */
+    /** True while an import, manual, or first-install library scan is running. */
     val libraryScanInProgress: StateFlow<Boolean> = _libraryScanInProgress.asStateFlow()
+
+    private val libraryPrefs =
+        appContext.getSharedPreferences(LIBRARY_PREFS, Context.MODE_PRIVATE)
+    private val initialScanStarted = AtomicBoolean(false)
 
     init {
         appScope.launch {
@@ -140,34 +144,60 @@ class AppContainer(context: Context) {
             }
         }
         appScope.launch {
-            // Fast path only — full library scan is deferred until first UI frame.
             initializeLibraryStorage()
             DatabaseSeeder.seedSettingsIfNeeded(database.userSettingsDao())
         }
     }
 
     /**
-     * Schedules an incremental library scan after the first composition so cold
-     * start is not blocked by MediaMetadataRetriever work. Safe to call multiple times.
+     * One-time scan after first install (empty library). Skipped on later launches
+     * and for upgrades that already have indexed tracks.
      */
-    fun startDeferredLibraryScan() {
-        if (!deferredScanStarted.compareAndSet(false, true)) return
+    fun startInitialLibraryScanIfNeeded() {
+        if (libraryPrefs.getBoolean(KEY_INITIAL_SCAN_DONE, false)) return
+        if (!initialScanStarted.compareAndSet(false, true)) return
         appScope.launch {
-            delay(FIRST_FRAME_SCAN_DELAY_MS)
-            _libraryScanInProgress.value = true
             try {
-                val result = musicLibraryRepository.scanLibrary()
-                Log.i(
-                    TAG,
-                    "Library scan: indexed=${result.tracksIndexed}, unchanged=${result.tracksUnchanged}, " +
-                        "removed=${result.tracksRemoved}, folders=${result.foldersIndexed}",
-                )
+                // Upgrading users already have Room data — don't walk disk again.
+                if (database.trackDao().countTracks() > 0) {
+                    markInitialScanDone()
+                    return@launch
+                }
+                delay(FIRST_FRAME_SCAN_DELAY_MS)
+                scanLibrary()
+                markInitialScanDone()
             } catch (e: Exception) {
-                Log.e(TAG, "Library scan failed", e)
-            } finally {
-                _libraryScanInProgress.value = false
+                Log.e(TAG, "Initial library scan failed", e)
+                // Leave the flag unset so the next launch can retry.
+                initialScanStarted.set(false)
             }
         }
+    }
+
+    /**
+     * Walks the on-disk library and syncs Room. Used after import, manual Scan Library,
+     * and the one-time first-install scan — not on every app start.
+     */
+    suspend fun scanLibrary(): LibraryScanResult {
+        _libraryScanInProgress.value = true
+        try {
+            val result = musicLibraryRepository.scanLibrary()
+            Log.i(
+                TAG,
+                "Library scan: indexed=${result.tracksIndexed}, unchanged=${result.tracksUnchanged}, " +
+                    "removed=${result.tracksRemoved}, folders=${result.foldersIndexed}",
+            )
+            return result
+        } catch (e: Exception) {
+            Log.e(TAG, "Library scan failed", e)
+            throw e
+        } finally {
+            _libraryScanInProgress.value = false
+        }
+    }
+
+    private fun markInitialScanDone() {
+        libraryPrefs.edit().putBoolean(KEY_INITIAL_SCAN_DONE, true).apply()
     }
 
     private fun initializeLibraryStorage() {
@@ -181,7 +211,9 @@ class AppContainer(context: Context) {
 
     companion object {
         private const val TAG = "AppContainer"
-        /** Let the first Compose frame paint before walking/tagging the library. */
+        private const val LIBRARY_PREFS = "reverie_library"
+        private const val KEY_INITIAL_SCAN_DONE = "initial_library_scan_done"
+        /** Let the first Compose frame paint before the first-install walk. */
         private const val FIRST_FRAME_SCAN_DELAY_MS = 400L
     }
 }

@@ -22,6 +22,7 @@ class ImportMusicViewModel(
     private val musicImportRepository: MusicImportRepository,
     private val musicLibraryStorage: MusicLibraryStorage,
     entitlementRepository: EntitlementRepository,
+    private val performLibraryScan: suspend () -> LibraryScanResult,
 ) : ViewModel() {
 
     val songCount: StateFlow<Int> = musicLibraryRepository.songCount
@@ -103,7 +104,7 @@ class ImportMusicViewModel(
             _isBusy.value = true
             _statusMessage.value = null
             try {
-                val result = musicLibraryRepository.scanLibrary()
+                val result = performLibraryScan()
                 _statusMessage.value = formatScanResult(result)
             } catch (e: Exception) {
                 _statusMessage.value = "Scan failed: ${e.message ?: "Unknown error"}"

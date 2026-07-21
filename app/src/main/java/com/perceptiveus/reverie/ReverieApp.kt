@@ -49,10 +49,10 @@ fun ReverieApp(container: AppContainer) {
     var showLibraryScanStatus by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        container.startDeferredLibraryScan()
+        container.startInitialLibraryScanIfNeeded()
     }
 
-    // Skip the status flash when the incremental scan finishes quickly.
+    // Skip the status flash when the scan finishes quickly.
     LaunchedEffect(libraryScanInProgress) {
         if (!libraryScanInProgress) {
             showLibraryScanStatus = false
@@ -159,7 +159,7 @@ fun ReverieApp(container: AppContainer) {
 /** Only show status if indexing is still going after this delay. */
 private const val LIBRARY_SCAN_STATUS_DELAY_MS = 350L
 
-/** Snackbar-style status strip — always visible while startup indexing runs. */
+/** Snackbar-style status strip while a library scan runs. */
 @Composable
 private fun LibraryScanStatusBar() {
     Surface(
