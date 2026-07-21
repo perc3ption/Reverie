@@ -14,6 +14,7 @@ import com.perceptiveus.reverie.domain.model.MusicFolder
 import com.perceptiveus.reverie.domain.model.Playlist
 import com.perceptiveus.reverie.domain.model.QueueSource
 import com.perceptiveus.reverie.domain.model.Track
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -83,7 +85,9 @@ class LibraryViewModel(
         _folderPath,
     ) { allFolders, allSongs, path ->
         buildFolderBrowserState(allFolders, allSongs, path)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FolderBrowserState())
+    }
+        .flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FolderBrowserState())
 
     private val _selectedArtistName = MutableStateFlow<String?>(null)
 
@@ -364,27 +368,34 @@ class LibraryViewModel(
         path: String,
     ): FolderBrowserState {
         val current = allFolders.firstOrNull { it.relativePath == path }
+        val songsByFolderId = allSongs.groupBy { effectiveFolderId(it) }
+        val subtreeAggByPath = buildSubtreeAggregates(allFolders, songsByFolderId)
+
         val childFolders = allFolders
+            .asSequence()
             .filter { isDirectChildFolder(parentPath = path, childPath = it.relativePath) }
             .map { folder ->
-                val subtreeTracks = tracksInSubtree(folder.relativePath, allFolders, allSongs)
+                val agg = subtreeAggByPath[folder.relativePath]
                 folder.copy(
-                    songCount = subtreeTracks.size,
-                    albumCount = subtreeTracks.map { it.album }.filter { it.isNotBlank() }.distinct().size,
+                    songCount = agg?.songCount ?: 0,
+                    albumCount = agg?.albumCount ?: 0,
                 )
             }
             .sortedBy { it.name.lowercase() }
+            .toList()
 
         val currentFolderId = current?.id
-        val songsHere = allSongs
-            .filter { track ->
-                when {
-                    currentFolderId != null -> track.folderId == currentFolderId
-                    path.isEmpty() -> track.folderId.isNullOrBlank() || track.folderId == "_library_root"
-                    else -> false
-                }
-            }
-            .sortedBy { it.title.lowercase() }
+        val songsHere = when {
+            currentFolderId != null -> songsByFolderId[currentFolderId].orEmpty()
+            path.isEmpty() -> songsByFolderId[LIBRARY_ROOT_FOLDER_ID].orEmpty()
+            else -> emptyList()
+        }.sortedBy { it.title.lowercase() }
+
+        val subtreeSongs = if (path.isEmpty()) {
+            allSongs
+        } else {
+            collectSubtreeSongs(path, allFolders, songsByFolderId)
+        }.sortedBy { it.title.lowercase() }
 
         return FolderBrowserState(
             path = path,
@@ -393,9 +404,60 @@ class LibraryViewModel(
             canNavigateUp = path.isNotEmpty(),
             childFolders = childFolders,
             songs = songsHere,
-            subtreeSongs = tracksInSubtree(path, allFolders, allSongs)
-                .sortedBy { it.title.lowercase() },
+            subtreeSongs = subtreeSongs,
         )
+    }
+
+    /**
+     * One O(folders + songs) bottom-up pass: song/album counts for every folder path.
+     * Avoids rescanning all songs once per child folder.
+     */
+    private fun buildSubtreeAggregates(
+        allFolders: List<MusicFolder>,
+        songsByFolderId: Map<String, List<Track>>,
+    ): Map<String, FolderSubtreeAggregate> {
+        val aggByPath = HashMap<String, FolderSubtreeAggregate>(allFolders.size.coerceAtLeast(1))
+        for (folder in allFolders) {
+            val direct = songsByFolderId[folder.id].orEmpty()
+            var songCount = 0
+            val albums = LinkedHashSet<String>()
+            for (track in direct) {
+                songCount++
+                if (track.album.isNotBlank()) albums.add(track.album)
+            }
+            aggByPath[folder.relativePath] = FolderSubtreeAggregate(songCount, albums)
+        }
+
+        // Deepest paths first so parents receive fully rolled-up children.
+        val deepFirst = allFolders.sortedByDescending { folderDepth(it.relativePath) }
+        for (folder in deepFirst) {
+            val childPath = folder.relativePath
+            if (childPath.isEmpty()) continue
+            val parentPath = parentFolderPath(childPath)
+            val child = aggByPath[childPath] ?: continue
+            val parent = aggByPath.getOrPut(parentPath) {
+                FolderSubtreeAggregate(0, LinkedHashSet())
+            }
+            parent.songCount += child.songCount
+            parent.albums.addAll(child.albums)
+        }
+        return aggByPath
+    }
+
+    private fun collectSubtreeSongs(
+        folderPath: String,
+        allFolders: List<MusicFolder>,
+        songsByFolderId: Map<String, List<Track>>,
+    ): List<Track> {
+        val prefix = "$folderPath/"
+        val out = ArrayList<Track>()
+        for (folder in allFolders) {
+            val rel = folder.relativePath
+            if (rel == folderPath || rel.startsWith(prefix)) {
+                out.addAll(songsByFolderId[folder.id].orEmpty())
+            }
+        }
+        return out
     }
 
     private fun isDirectChildFolder(parentPath: String, childPath: String): Boolean {
@@ -406,21 +468,23 @@ class LibraryViewModel(
         return rest.isNotEmpty() && '/' !in rest
     }
 
-    private fun tracksInSubtree(
-        folderPath: String,
-        allFolders: List<MusicFolder>,
-        allSongs: List<Track>,
-    ): List<Track> {
-        if (folderPath.isEmpty()) {
-            return allSongs
-        }
-        val folderIds = allFolders
-            .filter { folder ->
-                folder.relativePath == folderPath ||
-                    folder.relativePath.startsWith("$folderPath/")
-            }
-            .map { it.id }
-            .toSet()
-        return allSongs.filter { track -> track.folderId != null && track.folderId in folderIds }
+    private fun effectiveFolderId(track: Track): String =
+        track.folderId?.takeIf { it.isNotBlank() } ?: LIBRARY_ROOT_FOLDER_ID
+
+    private fun parentFolderPath(relativePath: String): String =
+        if ('/' in relativePath) relativePath.substringBeforeLast('/') else ""
+
+    private fun folderDepth(relativePath: String): Int =
+        if (relativePath.isEmpty()) 0 else relativePath.count { it == '/' } + 1
+
+    private data class FolderSubtreeAggregate(
+        var songCount: Int,
+        val albums: MutableSet<String>,
+    ) {
+        val albumCount: Int get() = albums.size
+    }
+
+    private companion object {
+        const val LIBRARY_ROOT_FOLDER_ID = "_library_root"
     }
 }

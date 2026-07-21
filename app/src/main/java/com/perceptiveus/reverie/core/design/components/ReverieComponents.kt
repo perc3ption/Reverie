@@ -32,7 +32,6 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.perceptiveus.reverie.core.design.ReveriePremiumGold
 import com.perceptiveus.reverie.core.design.ReveriePurple
-import java.io.File
 
 @Composable
 fun SectionHeader(
@@ -198,7 +197,10 @@ fun AlbumArtPlaceholder(
 }
 
 /**
- * Loads cached album art when [artworkPath] points to a file; otherwise shows [AlbumArtPlaceholder].
+ * Loads cached album art when [artworkPath] is non-blank; otherwise shows [AlbumArtPlaceholder].
+ *
+ * Trusts the stored path (no sync [java.io.File] I/O on the UI thread). Coil shows nothing on
+ * miss and the placeholder underneath remains visible.
  */
 @Composable
 fun AlbumArt(
@@ -206,17 +208,14 @@ fun AlbumArt(
     modifier: Modifier = Modifier,
     contentDescription: String? = null,
 ) {
-    val hasArt = !artworkPath.isNullOrBlank()
-    val artFile = if (hasArt) File(artworkPath!!) else null
     Box(modifier = modifier) {
         AlbumArtPlaceholder(modifier = Modifier.matchParentSize())
-        if (artFile != null && artFile.exists()) {
-            val cacheBust = artFile.lastModified()
+        if (!artworkPath.isNullOrBlank()) {
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
-                    .data(artFile)
-                    .memoryCacheKey("${artFile.absolutePath}-$cacheBust")
-                    .diskCacheKey("${artFile.absolutePath}-$cacheBust")
+                    .data(artworkPath)
+                    .memoryCacheKey(artworkPath)
+                    .diskCacheKey(artworkPath)
                     .crossfade(true)
                     .build(),
                 contentDescription = contentDescription,

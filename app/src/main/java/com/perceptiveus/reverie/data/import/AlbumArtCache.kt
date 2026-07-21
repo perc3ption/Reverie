@@ -40,10 +40,9 @@ class AlbumArtCache(context: Context) {
     fun putOrReplace(artist: String, album: String, bytes: ByteArray): String {
         if (bytes.isEmpty() || bytes.size > MAX_SIDECAR_BYTES) return ""
         val key = cacheKey(artist, album)
-        EXTENSIONS.forEach { ext ->
-            File(cacheDir, "$key.$ext").takeIf { it.exists() }?.delete()
-        }
-        val out = File(cacheDir, "$key.${extensionFor(bytes)}")
+        deleteVariants(key)
+        // Unique filename so Coil cache keys change when art is replaced (same album).
+        val out = File(cacheDir, "$key-${System.currentTimeMillis()}.${extensionFor(bytes)}")
         return try {
             out.writeBytes(bytes)
             out.absolutePath
@@ -62,11 +61,26 @@ class AlbumArtCache(context: Context) {
     }
 
     private fun findExisting(key: String): File? {
-        EXTENSIONS.forEach { ext ->
-            val candidate = File(cacheDir, "$key.$ext")
-            if (candidate.exists() && candidate.length() > 0L) return candidate
+        val matches = cacheDir.listFiles()?.filter { file ->
+            file.isFile &&
+                file.length() > 0L &&
+                (file.nameWithoutExtension == key || file.nameWithoutExtension.startsWith("$key-"))
+        }.orEmpty()
+        // Prefer newest revision (timestamp suffix sorts lexicographically for epoch millis).
+        return matches.maxByOrNull { it.name }
+    }
+
+    private fun deleteVariants(key: String) {
+        cacheDir.listFiles()?.forEach { file ->
+            if (file.isFile &&
+                (file.nameWithoutExtension == key || file.nameWithoutExtension.startsWith("$key-"))
+            ) {
+                file.delete()
+            }
         }
-        return null
+        EXTENSIONS.forEach { ext ->
+            File(cacheDir, "$key.$ext").takeIf { it.exists() }?.delete()
+        }
     }
 
     private fun readSidecarCover(folder: File?): ByteArray? {
