@@ -13,8 +13,10 @@ import java.nio.ByteOrder
 import kotlin.math.cos
 import kotlin.math.ln
 import kotlin.math.min
+import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.sqrt
+import kotlin.math.tanh
 
 /**
  * Taps PCM from ExoPlayer via [TeeAudioProcessor] and publishes spectrum / waveform
@@ -40,6 +42,18 @@ object PlaybackAudioAnalyzer {
     private const val WAVEFORM_POINTS = 96
     /** ~30 FPS — keeps audio-thread work bounded. */
     private const val MIN_EMIT_INTERVAL_MS = 33L
+    /**
+     * Slow AGC reference so one bass spike does not crush every other bar.
+     * Fast attack / slow decay keeps the display “hot” across quiet passages.
+     */
+    private const val ENVELOPE_ATTACK = 0.55f
+    private const val ENVELOPE_DECAY = 0.985f
+    /** Extra punch after log mapping; soft-clamped to 0..1. */
+    private const val DISPLAY_GAIN = 1.75f
+    /** Compresses mid values upward so bars use more of the canvas. */
+    private const val DISPLAY_GAMMA = 0.58f
+    /** Soft-clip gain for the oscilloscope / waveform skins. */
+    private const val WAVEFORM_GAIN = 2.4f
 
     private val sampleRing = FloatArray(FFT_SIZE)
     private var sampleWriteIndex = 0
@@ -54,6 +68,9 @@ object PlaybackAudioAnalyzer {
     private val hannWindow = FloatArray(FFT_SIZE) { i ->
         (0.5f * (1.0 - cos(2.0 * Math.PI * i / (FFT_SIZE - 1)))).toFloat()
     }
+
+    /** Decaying peak magnitude used as the spectrum AGC reference. */
+    private var magnitudeEnvelope = 1e-3f
 
     @Volatile
     private var channelCount: Int = 2
@@ -72,6 +89,7 @@ object PlaybackAudioAnalyzer {
         synchronized(lock) {
             sampleWriteIndex = 0
             samplesFilled = 0
+            magnitudeEnvelope = 1e-3f
             spectrum.fill(0f)
             peaks.fill(0f)
             waveform.fill(0f)
@@ -182,10 +200,18 @@ object PlaybackAudioAnalyzer {
         for (i in 0 until half) {
             val re = fftReal[i]
             val im = fftImag[i]
-            val mag = sqrt(re * re + im * im)
+            // Mild high-frequency pre-emphasis so mid/treble stay visible next to bass.
+            val tilt = 1f + 1.6f * (i.toFloat() / half)
+            val mag = sqrt(re * re + im * im) * tilt
             magnitudes[i] = mag
             if (mag > maxMag) maxMag = mag
         }
+
+        magnitudeEnvelope = if (maxMag > magnitudeEnvelope) {
+            magnitudeEnvelope * (1f - ENVELOPE_ATTACK) + maxMag * ENVELOPE_ATTACK
+        } else {
+            magnitudeEnvelope * ENVELOPE_DECAY + maxMag * (1f - ENVELOPE_DECAY)
+        }.coerceAtLeast(1e-4f)
 
         val usable = (half - 1).coerceAtLeast(1)
         for (bar in 0 until BAR_COUNT) {
@@ -199,22 +225,26 @@ object PlaybackAudioAnalyzer {
                 if (magnitudes[idx] > peak) peak = magnitudes[idx]
                 idx++
             }
-            val normalized = (ln(1.0 + peak * 8.0 / maxMag) / ln(9.0)).toFloat().coerceIn(0f, 1f)
+            val relative = (peak / magnitudeEnvelope).coerceIn(0f, 1f)
+            // Log lift + gamma + gain: punchier bars without hard clipping.
+            val lifted = (ln(1.0 + relative * 12.0) / ln(13.0)).toFloat()
+            val normalized = (lifted.pow(DISPLAY_GAMMA) * DISPLAY_GAIN).coerceIn(0f, 1f)
             spectrum[bar] = if (normalized > spectrum[bar]) {
-                spectrum[bar] * 0.35f + normalized * 0.65f
+                spectrum[bar] * 0.25f + normalized * 0.75f
             } else {
-                spectrum[bar] * 0.78f + normalized * 0.22f
+                spectrum[bar] * 0.72f + normalized * 0.28f
             }
             if (spectrum[bar] > peaks[bar]) {
                 peaks[bar] = spectrum[bar]
             } else {
-                peaks[bar] = (peaks[bar] - 0.012f).coerceAtLeast(spectrum[bar])
+                peaks[bar] = (peaks[bar] - 0.014f).coerceAtLeast(spectrum[bar])
             }
         }
 
         val waveStart = (sampleWriteIndex - WAVEFORM_POINTS + FFT_SIZE) % FFT_SIZE
         for (i in 0 until WAVEFORM_POINTS) {
-            waveform[i] = sampleRing[(waveStart + i) % FFT_SIZE]
+            val sample = sampleRing[(waveStart + i) % FFT_SIZE]
+            waveform[i] = tanh(sample * WAVEFORM_GAIN)
         }
 
         _frame.value = Frame(

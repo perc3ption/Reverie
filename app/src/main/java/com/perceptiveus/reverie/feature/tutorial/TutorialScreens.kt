@@ -222,98 +222,64 @@ fun TutorialChapterScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 item {
-                Text(
-                    text = chapter.section,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = chapter.summary,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            item {
-                // Screenshot slot — drop drawables in later via chapter.imageDrawableRes.
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(160.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Icon(
-                            Icons.Default.MenuBook,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(40.dp),
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = if (chapter.imageDrawableRes != null) {
-                                "Screenshot"
-                            } else {
-                                "Screenshot coming soon"
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-
-            if (chapter.isPremium) {
-                item {
                     Text(
-                        text = "Premium feature — available with Reverie Premium.",
-                        style = MaterialTheme.typography.bodySmall,
+                        text = chapter.section,
+                        style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.primary,
                     )
-                }
-            }
-
-            items(
-                items = chapter.bullets,
-                key = { bullet -> bullet },
-            ) { bullet ->
-                Row(modifier = Modifier.fillMaxWidth()) {
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "•",
+                        text = chapter.summary,
                         style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.padding(end = 8.dp),
-                    )
-                    Text(
-                        text = bullet,
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.weight(1f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-            }
 
-            item {
-                Spacer(modifier = Modifier.height(8.dp))
-                if (chapter.tryIt != TutorialTryIt.NONE && chapter.tryItLabel != null) {
-                    Button(
-                        onClick = {
-                            onMarkComplete()
-                            onTryIt(chapter.tryIt)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(chapter.tryItLabel)
+                if (chapter.isPremium) {
+                    item {
+                        Text(
+                            text = "Premium feature — available with Reverie Premium.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
                 }
-                if (!completed) {
-                    OutlinedButton(
-                        onClick = onMarkComplete,
+
+                items(
+                    items = chapter.bullets,
+                    key = { bullet -> bullet },
+                ) { bullet ->
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "•",
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.padding(end = 8.dp),
+                        )
+                        Text(
+                            text = bullet,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if (chapter.tryIt != TutorialTryIt.NONE && chapter.tryItLabel != null) {
+                        Button(
+                            onClick = {
+                                onMarkComplete()
+                                onTryIt(chapter.tryIt)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(chapter.tryItLabel)
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                    if (!completed) {
+                        OutlinedButton(
+                            onClick = onMarkComplete,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Text("Mark as explored")
