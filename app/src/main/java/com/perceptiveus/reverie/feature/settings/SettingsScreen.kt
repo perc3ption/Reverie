@@ -33,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.perceptiveus.reverie.BuildConfig
 import com.perceptiveus.reverie.core.design.components.GlassSurface
 import com.perceptiveus.reverie.core.design.components.RetroScreenTitle
 import com.perceptiveus.reverie.core.design.components.SectionHeader
@@ -88,7 +89,12 @@ fun SettingsScreen(
             SectionHeader(title = "Premium")
             PremiumStatusCard(
                 isPremium = entitlements.isPremium,
-                onToggleForTesting = viewModel::togglePremiumForTesting,
+                isDebugBypass = entitlements.isDebugBypass,
+                onToggleForTesting = if (BuildConfig.DEBUG) {
+                    viewModel::togglePremiumForTesting
+                } else {
+                    null
+                },
             )
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedButton(
@@ -168,7 +174,8 @@ private fun ThemeSelector(
 @Composable
 private fun PremiumStatusCard(
     isPremium: Boolean,
-    onToggleForTesting: () -> Unit,
+    isDebugBypass: Boolean,
+    onToggleForTesting: (() -> Unit)?,
 ) {
     GlassSurface(
         modifier = Modifier
@@ -185,27 +192,36 @@ private fun PremiumStatusCard(
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
             )
-            Column(modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 12.dp)) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 12.dp),
+            ) {
                 Text(
-                    text = if (isPremium) "Premium Active" else "Free Plan",
+                    text = when {
+                        isDebugBypass -> "Premium (Debug)"
+                        isPremium -> "Premium Active"
+                        else -> "Free Plan"
+                    },
                     style = MaterialTheme.typography.titleMedium,
                 )
                 Text(
-                    text = if (isPremium) {
-                        "All premium features unlocked."
-                    } else {
-                        "Up to ${FeatureAccessChecker.FREE_MAX_SONGS} songs, " +
-                            "${FeatureAccessChecker.FREE_MAX_PLAYLISTS} playlists."
+                    text = when {
+                        isDebugBypass ->
+                            "Auto-unlocked in Studio debug builds. Toggle to test free limits."
+                        isPremium -> "All premium features unlocked."
+                        else ->
+                            "Up to ${FeatureAccessChecker.FREE_MAX_SONGS} songs, " +
+                                "${FeatureAccessChecker.FREE_MAX_PLAYLISTS} playlists."
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            // Dev-only toggle; remove when Play Billing ships.
-            Button(onClick = onToggleForTesting) {
-                Text(if (isPremium) "Revoke" else "Unlock")
+            if (onToggleForTesting != null && (isDebugBypass || !isPremium)) {
+                Button(onClick = onToggleForTesting) {
+                    Text(if (isDebugBypass) "Revoke" else "Unlock")
+                }
             }
         }
     }

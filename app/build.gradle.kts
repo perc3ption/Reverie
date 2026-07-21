@@ -43,6 +43,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -67,6 +68,7 @@ dependencies {
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.session)
     implementation(libs.coil.compose)
+    implementation(libs.billing.ktx)
     implementation("androidx.documentfile:documentfile:1.1.0")
     implementation("net.jthink:jaudiotagger:3.0.1")
     testImplementation(libs.junit)

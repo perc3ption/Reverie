@@ -4,7 +4,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -31,6 +30,7 @@ import com.perceptiveus.reverie.feature.library.SongDetailViewModel
 import com.perceptiveus.reverie.feature.player.PlayerScreen
 import com.perceptiveus.reverie.feature.player.PlayerViewModel
 import com.perceptiveus.reverie.feature.premium.PremiumFeaturesScreen
+import com.perceptiveus.reverie.feature.premium.PremiumViewModel
 import com.perceptiveus.reverie.feature.search.SearchScreen
 import com.perceptiveus.reverie.feature.search.SearchViewModel
 import com.perceptiveus.reverie.feature.settings.SettingsScreen
@@ -47,7 +47,6 @@ import com.perceptiveus.reverie.feature.smartplaylist.SmartPlaylistEditorScreen
 import com.perceptiveus.reverie.feature.smartplaylist.SmartPlaylistEditorViewModel
 import com.perceptiveus.reverie.feature.smartplaylist.SmartPlaylistListScreen
 import com.perceptiveus.reverie.feature.smartplaylist.SmartPlaylistListViewModel
-import kotlinx.coroutines.launch
 
 private const val LIBRARY_TAB_KEY = "library_tab"
 
@@ -59,8 +58,6 @@ fun ReverieNavGraph(
     modifier: Modifier = Modifier,
     startDestination: String = ReverieDestination.Home.route,
 ) {
-    val scope = rememberCoroutineScope()
-
     fun navigateToLibrary(tab: LibraryTab) {
         navController.navigate(ReverieDestination.Library.route) {
             popUpTo(navController.graph.findStartDestination().id) {
@@ -504,15 +501,10 @@ fun ReverieNavGraph(
         }
 
         composable(ReverieDestination.PremiumFeatures.route) {
+            val viewModel: PremiumViewModel = viewModel(factory = factory)
             PremiumFeaturesScreen(
-                featureAccessChecker = container.featureAccessChecker,
+                viewModel = viewModel,
                 onNavigateBack = { navController.navigateUp() },
-                onTogglePremiumForTesting = {
-                    scope.launch {
-                        val current = container.entitlementRepository.entitlements.value.isPremium
-                        container.entitlementRepository.setPremiumForTesting(!current)
-                    }
-                },
             )
         }
     }

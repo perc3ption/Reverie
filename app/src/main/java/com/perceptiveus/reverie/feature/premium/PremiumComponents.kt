@@ -88,6 +88,8 @@ fun UpgradeDialog(
     feature: AppFeature?,
     onDismiss: () -> Unit,
     onUpgradeClick: () -> Unit,
+    priceLabel: String? = null,
+    confirmEnabled: Boolean = true,
 ) {
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
@@ -109,16 +111,29 @@ fun UpgradeDialog(
         },
         text = {
             Text(
-                text = if (feature != null) {
-                    featureDescription(feature)
-                } else {
-                    "Get unlimited library, favorites, tags, smart playlists, advanced visualizers, and more."
+                text = buildString {
+                    if (feature != null) {
+                        append(featureDescription(feature))
+                    } else {
+                        append(
+                            "Get unlimited library, favorites, tags, smart playlists, " +
+                                "advanced visualizers, and more.",
+                        )
+                    }
+                    if (!priceLabel.isNullOrBlank()) {
+                        append("\n\nOne-time purchase: $priceLabel")
+                    }
                 },
             )
         },
         confirmButton = {
-            Button(onClick = onUpgradeClick) {
-                Text("Learn More")
+            Button(onClick = onUpgradeClick, enabled = confirmEnabled) {
+                Text(
+                    when {
+                        !priceLabel.isNullOrBlank() -> "Buy — $priceLabel"
+                        else -> "Continue"
+                    },
+                )
             }
         },
         dismissButton = {

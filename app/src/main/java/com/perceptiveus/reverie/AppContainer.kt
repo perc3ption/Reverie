@@ -5,7 +5,7 @@ import android.content.Context
 import android.util.Log
 import com.perceptiveus.reverie.core.entitlement.EntitlementRepository
 import com.perceptiveus.reverie.core.entitlement.FeatureAccessChecker
-import com.perceptiveus.reverie.core.entitlement.MockEntitlementRepository
+import com.perceptiveus.reverie.core.entitlement.PlayBillingEntitlementRepository
 import com.perceptiveus.reverie.core.settings.RoomSettingsRepository
 import com.perceptiveus.reverie.core.settings.SettingsRepository
 import com.perceptiveus.reverie.data.local.DatabaseSeeder
@@ -54,7 +54,10 @@ class AppContainer(context: Context) {
     /** On-disk library at Android/media/<package>/Reverie/ */
     val musicLibraryStorage: MusicLibraryStorage = MusicLibraryStorage(appContext)
 
-    val entitlementRepository: EntitlementRepository = MockEntitlementRepository()
+    val entitlementRepository: EntitlementRepository = PlayBillingEntitlementRepository(
+        context = appContext,
+        scope = appScope,
+    )
 
     val featureAccessChecker: FeatureAccessChecker = FeatureAccessChecker {
         entitlementRepository.entitlements.value

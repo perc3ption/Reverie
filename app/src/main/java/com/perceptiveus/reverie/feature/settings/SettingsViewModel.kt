@@ -35,17 +35,16 @@ class SettingsViewModel(
 
     fun restorePurchases(onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
-            // TODO: Replace with Play Billing restorePurchases().
             val result = entitlementRepository.restorePurchases()
             onResult(result.getOrDefault(false))
         }
     }
 
-    /** Dev helper to preview premium UI states. */
+    /** Debug builds only: flip the fake Premium bypass (persisted). */
     fun togglePremiumForTesting() {
         viewModelScope.launch {
-            val current = entitlements.value.isPremium
-            entitlementRepository.setPremiumForTesting(!current)
+            val current = entitlements.value
+            entitlementRepository.setPremiumForTesting(!current.isDebugBypass)
         }
     }
 }

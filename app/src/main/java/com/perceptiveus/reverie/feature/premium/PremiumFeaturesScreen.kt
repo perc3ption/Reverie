@@ -3,6 +3,7 @@ package com.perceptiveus.reverie.feature.premium
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -20,46 +21,67 @@ import androidx.compose.material.icons.filled.QueryStats
 import androidx.compose.material.icons.filled.Slideshow
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.perceptiveus.reverie.core.design.components.LockedFeatureCard
 import com.perceptiveus.reverie.core.design.components.RetroScreenTitle
 import com.perceptiveus.reverie.core.entitlement.AppFeature
-import com.perceptiveus.reverie.core.entitlement.FeatureAccessChecker
+import com.perceptiveus.reverie.core.util.findActivity
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PremiumFeaturesScreen(
-    featureAccessChecker: FeatureAccessChecker,
+    viewModel: PremiumViewModel,
     onNavigateBack: () -> Unit,
-    onTogglePremiumForTesting: () -> Unit,
 ) {
+    val entitlements by viewModel.entitlements.collectAsState()
+    val product by viewModel.premiumProduct.collectAsState()
+    val isPurchasing by viewModel.isPurchasing.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
     var showUpgradeDialog by remember { mutableStateOf(false) }
     var selectedFeature by remember { mutableStateOf<AppFeature?>(null) }
-    val isPremium = featureAccessChecker.isPremium()
+    val context = LocalContext.current
+    val isPremium = entitlements.isPremium
+    val priceLabel = product?.formattedPrice?.takeIf { it.isNotBlank() }
+
+    LaunchedEffect(Unit) {
+        viewModel.purchaseMessages.collect { message ->
+            snackbarHostState.showSnackbar(message)
+        }
+    }
 
     if (showUpgradeDialog) {
         UpgradeDialog(
             feature = selectedFeature,
+            priceLabel = priceLabel,
+            confirmEnabled = !isPurchasing,
             onDismiss = { showUpgradeDialog = false },
             onUpgradeClick = {
                 showUpgradeDialog = false
-                // TODO: Navigate to Play Billing purchase flow.
-                onTogglePremiumForTesting()
+                val activity = context.findActivity()
+                if (activity != null) {
+                    viewModel.purchasePremium(activity)
+                }
             },
         )
     }
@@ -78,6 +100,7 @@ fun PremiumFeaturesScreen(
                 ),
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
         LazyColumn(
@@ -89,15 +112,35 @@ fun PremiumFeaturesScreen(
         ) {
             item {
                 Text(
-                    text = if (isPremium) {
-                        "You have Premium access. Thank you for supporting Reverie!"
-                    } else {
-                        "Unlock advanced features for your curated music library."
+                    text = when {
+                        entitlements.isDebugBypass ->
+                            "Premium unlocked via debug bypass (Studio build)."
+                        isPremium ->
+                            "You have Premium access. Thank you for supporting Reverie!"
+                        else ->
+                            "Unlock advanced features for your curated music library."
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
+            }
+            if (!isPremium) {
+                item {
+                    Button(
+                        onClick = {
+                            selectedFeature = null
+                            showUpgradeDialog = true
+                        },
+                        enabled = !isPurchasing,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(
+                            if (priceLabel != null) "Unlock Premium — $priceLabel"
+                            else "Unlock Premium",
+                        )
+                    }
+                }
             }
             items(premiumFeatureItems) { item ->
                 LockedFeatureCard(

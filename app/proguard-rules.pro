@@ -25,5 +25,7 @@
 }
 -dontwarn kotlinx.coroutines.**
 
-# Keep PlaybackService for manifest / MediaSession
--keep class com.perceptiveus.reverie.playback.PlaybackService { *; }
+# Google Play Billing
+-keep class com.android.vending.billing.** { *; }
+-dontwarn com.android.billingclient.api.**
+

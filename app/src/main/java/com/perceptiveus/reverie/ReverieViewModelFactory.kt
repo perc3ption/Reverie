@@ -7,6 +7,7 @@ import com.perceptiveus.reverie.feature.home.HomeViewModel
 import com.perceptiveus.reverie.feature.importmusic.ImportMusicViewModel
 import com.perceptiveus.reverie.feature.library.LibraryViewModel
 import com.perceptiveus.reverie.feature.player.PlayerViewModel
+import com.perceptiveus.reverie.feature.premium.PremiumViewModel
 import com.perceptiveus.reverie.feature.search.SearchViewModel
 import com.perceptiveus.reverie.feature.settings.SettingsViewModel
 import com.perceptiveus.reverie.feature.smartplaylist.SmartPlaylistListViewModel
@@ -70,6 +71,9 @@ class ReverieViewModelFactory(
             )
             modelClass.isAssignableFrom(SettingsViewModel::class.java) -> SettingsViewModel(
                 container.settingsRepository,
+                container.entitlementRepository,
+            )
+            modelClass.isAssignableFrom(PremiumViewModel::class.java) -> PremiumViewModel(
                 container.entitlementRepository,
             )
             else -> throw IllegalArgumentException("Unknown ViewModel: ${modelClass.name}")
