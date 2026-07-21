@@ -11,6 +11,7 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -31,6 +32,10 @@ import kotlinx.coroutines.flow.map
 @Composable
 fun ReverieApp(container: AppContainer) {
     val themePreference by container.settingsRepository.themePreference.collectAsState()
+
+    LaunchedEffect(Unit) {
+        container.startDeferredLibraryScan()
+    }
 
     ReverieTheme(themePreference = themePreference) {
         val navController = rememberNavController()

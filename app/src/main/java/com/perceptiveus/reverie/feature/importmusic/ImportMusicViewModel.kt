@@ -154,6 +154,9 @@ class ImportMusicViewModel(
     private fun formatScanResult(result: LibraryScanResult): String {
         val parts = mutableListOf<String>()
         parts += "Indexed ${result.tracksIndexed} song(s) in ${result.foldersIndexed} folder(s)."
+        if (result.tracksUnchanged > 0) {
+            parts += "${result.tracksUnchanged} unchanged (skipped re-read)."
+        }
         if (result.tracksRemoved > 0) {
             parts += "Removed ${result.tracksRemoved} missing entr(ies)."
         }

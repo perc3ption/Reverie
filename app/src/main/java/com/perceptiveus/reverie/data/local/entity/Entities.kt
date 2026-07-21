@@ -48,6 +48,10 @@ data class TrackEntity(
     val dateAdded: Long = System.currentTimeMillis(),
     /** User rating 0–5; 0 means unrated. */
     val rating: Int = 0,
+    /** On-disk size when last indexed; used to skip unchanged files. */
+    val fileSizeBytes: Long = 0L,
+    /** [File.lastModified] when last indexed; used to skip unchanged files. */
+    val fileModifiedAt: Long = 0L,
 )
 
 @Entity(tableName = "playlists")

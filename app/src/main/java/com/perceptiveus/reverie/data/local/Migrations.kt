@@ -206,3 +206,14 @@ val MIGRATION_10_11 = object : Migration(10, 11) {
         )
     }
 }
+
+val MIGRATION_11_12 = object : Migration(11, 12) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "ALTER TABLE tracks ADD COLUMN fileSizeBytes INTEGER NOT NULL DEFAULT 0",
+        )
+        db.execSQL(
+            "ALTER TABLE tracks ADD COLUMN fileModifiedAt INTEGER NOT NULL DEFAULT 0",
+        )
+    }
+}

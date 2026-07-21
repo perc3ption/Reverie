@@ -15,6 +15,9 @@ import java.io.File
 /**
  * Walks the Reverie on-disk library and syncs folders/tracks into Room.
  * Removes database rows for files that no longer exist under the library root.
+ *
+ * Incremental: files whose size + lastModified match the stored fingerprint are
+ * left untouched (no MediaMetadataRetriever / art work).
  */
 class MusicIndexer(
     private val storage: MusicLibraryStorage,
@@ -40,12 +43,33 @@ class MusicIndexer(
         val folderEntities = buildFolderEntities(filesToIndex, libraryRoot)
         val now = System.currentTimeMillis()
         var skippedUnreadable = 0
+        var tracksUnchanged = 0
 
-        val trackEntities = filesToIndex.mapNotNull { file ->
+        // One DB read instead of N getByFilePath lookups.
+        val existingByPath = trackDao.getAllTracks()
+            .filter { it.filePath.isNotBlank() }
+            .associateBy { it.filePath }
+
+        val toUpsert = ArrayList<TrackEntity>(filesToIndex.size)
+
+        for (file in filesToIndex) {
             try {
                 val absolutePath = file.canonicalPath
+                val fileSize = file.length()
+                val fileModified = file.lastModified()
+                val existing = existingByPath[absolutePath]
                 val relativeFolderPath = parentRelativePath(file, libraryRoot)
-                val existing = trackDao.getByFilePath(absolutePath)
+                val folderId = LibraryIds.folderId(relativeFolderPath)
+
+                if (existing != null && isUnchanged(existing, fileSize, fileModified)) {
+                    tracksUnchanged++
+                    // Folder moves are rare with stable absolute paths; still fix folderId if needed.
+                    if (existing.folderId != folderId) {
+                        toUpsert += existing.copy(folderId = folderId)
+                    }
+                    continue
+                }
+
                 val metadata = metadataReader.read(file)
                 val artworkPath = when {
                     existing != null &&
@@ -61,7 +85,7 @@ class MusicIndexer(
                     )
                 }
 
-                TrackEntity(
+                toUpsert += TrackEntity(
                     id = existing?.id ?: LibraryIds.trackId(absolutePath),
                     title = metadata.title,
                     artist = metadata.artist,
@@ -71,19 +95,20 @@ class MusicIndexer(
                     artworkPath = artworkPath,
                     year = metadata.year,
                     genre = metadata.genre,
-                    folderId = LibraryIds.folderId(relativeFolderPath),
+                    folderId = folderId,
                     dateAdded = existing?.dateAdded ?: now,
                     rating = existing?.rating ?: 0,
+                    fileSizeBytes = fileSize,
+                    fileModifiedAt = fileModified,
                 )
             } catch (_: Exception) {
                 skippedUnreadable++
-                null
             }
         }
 
         folderDao.insertAll(folderEntities)
-        if (trackEntities.isNotEmpty()) {
-            trackDao.insertAll(trackEntities)
+        if (toUpsert.isNotEmpty()) {
+            trackDao.insertAll(toUpsert)
         }
 
         val scannedPaths = filesToIndex.map { it.canonicalPath }.toSet()
@@ -111,12 +136,19 @@ class MusicIndexer(
 
         LibraryScanResult(
             tracksFound = audioFiles.size,
-            tracksIndexed = trackEntities.size,
+            tracksIndexed = toUpsert.size + tracksUnchanged,
             tracksRemoved = removedTracks.size,
             foldersIndexed = folderEntities.size,
             truncatedBySongLimit = truncated,
             skippedUnreadable = skippedUnreadable,
+            tracksUnchanged = tracksUnchanged,
         )
+    }
+
+    private fun isUnchanged(existing: TrackEntity, fileSize: Long, fileModified: Long): Boolean {
+        // Migrated rows start at 0/0 — force one full re-index to stamp fingerprints.
+        if (existing.fileSizeBytes <= 0L || existing.fileModifiedAt <= 0L) return false
+        return existing.fileSizeBytes == fileSize && existing.fileModifiedAt == fileModified
     }
 
     private fun discoverAudioFiles(libraryRoot: File): List<File> {

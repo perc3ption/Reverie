@@ -7,4 +7,6 @@ data class LibraryScanResult(
     val foldersIndexed: Int,
     val truncatedBySongLimit: Boolean = false,
     val skippedUnreadable: Int = 0,
+    /** Files whose size+mtime matched the DB row — metadata re-read skipped. */
+    val tracksUnchanged: Int = 0,
 )

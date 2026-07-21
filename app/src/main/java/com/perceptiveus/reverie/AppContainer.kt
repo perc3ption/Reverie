@@ -31,7 +31,9 @@ import com.perceptiveus.reverie.data.storage.MusicLibraryStorage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Simple service locator until a DI framework (e.g. Hilt) is added.
@@ -119,6 +121,8 @@ class AppContainer(context: Context) {
         audioFxSettings = settingsRepository.audioFxSettings,
     )
 
+    private val deferredScanStarted = AtomicBoolean(false)
+
     init {
         appScope.launch {
             settingsRepository.audioFxSettings.collect { settings ->
@@ -126,8 +130,20 @@ class AppContainer(context: Context) {
             }
         }
         appScope.launch {
+            // Fast path only — full library scan is deferred until first UI frame.
             initializeLibraryStorage()
             DatabaseSeeder.seedSettingsIfNeeded(database.userSettingsDao())
+        }
+    }
+
+    /**
+     * Schedules an incremental library scan after the first composition so cold
+     * start is not blocked by MediaMetadataRetriever work. Safe to call multiple times.
+     */
+    fun startDeferredLibraryScan() {
+        if (!deferredScanStarted.compareAndSet(false, true)) return
+        appScope.launch {
+            delay(FIRST_FRAME_SCAN_DELAY_MS)
             runLibraryScan()
         }
     }
@@ -137,8 +153,8 @@ class AppContainer(context: Context) {
             val result = musicLibraryRepository.scanLibrary()
             Log.i(
                 TAG,
-                "Library scan: indexed=${result.tracksIndexed}, removed=${result.tracksRemoved}, " +
-                    "folders=${result.foldersIndexed}",
+                "Library scan: indexed=${result.tracksIndexed}, unchanged=${result.tracksUnchanged}, " +
+                    "removed=${result.tracksRemoved}, folders=${result.foldersIndexed}",
             )
         } catch (e: Exception) {
             Log.e(TAG, "Library scan failed", e)
@@ -156,5 +172,7 @@ class AppContainer(context: Context) {
 
     companion object {
         private const val TAG = "AppContainer"
+        /** Let the first Compose frame paint before walking/tagging the library. */
+        private const val FIRST_FRAME_SCAN_DELAY_MS = 400L
     }
 }

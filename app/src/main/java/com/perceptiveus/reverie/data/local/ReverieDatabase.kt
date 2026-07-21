@@ -35,7 +35,7 @@ import com.perceptiveus.reverie.data.local.entity.UserSettingsEntity
         SmartPlaylistEntity::class,
         SmartPlaylistRuleEntity::class,
     ],
-    version = 11,
+    version = 12,
     exportSchema = false,
 )
 abstract class ReverieDatabase : RoomDatabase() {
@@ -71,6 +71,7 @@ abstract class ReverieDatabase : RoomDatabase() {
                     MIGRATION_8_9,
                     MIGRATION_9_10,
                     MIGRATION_10_11,
+                    MIGRATION_11_12,
                 )
                     .build().also { instance = it }
             }
