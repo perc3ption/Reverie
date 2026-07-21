@@ -37,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.perceptiveus.reverie.core.design.components.GlassSurface
 import com.perceptiveus.reverie.core.design.components.ReverieScreenHeader
 import com.perceptiveus.reverie.core.entitlement.FeatureAccessChecker
 import com.perceptiveus.reverie.data.import.SupportedAudioFormats
@@ -230,10 +231,9 @@ fun ImportMusicScreen(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SupportedFormatsPanel(modifier: Modifier = Modifier) {
-    Surface(
+    GlassSurface(
         modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+        emphasized = true,
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),

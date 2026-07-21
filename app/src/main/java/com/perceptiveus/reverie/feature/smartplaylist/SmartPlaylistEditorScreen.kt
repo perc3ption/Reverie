@@ -31,7 +31,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -45,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.perceptiveus.reverie.core.design.components.GlassSurface
 import com.perceptiveus.reverie.core.design.components.RetroScreenTitle
 import com.perceptiveus.reverie.domain.model.SmartPlaylistField
 import com.perceptiveus.reverie.domain.model.SmartPlaylistOperator
@@ -190,10 +190,9 @@ private fun RuleEditorCard(
     onSecondaryChange: (String) -> Unit,
     onRemove: () -> Unit,
 ) {
-    Surface(
+    GlassSurface(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        emphasized = true,
     ) {
         Column(
             modifier = Modifier.padding(12.dp),

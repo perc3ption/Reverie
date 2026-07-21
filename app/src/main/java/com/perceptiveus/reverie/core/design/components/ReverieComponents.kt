@@ -30,8 +30,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.perceptiveus.reverie.core.design.ReverieArtShape
+import com.perceptiveus.reverie.core.design.ReverieGlass
 import com.perceptiveus.reverie.core.design.ReveriePremiumGold
 import com.perceptiveus.reverie.core.design.ReveriePurple
+import com.perceptiveus.reverie.core.design.ReverieTileShape
+import com.perceptiveus.reverie.core.design.glowBorder
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
 
 @Composable
 fun SectionHeader(
@@ -52,6 +59,59 @@ fun SectionHeader(
             color = MaterialTheme.colorScheme.onBackground,
         )
         action?.invoke()
+    }
+}
+
+/**
+ * Shared glass panel used across Library, Settings, Player, etc.
+ *
+ * - [emphasized]: stronger glow (hero / featured cards)
+ * - [highlighted]: purple-tinted fill (selected / All Songs)
+ * - default: subtle list-row glass with soft border
+ */
+@Composable
+fun GlassSurface(
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+    enabled: Boolean = true,
+    shape: Shape = ReverieTileShape,
+    emphasized: Boolean = false,
+    highlighted: Boolean = false,
+    content: @Composable () -> Unit,
+) {
+    val glowRadius: Dp = if (emphasized) 8.dp else 2.dp
+    val borderAlpha = if (emphasized) 0.55f else 0.2f
+    val glowAlpha = if (emphasized) 0.28f else 0.08f
+    val fill: Color = when {
+        highlighted -> ReveriePurple.copy(alpha = 0.14f)
+        else -> ReverieGlass
+    }
+    val surfaceModifier = modifier.glowBorder(
+        color = ReveriePurple,
+        shape = shape,
+        glowRadius = glowRadius,
+        borderAlpha = borderAlpha,
+        glowAlpha = glowAlpha,
+    )
+
+    if (onClick != null) {
+        Surface(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = surfaceModifier,
+            shape = shape,
+            color = fill,
+        ) {
+            content()
+        }
+    } else {
+        Surface(
+            modifier = surfaceModifier,
+            shape = shape,
+            color = fill,
+        ) {
+            content()
+        }
     }
 }
 
@@ -83,13 +143,15 @@ fun LockedFeatureCard(
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-                shape = RoundedCornerShape(16.dp),
+            .glowBorder(
+                color = MaterialTheme.colorScheme.outline,
+                shape = ReverieTileShape,
+                glowRadius = 0.dp,
+                borderAlpha = 0.45f,
+                glowAlpha = 0f,
             ),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+        shape = ReverieTileShape,
+        color = ReverieGlass.copy(alpha = 0.55f),
     ) {
         Box {
             Column(
@@ -99,7 +161,7 @@ fun LockedFeatureCard(
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
                     modifier = Modifier.size(28.dp),
                 )
                 Text(
@@ -142,9 +204,16 @@ fun QuickAccessCard(
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
-            .height(100.dp),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
+            .height(108.dp)
+            .glowBorder(
+                color = MaterialTheme.colorScheme.primary,
+                shape = ReverieTileShape,
+                glowRadius = 4.dp,
+                borderAlpha = 0.22f,
+                glowAlpha = 0.12f,
+            ),
+        shape = ReverieTileShape,
+        color = ReverieGlass,
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -154,7 +223,7 @@ fun QuickAccessCard(
                 imageVector = icon,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp),
+                modifier = Modifier.size(28.dp),
             )
             Text(
                 text = title,
@@ -179,12 +248,12 @@ fun AlbumArtPlaceholder(
 ) {
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(ReverieArtShape)
             .background(MaterialTheme.colorScheme.surfaceVariant)
             .border(
                 width = 1.dp,
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                shape = ReverieArtShape,
             ),
         contentAlignment = Alignment.Center,
     ) {
@@ -222,11 +291,11 @@ fun AlbumArt(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .matchParentSize()
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(ReverieArtShape)
                     .border(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                        shape = ReverieArtShape,
                     ),
             )
         }
@@ -237,12 +306,13 @@ fun AlbumArt(
 fun RetroScreenTitle(
     title: String,
     modifier: Modifier = Modifier,
+    color: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onBackground,
 ) {
     Text(
         text = title.uppercase(),
         modifier = modifier,
         style = MaterialTheme.typography.headlineMedium,
-        color = MaterialTheme.colorScheme.primary,
+        color = color,
     )
 }
 
@@ -276,4 +346,17 @@ fun ReverieScreenHeader(
         }
         actions?.invoke()
     }
+}
+
+/** Shared player subtitle: "Artist | Album" (either part omitted when blank). */
+fun formatArtistAlbum(
+    artist: String?,
+    album: String?,
+    emptyFallback: String = "—",
+): String {
+    val label = listOfNotNull(
+        artist?.takeIf { it.isNotBlank() },
+        album?.takeIf { it.isNotBlank() },
+    ).joinToString(" | ")
+    return label.ifBlank { emptyFallback }
 }

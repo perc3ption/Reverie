@@ -55,7 +55,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.perceptiveus.reverie.core.design.ReverieArtShape
 import com.perceptiveus.reverie.core.design.components.AlbumArt
+import com.perceptiveus.reverie.core.design.components.GlassSurface
 import com.perceptiveus.reverie.core.design.components.RetroScreenTitle
 import com.perceptiveus.reverie.domain.model.Playlist
 import com.perceptiveus.reverie.domain.model.Track
@@ -254,10 +256,10 @@ private fun PlaylistHeader(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Surface(
+            GlassSurface(
                 onClick = onChangeCover,
-                shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = ReverieArtShape,
+                emphasized = true,
             ) {
                 if (playlist.coverPath.isNotBlank()) {
                     AlbumArt(

@@ -21,7 +21,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -31,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.perceptiveus.reverie.core.design.components.AlbumArt
+import com.perceptiveus.reverie.core.design.components.GlassSurface
 import com.perceptiveus.reverie.core.design.components.ReverieScreenHeader
 import com.perceptiveus.reverie.core.design.components.SectionHeader
 import com.perceptiveus.reverie.domain.model.LibraryStats
@@ -181,10 +181,9 @@ private fun StatCard(
     value: String,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
+    GlassSurface(
         modifier = modifier,
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        emphasized = true,
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(

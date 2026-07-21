@@ -34,7 +34,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -52,6 +51,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.perceptiveus.reverie.core.design.components.AlbumArt
+import com.perceptiveus.reverie.core.design.components.GlassSurface
 import com.perceptiveus.reverie.core.design.components.RetroScreenTitle
 import com.perceptiveus.reverie.core.design.components.SectionHeader
 import com.perceptiveus.reverie.domain.model.Album
@@ -239,11 +239,9 @@ private fun SearchSongRow(
             .padding(horizontal = 16.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Surface(
+        GlassSurface(
             onClick = onClick,
             modifier = Modifier.weight(1f),
-            color = MaterialTheme.colorScheme.surface,
-            shape = MaterialTheme.shapes.medium,
         ) {
             Row(
                 modifier = Modifier.padding(start = 12.dp, top = 12.dp, bottom = 12.dp, end = 8.dp),
@@ -310,13 +308,11 @@ private fun SearchArtistRow(
     artist: Artist,
     onClick: () -> Unit,
 ) {
-    Surface(
+    GlassSurface(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 2.dp),
-        color = MaterialTheme.colorScheme.surface,
-        shape = MaterialTheme.shapes.medium,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
@@ -354,13 +350,11 @@ private fun SearchAlbumRow(
     album: Album,
     onClick: () -> Unit,
 ) {
-    Surface(
+    GlassSurface(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 2.dp),
-        color = MaterialTheme.colorScheme.surface,
-        shape = MaterialTheme.shapes.medium,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
@@ -398,13 +392,11 @@ private fun SearchPlaylistRow(
     playlist: Playlist,
     onClick: () -> Unit,
 ) {
-    Surface(
+    GlassSurface(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 2.dp),
-        color = MaterialTheme.colorScheme.surface,
-        shape = MaterialTheme.shapes.medium,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
@@ -442,13 +434,11 @@ private fun SearchFolderRow(
     folder: MusicFolder,
     onClick: () -> Unit,
 ) {
-    Surface(
+    GlassSurface(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 2.dp),
-        color = MaterialTheme.colorScheme.surface,
-        shape = MaterialTheme.shapes.medium,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),

@@ -17,6 +17,8 @@ import com.perceptiveus.reverie.domain.model.PlaybackState
 import com.perceptiveus.reverie.domain.model.PlayerProgress
 import com.perceptiveus.reverie.playback.PlaybackAudioAnalyzer
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -27,6 +29,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -53,6 +56,11 @@ class PlayerViewModel(
 
     private val _userMessages = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val userMessages: SharedFlow<String> = _userMessages.asSharedFlow()
+
+    private val _sleepTimerEndMs = MutableStateFlow<Long?>(null)
+    val sleepTimerEndMs: StateFlow<Long?> = _sleepTimerEndMs.asStateFlow()
+
+    private var sleepTimerJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -89,6 +97,44 @@ class PlayerViewModel(
 
     fun canAccessAlbumArtEditing(): Boolean =
         featureAccessChecker.canAccess(AppFeature.ALBUM_ART_EDITING)
+
+    fun canAccessAudioFx(): Boolean =
+        featureAccessChecker.canAccess(AppFeature.AUDIO_FX)
+
+    fun startSleepTimer(minutes: Int) {
+        if (minutes <= 0 || minutes > 24 * 60) return
+        cancelSleepTimer()
+        val endMs = System.currentTimeMillis() + minutes * 60_000L
+        _sleepTimerEndMs.value = endMs
+        sleepTimerJob = viewModelScope.launch {
+            while (isActive) {
+                val remaining = endMs - System.currentTimeMillis()
+                if (remaining <= 0L) {
+                    _sleepTimerEndMs.value = null
+                    if (playerProgress.value.isPlaying) {
+                        playbackRepository.togglePlayPause()
+                    }
+                    _userMessages.emit("Sleep timer ended — playback paused.")
+                    break
+                }
+                delay(minOf(remaining, 1_000L))
+            }
+        }
+        viewModelScope.launch {
+            _userMessages.emit(formatSleepTimerSetMessage(minutes))
+        }
+    }
+
+    fun cancelSleepTimer() {
+        sleepTimerJob?.cancel()
+        sleepTimerJob = null
+        _sleepTimerEndMs.value = null
+    }
+
+    fun sleepTimerRemainingMs(nowMs: Long = System.currentTimeMillis()): Long {
+        val end = _sleepTimerEndMs.value ?: return 0L
+        return (end - nowMs).coerceAtLeast(0L)
+    }
 
     fun importLyrics(uri: Uri) {
         if (!canAccessLyrics()) {
@@ -146,5 +192,22 @@ class PlayerViewModel(
                     )
                 }
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        cancelSleepTimer()
+    }
+}
+
+private fun formatSleepTimerSetMessage(minutes: Int): String {
+    val hours = minutes / 60
+    val remainder = minutes % 60
+    return when {
+        hours > 0 && remainder == 0 ->
+            if (hours == 1) "Sleep timer set for 1 hour." else "Sleep timer set for $hours hours."
+        hours > 0 -> "Sleep timer set for ${hours}h ${remainder}m."
+        minutes == 1 -> "Sleep timer set for 1 minute."
+        else -> "Sleep timer set for $minutes minutes."
     }
 }

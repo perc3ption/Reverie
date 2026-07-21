@@ -48,6 +48,8 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.perceptiveus.reverie.core.design.components.AlbumArt
+import com.perceptiveus.reverie.core.design.components.GlassSurface
+import com.perceptiveus.reverie.core.design.components.formatArtistAlbum
 import com.perceptiveus.reverie.domain.model.QueueSource
 import com.perceptiveus.reverie.domain.model.Track
 
@@ -309,14 +311,10 @@ private fun QueueSongRow(
     onMoveDown: () -> Unit,
 ) {
     val contentAlpha = if (isDisabled) 0.45f else 1f
-    Surface(
+    GlassSurface(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        color = when {
-            isCurrent && !isDisabled -> MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
-            else -> MaterialTheme.colorScheme.surface
-        },
+        highlighted = isCurrent && !isDisabled,
     ) {
         Row(
             modifier = Modifier
@@ -397,7 +395,7 @@ private fun QueueSongRow(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = track.artist,
+                    text = formatArtistAlbum(track.artist, track.album),
                     style = MaterialTheme.typography.bodySmall.copy(
                         textDecoration = if (isDisabled) TextDecoration.LineThrough else TextDecoration.None,
                     ),

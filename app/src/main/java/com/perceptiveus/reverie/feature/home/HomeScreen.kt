@@ -1,5 +1,6 @@
 package com.perceptiveus.reverie.feature.home
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -16,6 +17,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Equalizer
@@ -27,7 +30,6 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -43,13 +45,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.perceptiveus.reverie.core.design.ReverieGlass
+import com.perceptiveus.reverie.core.design.ReverieTileShape
 import com.perceptiveus.reverie.core.design.components.AlbumArt
 import com.perceptiveus.reverie.core.design.components.HomeNowPlayingCard
 import com.perceptiveus.reverie.core.design.components.LockedFeatureCard
 import com.perceptiveus.reverie.core.design.components.QuickAccessCard
 import com.perceptiveus.reverie.core.design.components.RetroScreenTitle
 import com.perceptiveus.reverie.core.design.components.SectionHeader
+import com.perceptiveus.reverie.core.design.glowBorder
 import com.perceptiveus.reverie.core.entitlement.AppFeature
 import com.perceptiveus.reverie.domain.model.Track
 import com.perceptiveus.reverie.feature.library.AddToPlaylistDialog
@@ -186,11 +192,16 @@ fun HomeScreen(
                 )
             }
             item {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 SectionHeader(
                     title = if (recentlyPlayed.isNotEmpty()) "Recently Played" else "Your Library",
                     action = {
-                        TextButton(onClick = onNavigateToLibrary) { Text("View all") }
+                        TextButton(onClick = onNavigateToLibrary) {
+                            Text(
+                                text = "View all ›",
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
                     },
                 )
             }
@@ -293,7 +304,7 @@ private fun HomeHeader(onSearchClick: () -> Unit) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column {
+        Column(modifier = Modifier.weight(1f)) {
             RetroScreenTitle(title = "Reverie")
             Text(
                 text = "Your music. Your world.",
@@ -301,8 +312,26 @@ private fun HomeHeader(onSearchClick: () -> Unit) {
                 color = MaterialTheme.colorScheme.primary,
             )
         }
-        IconButton(onClick = onSearchClick) {
-            Icon(Icons.Default.Search, contentDescription = "Search")
+        Surface(
+            onClick = onSearchClick,
+            shape = CircleShape,
+            color = ReverieGlass,
+            modifier = Modifier
+                .size(44.dp)
+                .glowBorder(
+                    shape = CircleShape,
+                    glowRadius = 4.dp,
+                    borderAlpha = 0.35f,
+                    glowAlpha = 0.15f,
+                ),
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    Icons.Default.Search,
+                    contentDescription = "Search",
+                    tint = MaterialTheme.colorScheme.onSurface,
+                )
+            }
         }
     }
 }
@@ -328,37 +357,39 @@ private fun RecentlyPlayedRow(
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
             .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         tracks.forEach { track ->
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
-                    .width(88.dp)
+                    .width(96.dp)
                     .clickable { onTrackClick(track) },
             ) {
                 AlbumArt(
                     artworkPath = track.artworkPath,
-                    modifier = Modifier.size(80.dp),
+                    modifier = Modifier.size(88.dp),
                     contentDescription = track.title,
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = track.title,
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onBackground,
                     maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = track.artist,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
     }
-    Spacer(modifier = Modifier.height(8.dp))
+    Spacer(modifier = Modifier.height(12.dp))
 }
 
 @Composable
@@ -459,34 +490,56 @@ private fun UnlockPremiumBanner(onLearnMore: () -> Unit) {
         onClick = onLearnMore,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceVariant,
+            .padding(16.dp)
+            .glowBorder(
+                shape = ReverieTileShape,
+                glowRadius = 6.dp,
+                borderAlpha = 0.45f,
+                glowAlpha = 0.22f,
+            ),
+        shape = ReverieTileShape,
+        color = ReverieGlass,
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 Icons.Default.Star,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(32.dp),
+                modifier = Modifier.size(28.dp),
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text("Unlock Premium", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "Advanced features, visualizers, smart playlists and more",
+                    text = "Unlock Premium",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = "Advanced features, visualizers, smart playlists and more",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Text(
-                text = "Learn More",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = androidx.compose.ui.graphics.Color.Transparent,
+                modifier = Modifier.border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                    shape = RoundedCornerShape(20.dp),
+                ),
+            ) {
+                Text(
+                    text = "Learn More",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                )
+            }
         }
     }
 }

@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
@@ -24,6 +23,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,10 +37,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.perceptiveus.reverie.core.design.ReverieCardShape
+import com.perceptiveus.reverie.core.design.ReverieGlass
+import com.perceptiveus.reverie.core.design.glowBorder
+import com.perceptiveus.reverie.core.design.glowRing
 import com.perceptiveus.reverie.domain.model.Track
 
 /**
- * Compact now-playing card for the Home screen (mockup: album art + controls + seek).
+ * Compact now-playing card for the Home screen (mockup: glowing glass card + transport).
  */
 @Composable
 fun HomeNowPlayingCard(
@@ -63,48 +67,27 @@ fun HomeNowPlayingCard(
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
+            .padding(horizontal = 16.dp)
+            .glowBorder(shape = ReverieCardShape),
+        shape = ReverieCardShape,
+        color = ReverieGlass,
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.Top) {
-                AlbumArt(
-                    artworkPath = track?.artworkPath,
-                    modifier = Modifier.size(88.dp),
-                    contentDescription = track?.title,
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "•  NOW PLAYING",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
                 )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = track?.title ?: "Nothing playing",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = if (track != null) {
-                            listOf(track.artist, track.album)
-                                .filter { it.isNotBlank() }
-                                .joinToString(" | ")
-                        } else {
-                            "Pick a track to start"
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = if (track != null) {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        } else {
-                            MaterialTheme.colorScheme.primary
-                        },
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
                 Box {
                     IconButton(
                         onClick = { menuExpanded = true },
                         enabled = track != null,
+                        modifier = Modifier.size(32.dp),
                     ) {
                         Icon(
                             Icons.Default.MoreVert,
@@ -141,44 +124,98 @@ fun HomeNowPlayingCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            val durationMs = track?.durationMs?.coerceAtLeast(1L) ?: 1L
-            HomeSeekBar(
-                positionMs = if (track != null) positionMs else 0L,
-                durationMs = if (track != null) durationMs else 1L,
-                enabled = track != null,
-                onSeek = onSeek,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                AlbumArt(
+                    artworkPath = track?.artworkPath,
+                    modifier = Modifier.size(96.dp),
+                    contentDescription = track?.title,
+                )
+                Spacer(modifier = Modifier.width(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = track?.title ?: "Nothing playing",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = if (track != null) {
+                            formatArtistAlbum(track.artist, track.album)
+                        } else {
+                            "Pick a track to start"
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (track != null) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
 
-            Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = onPrevious, enabled = track != null) {
-                    Icon(Icons.Default.SkipPrevious, contentDescription = "Previous")
-                }
-                Surface(
-                    onClick = onPlayPause,
-                    enabled = track != null,
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
-                    modifier = Modifier.size(56.dp),
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (isPlaying) "Pause" else "Play",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(32.dp),
-                        )
+                    val durationMs = track?.durationMs?.coerceAtLeast(1L) ?: 1L
+                    HomeSeekBar(
+                        positionMs = if (track != null) positionMs else 0L,
+                        durationMs = if (track != null) durationMs else 1L,
+                        enabled = track != null,
+                        onSeek = onSeek,
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        IconButton(
+                            onClick = onPrevious,
+                            enabled = track != null,
+                            modifier = Modifier.size(40.dp),
+                        ) {
+                            Icon(
+                                Icons.Default.SkipPrevious,
+                                contentDescription = "Previous",
+                                tint = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                        Surface(
+                            onClick = onPlayPause,
+                            enabled = track != null,
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                            modifier = Modifier
+                                .size(48.dp)
+                                .glowRing(),
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                    contentDescription = if (isPlaying) "Pause" else "Play",
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.size(26.dp),
+                                )
+                            }
+                        }
+                        IconButton(
+                            onClick = onNext,
+                            enabled = track != null,
+                            modifier = Modifier.size(40.dp),
+                        ) {
+                            Icon(
+                                Icons.Default.SkipNext,
+                                contentDescription = "Next",
+                                tint = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
                     }
-                }
-                IconButton(onClick = onNext, enabled = track != null) {
-                    Icon(Icons.Default.SkipNext, contentDescription = "Next")
                 }
             }
         }
@@ -216,7 +253,17 @@ private fun HomeSeekBar(
                 onSeek((sliderPosition * safeDuration).toLong())
             },
             enabled = enabled,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(20.dp),
+            colors = SliderDefaults.colors(
+                thumbColor = MaterialTheme.colorScheme.primary,
+                activeTrackColor = MaterialTheme.colorScheme.primary,
+                inactiveTrackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f),
+                disabledThumbColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
+                disabledActiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                disabledInactiveTrackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+            ),
         )
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -224,12 +271,12 @@ private fun HomeSeekBar(
         ) {
             Text(
                 text = formatMs((sliderPosition * safeDuration).toLong()),
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
                 text = formatMs(if (enabled) durationMs else 0L),
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }

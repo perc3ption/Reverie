@@ -5,7 +5,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.IconButton
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -13,7 +17,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Lock
@@ -30,6 +33,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.perceptiveus.reverie.core.design.ReveriePurple
+import com.perceptiveus.reverie.core.design.ReverieTileShape
+import com.perceptiveus.reverie.core.design.components.GlassSurface
 import com.perceptiveus.reverie.domain.model.LyricsDocument
 
 @Composable
@@ -41,38 +46,59 @@ fun LyricsPanel(
     onLockedClick: () -> Unit,
     onImportClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onDismiss: (() -> Unit)? = null,
 ) {
     val content: @Composable () -> Unit = {
-        when {
-            !hasAccess -> LockedLyricsState()
-            lyrics == null || lyrics.lines.isEmpty() -> EmptyLyricsState(
-                canImport = canImport,
-                onImportClick = onImportClick,
-            )
-            else -> SyncedOrPlainLyrics(
-                lyrics = lyrics,
-                positionMs = positionMs,
-            )
+        Column(modifier = Modifier.fillMaxSize()) {
+            if (onDismiss != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close lyrics",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+            Box(modifier = Modifier.weight(1f)) {
+                when {
+                    !hasAccess -> LockedLyricsState()
+                    lyrics == null || lyrics.lines.isEmpty() -> EmptyLyricsState(
+                        canImport = canImport,
+                        onImportClick = onImportClick,
+                    )
+                    else -> SyncedOrPlainLyrics(
+                        lyrics = lyrics,
+                        positionMs = positionMs,
+                    )
+                }
+            }
         }
     }
 
     if (!hasAccess) {
-        Surface(
+        GlassSurface(
             onClick = onLockedClick,
             modifier = modifier
                 .fillMaxWidth()
                 .height(220.dp),
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant,
+            shape = ReverieTileShape,
+            emphasized = true,
             content = content,
         )
     } else {
-        Surface(
+        GlassSurface(
             modifier = modifier
                 .fillMaxWidth()
                 .height(220.dp),
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant,
+            shape = ReverieTileShape,
+            emphasized = true,
             content = content,
         )
     }

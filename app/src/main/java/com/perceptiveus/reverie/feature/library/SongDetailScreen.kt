@@ -66,7 +66,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.perceptiveus.reverie.core.design.ReverieArtShape
 import com.perceptiveus.reverie.core.design.components.AlbumArt
+import com.perceptiveus.reverie.core.design.components.GlassSurface
 import com.perceptiveus.reverie.core.design.components.PremiumBadge
 import com.perceptiveus.reverie.core.design.components.RetroScreenTitle
 import com.perceptiveus.reverie.core.entitlement.AppFeature
@@ -400,11 +402,11 @@ private fun SongHeader(
     ) {
         val hasArt = track.artworkPath.isNotBlank()
         if (!hasArt) {
-            Surface(
+            GlassSurface(
                 onClick = onImportAlbumArt,
                 modifier = Modifier.size(192.dp),
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = ReverieArtShape,
+                emphasized = true,
             ) {
                 Column(
                     modifier = Modifier.fillMaxSize(),
@@ -777,11 +779,9 @@ private fun PlaylistsSection(
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         playlists.forEach { playlist ->
-            Surface(
+            GlassSurface(
                 onClick = { onPlaylistClick(playlist) },
                 modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.medium,
-                color = MaterialTheme.colorScheme.surface,
             ) {
                 Row(
                     modifier = Modifier.padding(14.dp),
@@ -807,10 +807,8 @@ private fun PlaylistsSection(
 
 @Composable
 private fun EmptySectionText(text: String) {
-    Surface(
+    GlassSurface(
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceVariant,
     ) {
         Text(
             text = text,

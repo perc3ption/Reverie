@@ -2,6 +2,7 @@ package com.perceptiveus.reverie.feature.player
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -13,16 +14,22 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.Equalizer
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
@@ -46,21 +53,31 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import com.perceptiveus.reverie.core.design.ReverieArtShape
+import com.perceptiveus.reverie.core.design.ReverieGlass
 import com.perceptiveus.reverie.core.design.components.AlbumArt
+import com.perceptiveus.reverie.core.design.components.GlassSurface
 import com.perceptiveus.reverie.core.design.components.PremiumBadge
 import com.perceptiveus.reverie.core.design.components.RetroScreenTitle
+import com.perceptiveus.reverie.core.design.components.formatArtistAlbum
+import com.perceptiveus.reverie.core.design.glowBorder
+import com.perceptiveus.reverie.core.design.glowRing
 import com.perceptiveus.reverie.core.entitlement.AppFeature
-import com.perceptiveus.reverie.domain.model.LyricsDocument
 import com.perceptiveus.reverie.domain.model.PlayerProgress
 import com.perceptiveus.reverie.domain.model.QueueSource
 import com.perceptiveus.reverie.domain.model.RepeatMode
@@ -72,18 +89,16 @@ import com.perceptiveus.reverie.feature.premium.UpgradeDialog
 import com.perceptiveus.reverie.playback.PlaybackAudioAnalyzer
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.delay
 
-private enum class PlayerMediaView {
-    ALBUM_ART,
-    VISUALIZER,
-    LYRICS,
-}
+private val PlayerMediaHeight = 218.dp
 
 @Composable
 fun PlayerScreen(
     viewModel: PlayerViewModel,
     onNavigateToPremium: () -> Unit,
     onNavigateToSongDetails: (Track) -> Unit,
+    onNavigateToAudioFx: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val playbackState by viewModel.playbackState.collectAsState()
@@ -93,11 +108,16 @@ fun PlayerScreen(
     var showUpgradeDialog by remember { mutableStateOf(false) }
     var upgradeFeature by remember { mutableStateOf(AppFeature.ADVANCED_VISUALIZERS) }
     var selectedStyle by remember { mutableStateOf(VisualizerStyle.SPECTRUM) }
-    var mediaView by rememberSaveable { mutableStateOf(PlayerMediaView.ALBUM_ART) }
+    var showVisualizer by rememberSaveable { mutableStateOf(false) }
+    var showLyrics by rememberSaveable { mutableStateOf(false) }
     var showQueueSheet by remember { mutableStateOf(false) }
+    var showSleepTimerDialog by remember { mutableStateOf(false) }
+    val sleepTimerEndMs by viewModel.sleepTimerEndMs.collectAsState()
+    var sleepTimerNowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
     val canAccessVisualizers = viewModel.canAccessAdvancedVisualizers()
     val canAccessLyrics = viewModel.canAccessLyrics()
     val canAccessAlbumArt = viewModel.canAccessAlbumArtEditing()
+    val canAccessAudioFx = viewModel.canAccessAudioFx()
     val snackbarHostState = remember { SnackbarHostState() }
     val pickLyricsFile = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
@@ -121,6 +141,16 @@ fun PlayerScreen(
         snackbarHostState.showSnackbar(message)
     }
 
+    LaunchedEffect(sleepTimerEndMs) {
+        while (sleepTimerEndMs != null) {
+            sleepTimerNowMs = System.currentTimeMillis()
+            delay(1_000)
+        }
+    }
+
+    val sleepTimerRemainingMs = viewModel.sleepTimerRemainingMs(sleepTimerNowMs)
+    val sleepTimerActive = sleepTimerEndMs != null && sleepTimerRemainingMs > 0L
+
     if (showUpgradeDialog) {
         UpgradeDialog(
             feature = upgradeFeature,
@@ -129,6 +159,15 @@ fun PlayerScreen(
                 showUpgradeDialog = false
                 onNavigateToPremium()
             },
+        )
+    }
+
+    if (showSleepTimerDialog) {
+        SleepTimerDialog(
+            remainingMs = sleepTimerEndMs?.let { viewModel.sleepTimerRemainingMs(sleepTimerNowMs) },
+            onDismiss = { showSleepTimerDialog = false },
+            onStart = viewModel::startSleepTimer,
+            onCancel = viewModel::cancelSleepTimer,
         )
     }
 
@@ -151,18 +190,18 @@ fun PlayerScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
-        // Outer app Scaffold already insets for the nav bar; don't add another bottom gap.
         contentWindowInsets = WindowInsets(0.dp),
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { _ ->
-        Column(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
-                    .weight(1f)
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 88.dp),
             ) {
-                Column(modifier = Modifier.padding(top = 12.dp, bottom = 6.dp)) {
+                Column(modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)) {
                     RetroScreenTitle(title = "Now Playing")
                     QueueSourceLabel(
                         source = playbackState.queueSource,
@@ -171,20 +210,12 @@ fun PlayerScreen(
                     )
                 }
 
-                PlayerMediaDisplay(
+                Spacer(modifier = Modifier.height(6.dp))
+
+                PlayerMediaPane(
+                    showVisualizer = showVisualizer,
                     artworkPath = track?.artworkPath,
                     trackTitle = track?.title,
-                    selectedView = mediaView,
-                    onViewSelected = { requested ->
-                        when {
-                            requested == PlayerMediaView.LYRICS && !canAccessLyrics -> {
-                                upgradeFeature = AppFeature.LYRICS
-                                showUpgradeDialog = true
-                                mediaView = PlayerMediaView.LYRICS
-                            }
-                            else -> mediaView = requested
-                        }
-                    },
                     visualizerFrame = visualizerFrame,
                     playerProgress = viewModel.playerProgress,
                     selectedStyle = selectedStyle,
@@ -194,85 +225,23 @@ fun PlayerScreen(
                         upgradeFeature = AppFeature.ADVANCED_VISUALIZERS
                         showUpgradeDialog = true
                     },
-                    lyrics = lyrics,
-                    canAccessLyrics = canAccessLyrics,
-                    canImportLyrics = !track?.filePath.isNullOrBlank(),
-                    onLyricsLocked = {
-                        upgradeFeature = AppFeature.LYRICS
-                        showUpgradeDialog = true
-                    },
-                    onImportLyrics = {
-                        // */* so .lrc shows up — many providers don't map .lrc to text/*
-                        pickLyricsFile.launch(arrayOf("*/*"))
-                    },
                     canAccessAlbumArt = canAccessAlbumArt,
                     canImportAlbumArt = track != null,
                     onAlbumArtLocked = {
                         upgradeFeature = AppFeature.ALBUM_ART_EDITING
                         showUpgradeDialog = true
                     },
-                    onImportAlbumArt = {
-                        pickAlbumArt.launch(arrayOf("image/*"))
-                    },
+                    onImportAlbumArt = { pickAlbumArt.launch(arrayOf("image/*")) },
                 )
 
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 10.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    if (track != null) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable(
-                                    onClick = { onNavigateToSongDetails(track) },
-                                    onClickLabel = "Open song details",
-                                )
-                                .padding(vertical = 4.dp),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = track.title,
-                                style = MaterialTheme.typography.headlineSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.weight(1f, fill = false),
-                            )
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(28.dp),
-                            )
-                        }
-                    } else {
-                        Text(
-                            text = "No track",
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = MaterialTheme.colorScheme.onBackground,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
-                    Text(
-                        text = listOfNotNull(track?.artist, track?.album)
-                            .filter { it.isNotBlank() }
-                            .joinToString(" | "),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
+                Spacer(modifier = Modifier.height(18.dp))
 
-                Spacer(modifier = Modifier.weight(1f))
+                PlayerTrackInfo(
+                    track = track,
+                    onTitleClick = { track?.let(onNavigateToSongDetails) },
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
 
                 PlayerTransportControls(
                     playerProgress = viewModel.playerProgress,
@@ -286,13 +255,59 @@ fun PlayerScreen(
                     onShuffle = viewModel::toggleShuffle,
                     onRepeat = viewModel::cycleRepeatMode,
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                PlayerActionRow(
+                    lyricsSelected = showLyrics,
+                    visualizerSelected = showVisualizer,
+                    sleepSelected = sleepTimerActive,
+                    lyricsLocked = !canAccessLyrics,
+                    audioFxLocked = !canAccessAudioFx,
+                    onLyricsClick = {
+                        if (!canAccessLyrics) {
+                            upgradeFeature = AppFeature.LYRICS
+                            showUpgradeDialog = true
+                        }
+                        showLyrics = !showLyrics
+                    },
+                    onVisualizerClick = { showVisualizer = !showVisualizer },
+                    onSleepClick = { showSleepTimerDialog = true },
+                    onEqualizerClick = {
+                        if (canAccessAudioFx) {
+                            onNavigateToAudioFx()
+                        } else {
+                            upgradeFeature = AppFeature.AUDIO_FX
+                            showUpgradeDialog = true
+                        }
+                    },
+                )
+
+                if (showLyrics) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    val progress by viewModel.playerProgress.collectAsState()
+                    LyricsPanel(
+                        lyrics = lyrics,
+                        positionMs = progress.positionMs,
+                        hasAccess = canAccessLyrics,
+                        canImport = !track?.filePath.isNullOrBlank(),
+                        onLockedClick = {
+                            upgradeFeature = AppFeature.LYRICS
+                            showUpgradeDialog = true
+                        },
+                        onImportClick = { pickLyricsFile.launch(arrayOf("*/*")) },
+                        onDismiss = { showLyrics = false },
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
             }
 
             UpNextStrip(
                 nextTrack = playbackState.nextTrack,
                 queueSize = playbackState.queueSize,
                 onClick = { showQueueSheet = true },
+                modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
     }
@@ -346,74 +361,49 @@ private fun QueueSourceLabel(
 }
 
 @Composable
-private fun PlayerMediaDisplay(
-    artworkPath: String?,
-    trackTitle: String?,
-    selectedView: PlayerMediaView,
-    onViewSelected: (PlayerMediaView) -> Unit,
-    visualizerFrame: PlaybackAudioAnalyzer.Frame,
-    playerProgress: StateFlow<PlayerProgress>,
-    selectedStyle: VisualizerStyle,
-    canAccessVisualizers: Boolean,
-    onStyleSelected: (VisualizerStyle) -> Unit,
-    onVisualizerLocked: () -> Unit,
-    lyrics: LyricsDocument?,
-    canAccessLyrics: Boolean,
-    canImportLyrics: Boolean,
-    onLyricsLocked: () -> Unit,
-    onImportLyrics: () -> Unit,
-    canAccessAlbumArt: Boolean,
-    canImportAlbumArt: Boolean,
-    onAlbumArtLocked: () -> Unit,
-    onImportAlbumArt: () -> Unit,
+private fun PlayerTrackInfo(
+    track: Track?,
+    onTitleClick: () -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        MediaViewToggle(
-            selectedView = selectedView,
-            onViewSelected = onViewSelected,
-            lyricsLocked = !canAccessLyrics,
+        Text(
+            text = track?.title ?: "No track",
+            style = MaterialTheme.typography.headlineSmall.copy(
+                textDecoration = if (track != null) TextDecoration.Underline else TextDecoration.None,
+            ),
+            color = if (track != null) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onBackground
+            },
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(
+                    if (track != null) {
+                        Modifier.clickable(
+                            onClick = onTitleClick,
+                            onClickLabel = "Open song details",
+                        )
+                    } else {
+                        Modifier
+                    },
+                ),
         )
-        Spacer(modifier = Modifier.height(10.dp))
-
-        when (selectedView) {
-            PlayerMediaView.ALBUM_ART -> {
-                PlayerAlbumArtPane(
-                    artworkPath = artworkPath,
-                    trackTitle = trackTitle,
-                    canAccess = canAccessAlbumArt,
-                    canImport = canImportAlbumArt,
-                    onLockedClick = onAlbumArtLocked,
-                    onImportClick = onImportAlbumArt,
-                )
-            }
-
-            PlayerMediaView.VISUALIZER -> {
-                val progress by playerProgress.collectAsState()
-                MusicVisualizer(
-                    frame = visualizerFrame,
-                    isPlaying = progress.isPlaying,
-                    selectedStyle = selectedStyle,
-                    canAccessPremium = canAccessVisualizers,
-                    onStyleSelected = onStyleSelected,
-                    onPremiumStyleLocked = onVisualizerLocked,
-                )
-            }
-
-            PlayerMediaView.LYRICS -> {
-                val progress by playerProgress.collectAsState()
-                LyricsPanel(
-                    lyrics = lyrics,
-                    positionMs = progress.positionMs,
-                    hasAccess = canAccessLyrics,
-                    canImport = canImportLyrics,
-                    onLockedClick = onLyricsLocked,
-                    onImportClick = onImportLyrics,
-                )
-            }
-        }
+        Text(
+            text = formatArtistAlbum(track?.artist, track?.album),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 
@@ -449,7 +439,53 @@ private fun PlayerTransportControls(
 }
 
 @Composable
-private fun PlayerAlbumArtPane(
+private fun PlayerMediaPane(
+    showVisualizer: Boolean,
+    artworkPath: String?,
+    trackTitle: String?,
+    visualizerFrame: PlaybackAudioAnalyzer.Frame,
+    playerProgress: StateFlow<PlayerProgress>,
+    selectedStyle: VisualizerStyle,
+    canAccessVisualizers: Boolean,
+    onStyleSelected: (VisualizerStyle) -> Unit,
+    onVisualizerLocked: () -> Unit,
+    canAccessAlbumArt: Boolean,
+    canImportAlbumArt: Boolean,
+    onAlbumArtLocked: () -> Unit,
+    onImportAlbumArt: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(PlayerMediaHeight),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (showVisualizer) {
+            val progress by playerProgress.collectAsState()
+            MusicVisualizer(
+                frame = visualizerFrame,
+                isPlaying = progress.isPlaying,
+                selectedStyle = selectedStyle,
+                canAccessPremium = canAccessVisualizers,
+                onStyleSelected = onStyleSelected,
+                onPremiumStyleLocked = onVisualizerLocked,
+                areaHeight = PlayerMediaHeight,
+            )
+        } else {
+            PlayerAlbumArtContent(
+                artworkPath = artworkPath,
+                trackTitle = trackTitle,
+                canAccess = canAccessAlbumArt,
+                canImport = canImportAlbumArt,
+                onLockedClick = onAlbumArtLocked,
+                onImportClick = onImportAlbumArt,
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlayerAlbumArtContent(
     artworkPath: String?,
     trackTitle: String?,
     canAccess: Boolean,
@@ -459,148 +495,188 @@ private fun PlayerAlbumArtPane(
 ) {
     val hasArt = !artworkPath.isNullOrBlank()
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(220.dp),
+        modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center,
     ) {
-        if (!hasArt && canImport) {
-            Surface(
-                onClick = {
-                    if (canAccess) onImportClick() else onLockedClick()
-                },
-                modifier = Modifier.size(200.dp),
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    Surface(
+        Box(contentAlignment = Alignment.Center) {
+            // Subtle CD disc peeking behind the cover — offset within the group so art stays centered.
+            Box(
+                modifier = Modifier
+                    .offset(x = 10.dp)
+                    .size(184.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF1A1A1E))
+                    .glowBorder(
                         shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
-                        modifier = Modifier.size(44.dp),
+                        glowRadius = 8.dp,
+                        borderAlpha = 0.45f,
+                        glowAlpha = 0.22f,
+                    ),
+            )
+            if (!hasArt && canImport) {
+                GlassSurface(
+                    onClick = {
+                        if (canAccess) onImportClick() else onLockedClick()
+                    },
+                    modifier = Modifier.size(200.dp),
+                    shape = ReverieArtShape,
+                    emphasized = true,
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
                     ) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center,
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+                            modifier = Modifier.size(44.dp),
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = "Import album art",
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Import album art",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+                        Text(
+                            text = "Import album art",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 12.dp),
+                        )
+                        if (!canAccess) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            PremiumBadge()
                         }
                     }
-                    Text(
-                        text = "Import album art",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 12.dp),
-                    )
-                    if (!canAccess) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        PremiumBadge()
-                    }
                 }
-            }
-        } else {
-            AlbumArt(
-                artworkPath = artworkPath,
-                modifier = Modifier.size(200.dp),
-                contentDescription = trackTitle,
-            )
-        }
-    }
-}
-
-@Composable
-private fun MediaViewToggle(
-    selectedView: PlayerMediaView,
-    onViewSelected: (PlayerMediaView) -> Unit,
-    lyricsLocked: Boolean,
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            MediaViewToggleButton(
-                label = "ALBUM ART",
-                selected = selectedView == PlayerMediaView.ALBUM_ART,
-                onClick = { onViewSelected(PlayerMediaView.ALBUM_ART) },
-                modifier = Modifier.weight(1f),
-            )
-            MediaViewToggleButton(
-                label = "VISUALIZER",
-                selected = selectedView == PlayerMediaView.VISUALIZER,
-                onClick = { onViewSelected(PlayerMediaView.VISUALIZER) },
-                modifier = Modifier.weight(1f),
-            )
-            MediaViewToggleButton(
-                label = "LYRICS",
-                selected = selectedView == PlayerMediaView.LYRICS,
-                showLock = lyricsLocked,
-                onClick = { onViewSelected(PlayerMediaView.LYRICS) },
-                modifier = Modifier.weight(1f),
-            )
-        }
-    }
-}
-
-@Composable
-private fun MediaViewToggleButton(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    showLock: Boolean = false,
-) {
-    Surface(
-        onClick = onClick,
-        modifier = modifier,
-        shape = RoundedCornerShape(9.dp),
-        color = if (selected) {
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant
-        },
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 6.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                color = if (selected) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-                maxLines = 1,
-            )
-            if (showLock) {
-                Spacer(modifier = Modifier.width(4.dp))
-                Icon(
-                    imageVector = Icons.Default.Lock,
-                    contentDescription = "Premium",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(12.dp),
+            } else {
+                AlbumArt(
+                    artworkPath = artworkPath,
+                    modifier = Modifier
+                        .size(200.dp)
+                        .glowBorder(
+                            shape = ReverieArtShape,
+                            glowRadius = 12.dp,
+                            borderAlpha = 0.75f,
+                            glowAlpha = 0.45f,
+                        ),
+                    contentDescription = trackTitle,
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun PlayerActionRow(
+    lyricsSelected: Boolean,
+    visualizerSelected: Boolean,
+    sleepSelected: Boolean,
+    lyricsLocked: Boolean,
+    audioFxLocked: Boolean,
+    onLyricsClick: () -> Unit,
+    onVisualizerClick: () -> Unit,
+    onSleepClick: () -> Unit,
+    onEqualizerClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+    ) {
+        PlayerActionButton(
+            icon = Icons.Default.MenuBook,
+            label = "LYRICS",
+            selected = lyricsSelected,
+            locked = lyricsLocked,
+            onClick = onLyricsClick,
+        )
+        PlayerActionButton(
+            icon = Icons.Default.GraphicEq,
+            label = if (visualizerSelected) "ART" else "VISUALIZER",
+            selected = visualizerSelected,
+            onClick = onVisualizerClick,
+        )
+        PlayerActionButton(
+            icon = Icons.Default.Bedtime,
+            label = "SLEEP",
+            selected = sleepSelected,
+            onClick = onSleepClick,
+        )
+        PlayerActionButton(
+            icon = Icons.Default.Equalizer,
+            label = "EQUALIZER",
+            locked = audioFxLocked,
+            onClick = onEqualizerClick,
+        )
+    }
+}
+
+@Composable
+private fun PlayerActionButton(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    selected: Boolean = false,
+    locked: Boolean = false,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.width(72.dp),
+    ) {
+        Surface(
+            onClick = onClick,
+            shape = CircleShape,
+            color = if (selected) {
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+            } else {
+                ReverieGlass
+            },
+            modifier = Modifier
+                .size(52.dp)
+                .glowBorder(
+                    shape = CircleShape,
+                    glowRadius = if (selected) 6.dp else 3.dp,
+                    borderAlpha = if (selected) 0.7f else 0.35f,
+                    glowAlpha = if (selected) 0.28f else 0.12f,
+                ),
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    tint = if (selected) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
+                    modifier = Modifier.size(22.dp),
+                )
+                if (locked) {
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = "Premium",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(6.dp)
+                            .size(10.dp),
+                    )
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+        )
     }
 }
 
@@ -635,6 +711,11 @@ private fun PlaybackProgress(
             },
             modifier = Modifier.fillMaxWidth(),
             interactionSource = interactionSource,
+            colors = SliderDefaults.colors(
+                thumbColor = MaterialTheme.colorScheme.primary,
+                activeTrackColor = MaterialTheme.colorScheme.primary,
+                inactiveTrackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f),
+            ),
             thumb = {
                 SliderDefaults.Thumb(
                     interactionSource = interactionSource,
@@ -655,8 +736,16 @@ private fun PlaybackProgress(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             val shownPosition = (sliderPosition * safeDuration).toLong()
-            Text(formatMs(shownPosition), style = MaterialTheme.typography.bodySmall)
-            Text(formatMs(durationMs), style = MaterialTheme.typography.bodySmall)
+            Text(
+                formatMs(shownPosition),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                formatMs(durationMs),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -691,19 +780,22 @@ private fun PlaybackControls(
                 Icons.Default.SkipPrevious,
                 contentDescription = "Previous",
                 modifier = Modifier.size(26.dp),
+                tint = MaterialTheme.colorScheme.onSurface,
             )
         }
         Surface(
             onClick = onPlayPause,
             shape = CircleShape,
             color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-            modifier = Modifier.size(56.dp),
+            modifier = Modifier
+                .size(56.dp)
+                .glowRing(),
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
                     imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = if (isPlaying) "Pause" else "Play",
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(32.dp),
                 )
             }
@@ -713,6 +805,7 @@ private fun PlaybackControls(
                 Icons.Default.SkipNext,
                 contentDescription = "Next",
                 modifier = Modifier.size(26.dp),
+                tint = MaterialTheme.colorScheme.onSurface,
             )
         }
         IconButton(onClick = onRepeat, modifier = Modifier.size(44.dp)) {
@@ -728,6 +821,13 @@ private fun PlaybackControls(
     }
 }
 
+private fun formatMs(ms: Long): String {
+    val totalSeconds = (ms / 1000).coerceAtLeast(0)
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return "%d:%02d".format(minutes, seconds)
+}
+
 /**
  * Queue peek pinned just above the bottom nav — full-bleed like the mini player.
  * Tap to open the full queue list.
@@ -741,12 +841,11 @@ private fun UpNextStrip(
 ) {
     val remaining = (queueSize - 1).coerceAtLeast(0)
 
-    Surface(
+    GlassSurface(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        tonalElevation = 2.dp,
+        emphasized = true,
     ) {
         Row(
             modifier = Modifier
@@ -775,7 +874,7 @@ private fun UpNextStrip(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = nextTrack.artist,
+                        text = formatArtistAlbum(nextTrack.artist, nextTrack.album),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -840,11 +939,4 @@ private fun QueueCountPill(
             )
         }
     }
-}
-
-private fun formatMs(ms: Long): String {
-    val totalSeconds = ms / 1000
-    val minutes = totalSeconds / 60
-    val seconds = totalSeconds % 60
-    return "%d:%02d".format(minutes, seconds)
 }

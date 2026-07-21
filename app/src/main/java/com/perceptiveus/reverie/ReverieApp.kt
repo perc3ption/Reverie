@@ -1,5 +1,6 @@
 package com.perceptiveus.reverie
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -18,19 +19,21 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.perceptiveus.reverie.core.design.ReverieTheme
 import com.perceptiveus.reverie.core.design.components.MiniPlayerBar
+import com.perceptiveus.reverie.core.design.navUnderGlow
 import com.perceptiveus.reverie.core.navigation.EdgeSwipeBackHost
 import com.perceptiveus.reverie.core.navigation.ReverieDestination
 import com.perceptiveus.reverie.core.navigation.ReverieNavGraph
 import com.perceptiveus.reverie.data.repository.PlaybackRepository
 import com.perceptiveus.reverie.domain.model.Track
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.collectLatest
 
 @Composable
 fun ReverieApp(container: AppContainer) {
@@ -54,9 +57,10 @@ fun ReverieApp(container: AppContainer) {
         }
 
         val showBottomBar = currentRoute in ReverieDestination.bottomBarVisibleRoutes
-        // Mini player on every screen except the full Player (which has its own transport).
+        // Mini player everywhere except Home (has its own now-playing card) and full Player.
         val miniPlayerAllowed = currentRoute != null &&
-            currentRoute != ReverieDestination.Player.route
+            currentRoute != ReverieDestination.Player.route &&
+            currentRoute != ReverieDestination.Home.route
 
         // Keep a tab highlighted on detail / Quick Access screens so the bottom bar
         // never sits in an "nothing selected" state.
@@ -165,6 +169,7 @@ private fun ReverieBottomBar(
 ) {
     NavigationBar(
         containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp,
     ) {
         ReverieDestination.bottomNavItems.forEach { destination ->
             val selected = selectedRoute == destination.route
@@ -172,16 +177,18 @@ private fun ReverieBottomBar(
                 selected = selected,
                 onClick = { onNavigate(destination) },
                 icon = {
-                    Icon(
-                        imageVector = if (selected) destination.selectedIcon else destination.unselectedIcon,
-                        contentDescription = destination.label,
-                    )
+                    Box(modifier = Modifier.navUnderGlow(visible = selected)) {
+                        Icon(
+                            imageVector = if (selected) destination.selectedIcon else destination.unselectedIcon,
+                            contentDescription = destination.label,
+                        )
+                    }
                 },
                 label = { Text(destination.label) },
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = MaterialTheme.colorScheme.primary,
                     selectedTextColor = MaterialTheme.colorScheme.primary,
-                    indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                    indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
                     unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 ),

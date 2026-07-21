@@ -479,6 +479,9 @@ fun ReverieNavGraph(
                 onNavigateToSongDetails = { track ->
                     navController.navigate(ReverieDestination.SongDetail.createRoute(track.id))
                 },
+                onNavigateToAudioFx = {
+                    navController.navigate(ReverieDestination.AudioFx.route)
+                },
             )
         }
 

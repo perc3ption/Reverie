@@ -1,9 +1,11 @@
 package com.perceptiveus.reverie.feature.player.visualizer
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -28,17 +30,25 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.perceptiveus.reverie.core.design.ReveriePurple
+import com.perceptiveus.reverie.core.design.ReverieTileShape
+import com.perceptiveus.reverie.core.design.components.GlassSurface
 import com.perceptiveus.reverie.playback.PlaybackAudioAnalyzer
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
-/** Matches album art / lyrics media area so Now Playing stays above the fold. */
+/** Full media-area height when visualizer is the primary pane. */
 private val MediaAreaHeight = 220.dp
+
+/** Compact tile height for the spectrum strip under transport. */
+private val CompactVisualizerHeight = 112.dp
 
 /**
  * Early-2000s style music visualizer driven by decoded PCM from ExoPlayer.
+ *
+ * @param compact smaller tile under transport controls (always-visible spectrum).
  */
 @Composable
 fun MusicVisualizer(
@@ -49,6 +59,8 @@ fun MusicVisualizer(
     onStyleSelected: (VisualizerStyle) -> Unit,
     onPremiumStyleLocked: () -> Unit,
     modifier: Modifier = Modifier,
+    areaHeight: Dp? = null,
+    compact: Boolean = false,
 ) {
     var spectrum by remember {
         mutableStateOf(FloatArray(PlaybackAudioAnalyzer.DEFAULT_BAR_COUNT))
@@ -66,7 +78,6 @@ fun MusicVisualizer(
             peaks = frame.peaks
             waveform = frame.waveform
         } else {
-            // Gentle idle decay when paused / stopped.
             while (isActive) {
                 var any = false
                 val nextSpectrum = FloatArray(spectrum.size) { i ->
@@ -89,29 +100,69 @@ fun MusicVisualizer(
         }
     }
 
-    Surface(
+    val tileHeight = areaHeight ?: if (compact) CompactVisualizerHeight else MediaAreaHeight
+
+    GlassSurface(
         modifier = modifier
             .fillMaxWidth()
-            .height(MediaAreaHeight),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
+            .height(tileHeight),
+        shape = ReverieTileShape,
+        emphasized = true,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 10.dp, vertical = 8.dp),
+                .padding(
+                    horizontal = 10.dp,
+                    vertical = if (compact) 6.dp else 8.dp,
+                ),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                StylePickerButton(
-                    selected = selectedStyle,
-                    canAccessPremium = canAccessPremium,
-                    onSelect = onStyleSelected,
-                    onPremiumLocked = onPremiumStyleLocked,
-                )
+                if (compact) {
+                    Text(
+                        text = selectedStyle.label,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    if (!canAccessPremium) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.clickable(onClick = onPremiumStyleLocked),
+                        ) {
+                            Text(
+                                text = "Upgrade for more",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Icon(
+                                Icons.Default.Lock,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(12.dp),
+                            )
+                        }
+                    } else {
+                        StylePickerButton(
+                            selected = selectedStyle,
+                            canAccessPremium = canAccessPremium,
+                            onSelect = onStyleSelected,
+                            onPremiumLocked = onPremiumStyleLocked,
+                        )
+                    }
+                } else {
+                    Spacer(modifier = Modifier.weight(1f))
+                    StylePickerButton(
+                        selected = selectedStyle,
+                        canAccessPremium = canAccessPremium,
+                        onSelect = onStyleSelected,
+                        onPremiumLocked = onPremiumStyleLocked,
+                    )
+                }
             }
 
             VisualizerCanvas(
@@ -122,7 +173,7 @@ fun MusicVisualizer(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .padding(top = 8.dp)
+                    .padding(top = if (compact) 4.dp else 8.dp)
                     .clip(RoundedCornerShape(12.dp)),
             )
         }

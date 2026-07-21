@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -42,12 +43,10 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -65,6 +64,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.perceptiveus.reverie.core.design.components.AlbumArt
+import com.perceptiveus.reverie.core.design.components.GlassSurface
 import com.perceptiveus.reverie.core.design.components.LockedFeatureCard
 import com.perceptiveus.reverie.core.design.components.QuickAccessCard
 import com.perceptiveus.reverie.core.design.components.ReverieScreenHeader
@@ -632,13 +632,13 @@ private fun AllSongsCard(
     onOpen: () -> Unit,
     onPlayAll: () -> Unit,
 ) {
-    Surface(
+    GlassSurface(
         onClick = onOpen,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 2.dp),
-        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-        shape = MaterialTheme.shapes.medium,
+        emphasized = true,
+        highlighted = true,
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
@@ -759,13 +759,11 @@ private fun SmartPlaylistListItem(
     onPlayClick: () -> Unit,
     onDeleteClick: () -> Unit,
 ) {
-    Surface(
+    GlassSurface(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 2.dp),
-        color = MaterialTheme.colorScheme.surface,
-        shape = MaterialTheme.shapes.medium,
     ) {
         Row(
             modifier = Modifier.padding(start = 12.dp, top = 10.dp, bottom = 10.dp, end = 4.dp),
@@ -827,13 +825,11 @@ private fun PlaylistListItem(
     onPlayClick: () -> Unit,
     onDeleteClick: () -> Unit,
 ) {
-    Surface(
+    GlassSurface(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 2.dp),
-        color = MaterialTheme.colorScheme.surface,
-        shape = MaterialTheme.shapes.medium,
     ) {
         Row(
             modifier = Modifier.padding(start = 12.dp, top = 10.dp, bottom = 10.dp, end = 4.dp),
@@ -974,11 +970,9 @@ private fun SongListItem(
             .padding(horizontal = 16.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Surface(
+        GlassSurface(
             onClick = onClick,
             modifier = Modifier.weight(1f),
-            color = MaterialTheme.colorScheme.surface,
-            shape = MaterialTheme.shapes.medium,
         ) {
             Row(
                 modifier = Modifier.padding(start = 12.dp, top = 12.dp, bottom = 12.dp, end = 8.dp),
@@ -1055,12 +1049,17 @@ private fun LibraryTopBar(onSearchClick: () -> Unit) {
     ReverieScreenHeader(
         title = "Library",
         actions = {
-            Row {
-                IconButton(onClick = onSearchClick) {
-                    Icon(Icons.Default.Search, contentDescription = "Search")
-                }
-                IconButton(onClick = { }) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "More")
+            GlassSurface(
+                onClick = onSearchClick,
+                shape = CircleShape,
+                modifier = Modifier.size(40.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Default.Search,
+                        contentDescription = "Search",
+                        tint = MaterialTheme.colorScheme.onSurface,
+                    )
                 }
             }
         },
@@ -1136,13 +1135,11 @@ private fun FolderListItem(
     folder: MusicFolder,
     onClick: () -> Unit,
 ) {
-    Surface(
+    GlassSurface(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 2.dp),
-        color = MaterialTheme.colorScheme.surface,
-        shape = MaterialTheme.shapes.medium,
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
@@ -1240,13 +1237,11 @@ private fun ArtistListItem(
     onClick: () -> Unit,
     onPlayAll: () -> Unit,
 ) {
-    Surface(
+    GlassSurface(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 2.dp),
-        color = MaterialTheme.colorScheme.surface,
-        shape = MaterialTheme.shapes.medium,
     ) {
         Row(
             modifier = Modifier.padding(start = 12.dp, top = 10.dp, bottom = 10.dp, end = 8.dp),
@@ -1355,13 +1350,11 @@ private fun AlbumListItem(
     onClick: () -> Unit,
     onPlayAll: () -> Unit,
 ) {
-    Surface(
+    GlassSurface(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 2.dp),
-        color = MaterialTheme.colorScheme.surface,
-        shape = MaterialTheme.shapes.medium,
     ) {
         Row(
             modifier = Modifier.padding(start = 12.dp, top = 10.dp, bottom = 10.dp, end = 8.dp),
@@ -1410,12 +1403,10 @@ private fun ListItemRow(
     title: String,
     subtitle: String,
 ) {
-    Surface(
+    GlassSurface(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 2.dp),
-        color = MaterialTheme.colorScheme.surface,
-        shape = MaterialTheme.shapes.medium,
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
