@@ -286,6 +286,15 @@ fun ReverieNavGraph(
                 onPlaylistClick = { playlist ->
                     navController.navigate(ReverieDestination.SmartPlaylistDetail.createRoute(playlist.id))
                 },
+                onNavigateToPlayer = {
+                    navController.navigate(ReverieDestination.Player.route) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
             )
         }
 

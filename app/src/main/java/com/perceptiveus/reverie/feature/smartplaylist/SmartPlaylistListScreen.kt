@@ -19,6 +19,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -51,6 +52,7 @@ fun SmartPlaylistListScreen(
     onNavigateBack: () -> Unit,
     onCreateClick: () -> Unit,
     onPlaylistClick: (SmartPlaylist) -> Unit,
+    onNavigateToPlayer: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val playlists by viewModel.playlists.collectAsState()
@@ -145,6 +147,11 @@ fun SmartPlaylistListScreen(
                         SmartPlaylistListRow(
                             playlist = playlist,
                             onClick = { onPlaylistClick(playlist) },
+                            onPlay = {
+                                viewModel.play(playlist) {
+                                    onNavigateToPlayer()
+                                }
+                            },
                             onDelete = { pendingDelete = playlist },
                         )
                     }
@@ -158,6 +165,7 @@ fun SmartPlaylistListScreen(
 private fun SmartPlaylistListRow(
     playlist: SmartPlaylist,
     onClick: () -> Unit,
+    onPlay: () -> Unit,
     onDelete: () -> Unit,
 ) {
     Surface(
@@ -194,6 +202,13 @@ private fun SmartPlaylistListRow(
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            IconButton(onClick = onPlay) {
+                Icon(
+                    Icons.Default.PlayArrow,
+                    contentDescription = "Play smart playlist",
+                    tint = MaterialTheme.colorScheme.primary,
                 )
             }
             IconButton(onClick = onDelete) {

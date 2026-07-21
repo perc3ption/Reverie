@@ -82,6 +82,7 @@ class AppContainer(context: Context) {
         metadataWriter = AudioMetadataWriter(),
         albumArtCache = albumArtCache,
         featureAccessChecker = featureAccessChecker,
+        storage = musicLibraryStorage,
         scope = appScope,
     )
 

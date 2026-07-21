@@ -88,6 +88,12 @@ class SongDetailViewModel(
     private val _isSavingMetadata = MutableStateFlow(false)
     val isSavingMetadata: StateFlow<Boolean> = _isSavingMetadata.asStateFlow()
 
+    private val _isDeleting = MutableStateFlow(false)
+    val isDeleting: StateFlow<Boolean> = _isDeleting.asStateFlow()
+
+    private val _deleted = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val deleted: SharedFlow<Unit> = _deleted.asSharedFlow()
+
     init {
         viewModelScope.launch {
             track
@@ -325,6 +331,21 @@ class SongDetailViewModel(
                         },
                     )
                 }
+        }
+    }
+
+    fun deleteTrack() {
+        if (_isDeleting.value) return
+        viewModelScope.launch {
+            _isDeleting.value = true
+            musicLibraryRepository.deleteTrack(trackId)
+                .onSuccess {
+                    _deleted.emit(Unit)
+                }
+                .onFailure { error ->
+                    _userMessages.emit(error.message ?: "Could not delete song.")
+                }
+            _isDeleting.value = false
         }
     }
 

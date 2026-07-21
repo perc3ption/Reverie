@@ -54,6 +54,7 @@ class ReverieViewModelFactory(
             )
             modelClass.isAssignableFrom(SmartPlaylistListViewModel::class.java) -> SmartPlaylistListViewModel(
                 container.smartPlaylistRepository,
+                container.playbackRepository,
                 container.featureAccessChecker,
             )
             modelClass.isAssignableFrom(PlayerViewModel::class.java) -> PlayerViewModel(

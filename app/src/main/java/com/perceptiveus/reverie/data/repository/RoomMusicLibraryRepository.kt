@@ -13,6 +13,7 @@ import com.perceptiveus.reverie.data.import.MusicIndexer
 import com.perceptiveus.reverie.data.local.dao.MusicFolderDao
 import com.perceptiveus.reverie.data.local.dao.TrackDao
 import com.perceptiveus.reverie.data.local.mapper.toDomain
+import com.perceptiveus.reverie.data.storage.MusicLibraryStorage
 import com.perceptiveus.reverie.domain.model.Album
 import com.perceptiveus.reverie.domain.model.Artist
 import com.perceptiveus.reverie.domain.model.LibraryScanResult
@@ -35,6 +36,7 @@ class RoomMusicLibraryRepository(
     private val metadataWriter: AudioMetadataWriter,
     private val albumArtCache: AlbumArtCache,
     private val featureAccessChecker: FeatureAccessChecker,
+    private val storage: MusicLibraryStorage,
     scope: CoroutineScope,
 ) : MusicLibraryRepository {
 
@@ -136,6 +138,47 @@ class RoomMusicLibraryRepository(
                 }
                 is AlbumArtImportResult.Failure -> error(result.message)
             }
+        }
+    }
+
+    override suspend fun deleteTrack(trackId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val existing = trackDao.getById(trackId)
+                ?: error("Track not found.")
+            val file = File(existing.filePath)
+            val rootPath = storage.libraryRoot.canonicalPath.trimEnd(File.separatorChar)
+            if (existing.filePath.isNotBlank()) {
+                val canonical = runCatching { file.canonicalPath }.getOrDefault(existing.filePath)
+                    .trimEnd(File.separatorChar)
+                val underLibrary = canonical == rootPath ||
+                    canonical.startsWith(rootPath + File.separator)
+                if (!underLibrary) {
+                    error("Can only delete files inside the Reverie library folder.")
+                }
+                if (file.exists()) {
+                    if (!file.delete()) {
+                        error("Could not delete the audio file.")
+                    }
+                }
+                deleteSidecarLyrics(file)
+            }
+            trackDao.deleteByIds(listOf(trackId))
+            albumArtCache.deleteOrphans(
+                keepPaths = trackDao.getAllTracks().map { it.artworkPath }.toSet(),
+            )
+        }
+    }
+
+    private fun deleteSidecarLyrics(audio: File) {
+        val parent = audio.parentFile ?: return
+        val base = audio.nameWithoutExtension
+        listOf(
+            File(parent, "$base.lrc"),
+            File(parent, "$base.LRC"),
+            File(parent, "$base.txt"),
+            File(parent, "$base.TXT"),
+        ).forEach { sidecar ->
+            if (sidecar.isFile) sidecar.delete()
         }
     }
 }

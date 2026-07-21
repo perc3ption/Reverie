@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -35,6 +36,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -95,10 +97,12 @@ fun SongDetailScreen(
     val availablePlaylists by viewModel.availablePlaylists.collectAsState()
     val lyrics by viewModel.lyrics.collectAsState()
     val isSavingMetadata by viewModel.isSavingMetadata.collectAsState()
+    val isDeleting by viewModel.isDeleting.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var showTagDialog by remember { mutableStateOf(false) }
     var showPlaylistDialog by remember { mutableStateOf(false) }
     var showEditMetadataDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
     var upgradeFeature by remember { mutableStateOf<AppFeature?>(null) }
     val canAccessTags = viewModel.canAccessTags()
     val canAccessLyrics = viewModel.canAccessLyrics()
@@ -125,6 +129,12 @@ fun SongDetailScreen(
     LaunchedEffect(viewModel) {
         viewModel.metadataSaved.collectLatest {
             showEditMetadataDialog = false
+        }
+    }
+
+    LaunchedEffect(viewModel) {
+        viewModel.deleted.collectLatest {
+            onNavigateBack()
         }
     }
 
@@ -167,6 +177,44 @@ fun SongDetailScreen(
                 onDismiss = { if (!isSavingMetadata) showEditMetadataDialog = false },
                 onSave = { title, artist, album, year, genre ->
                     viewModel.saveMetadata(title, artist, album, year, genre)
+                },
+            )
+        }
+    }
+
+    if (showDeleteDialog) {
+        val current = track
+        if (current != null) {
+            AlertDialog(
+                onDismissRequest = { if (!isDeleting) showDeleteDialog = false },
+                title = { Text("Delete song?") },
+                text = {
+                    Text(
+                        "\"${current.title}\" will be removed from your library folder and the index. " +
+                            "This cannot be undone.",
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            viewModel.deleteTrack()
+                            showDeleteDialog = false
+                        },
+                        enabled = !isDeleting,
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error,
+                        ),
+                    ) {
+                        Text(if (isDeleting) "Deleting…" else "Delete")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { showDeleteDialog = false },
+                        enabled = !isDeleting,
+                    ) {
+                        Text("Cancel")
+                    }
                 },
             )
         }
@@ -309,6 +357,27 @@ fun SongDetailScreen(
                         },
                         modifier = Modifier.fillMaxWidth(),
                     )
+                }
+            }
+
+            item {
+                OutlinedButton(
+                    onClick = { showDeleteDialog = true },
+                    enabled = !isDeleting,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp, bottom = 16.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    ),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(if (isDeleting) "Deleting…" else "Delete song")
                 }
             }
         }

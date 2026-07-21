@@ -114,4 +114,15 @@ class FakeMusicLibraryRepository : MusicLibraryRepository {
         }
         return Result.success(path)
     }
+
+    override suspend fun deleteTrack(trackId: String): Result<Unit> {
+        val current = _songs.value
+        if (current.none { it.id == trackId }) {
+            return Result.failure(IllegalArgumentException("Track not found."))
+        }
+        _songs.value = current.filterNot { it.id == trackId }
+        _recentlyPlayed.value = _recentlyPlayed.value.filterNot { it.id == trackId }
+        _songCount.value = (_songCount.value - 1).coerceAtLeast(0)
+        return Result.success(Unit)
+    }
 }

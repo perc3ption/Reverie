@@ -44,6 +44,12 @@ interface MusicLibraryRepository {
      * @return absolute path of the saved artwork on success
      */
     suspend fun updateTrackArtwork(trackId: String, sourceUri: android.net.Uri): Result<String>
+
+    /**
+     * Deletes the track’s audio file from the Reverie library folder and removes it from the index.
+     * Playlist membership, tags, and play history for the track are cleared via Room cascades.
+     */
+    suspend fun deleteTrack(trackId: String): Result<Unit>
 }
 
 /** Playback state backed by Media3 ExoPlayer via [com.perceptiveus.reverie.playback.PlaybackService]. */
