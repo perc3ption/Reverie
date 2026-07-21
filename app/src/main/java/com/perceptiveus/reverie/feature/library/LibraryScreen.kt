@@ -286,7 +286,7 @@ fun LibraryScreen(
                                 }
                             } else {
                                 if (playlists.isNotEmpty()) {
-                                    items(playlists, key = { it.id }) { playlist ->
+                                    items(playlists, key = { "playlist-${it.id}" }) { playlist ->
                                         PlaylistListItem(
                                             playlist = playlist,
                                             onClick = { onPlaylistClick(playlist) },
@@ -431,7 +431,7 @@ fun LibraryScreen(
                             )
                         }
                     } else {
-                        items(artists, key = { it.id }) { artist ->
+                        items(artists, key = { "artist-${it.id}" }) { artist ->
                             ArtistListItem(
                                 artist = artist,
                                 onClick = { viewModel.openArtist(artist.name) },
@@ -491,7 +491,7 @@ fun LibraryScreen(
                             )
                         }
                     } else {
-                        items(albums, key = { it.id }) { album ->
+                        items(albums, key = { "album-${it.id}" }) { album ->
                             AlbumListItem(
                                 album = album,
                                 onClick = { viewModel.openAlbum(album) },

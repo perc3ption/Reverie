@@ -32,6 +32,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -123,6 +126,9 @@ class AppContainer(context: Context) {
     )
 
     private val deferredScanStarted = AtomicBoolean(false)
+    private val _libraryScanInProgress = MutableStateFlow(false)
+    /** True while the deferred startup library scan is running. */
+    val libraryScanInProgress: StateFlow<Boolean> = _libraryScanInProgress.asStateFlow()
 
     init {
         appScope.launch {
@@ -145,20 +151,19 @@ class AppContainer(context: Context) {
         if (!deferredScanStarted.compareAndSet(false, true)) return
         appScope.launch {
             delay(FIRST_FRAME_SCAN_DELAY_MS)
-            runLibraryScan()
-        }
-    }
-
-    private suspend fun runLibraryScan() {
-        try {
-            val result = musicLibraryRepository.scanLibrary()
-            Log.i(
-                TAG,
-                "Library scan: indexed=${result.tracksIndexed}, unchanged=${result.tracksUnchanged}, " +
-                    "removed=${result.tracksRemoved}, folders=${result.foldersIndexed}",
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "Library scan failed", e)
+            _libraryScanInProgress.value = true
+            try {
+                val result = musicLibraryRepository.scanLibrary()
+                Log.i(
+                    TAG,
+                    "Library scan: indexed=${result.tracksIndexed}, unchanged=${result.tracksUnchanged}, " +
+                        "removed=${result.tracksRemoved}, folders=${result.foldersIndexed}",
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Library scan failed", e)
+            } finally {
+                _libraryScanInProgress.value = false
+            }
         }
     }
 

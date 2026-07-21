@@ -42,7 +42,8 @@ class HomeViewModel(
     val recentlyPlayed: StateFlow<List<Track>> = library.recentlyPlayed
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val songs: StateFlow<List<Track>> = library.songs
+    /** Small preview when there is no play history — not the full library catalog. */
+    val homeLibraryPreview: StateFlow<List<Track>> = library.homeLibraryPreview
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val songCount: StateFlow<Int> = library.songCount
@@ -83,9 +84,9 @@ class HomeViewModel(
 
     fun playTrack(track: Track) {
         val recent = recentlyPlayed.value
-        val librarySongs = songs.value
+        val preview = homeLibraryPreview.value
         val usingRecent = recent.isNotEmpty()
-        val queue = recent.ifEmpty { librarySongs }
+        val queue = recent.ifEmpty { preview }
         val playQueue = if (queue.any { it.id == track.id }) {
             queue
         } else {

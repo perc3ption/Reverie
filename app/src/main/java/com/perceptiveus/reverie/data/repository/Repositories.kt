@@ -21,6 +21,8 @@ interface MusicLibraryRepository {
     val albums: StateFlow<List<Album>>
     val songs: StateFlow<List<Track>>
     val recentlyPlayed: StateFlow<List<Track>>
+    /** Up to ~12 tracks for Home fallback — not the full library. */
+    val homeLibraryPreview: StateFlow<List<Track>>
     val songCount: StateFlow<Int>
 
     /** Scans the on-disk Reverie folder and syncs metadata into Room. */

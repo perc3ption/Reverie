@@ -3,7 +3,9 @@ package com.perceptiveus.reverie
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -12,13 +14,17 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -31,6 +37,7 @@ import com.perceptiveus.reverie.core.navigation.ReverieDestination
 import com.perceptiveus.reverie.core.navigation.ReverieNavGraph
 import com.perceptiveus.reverie.data.repository.PlaybackRepository
 import com.perceptiveus.reverie.domain.model.Track
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -38,9 +45,23 @@ import kotlinx.coroutines.flow.map
 @Composable
 fun ReverieApp(container: AppContainer) {
     val themePreference by container.settingsRepository.themePreference.collectAsState()
+    val libraryScanInProgress by container.libraryScanInProgress.collectAsState()
+    var showLibraryScanStatus by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         container.startDeferredLibraryScan()
+    }
+
+    // Skip the status flash when the incremental scan finishes quickly.
+    LaunchedEffect(libraryScanInProgress) {
+        if (!libraryScanInProgress) {
+            showLibraryScanStatus = false
+            return@LaunchedEffect
+        }
+        delay(LIBRARY_SCAN_STATUS_DELAY_MS)
+        if (container.libraryScanInProgress.value) {
+            showLibraryScanStatus = true
+        }
     }
 
     ReverieTheme(themePreference = themePreference) {
@@ -85,6 +106,9 @@ fun ReverieApp(container: AppContainer) {
             bottomBar = {
                 if (showBottomBar) {
                     Column {
+                        if (showLibraryScanStatus) {
+                            LibraryScanStatusBar()
+                        }
                         if (miniPlayerAllowed) {
                             ReverieMiniPlayer(
                                 playbackRepository = container.playbackRepository,
@@ -114,6 +138,8 @@ fun ReverieApp(container: AppContainer) {
                             },
                         )
                     }
+                } else if (showLibraryScanStatus) {
+                    LibraryScanStatusBar()
                 }
             },
         ) { innerPadding ->
@@ -127,6 +153,33 @@ fun ReverieApp(container: AppContainer) {
                 )
             }
         }
+    }
+}
+
+/** Only show status if indexing is still going after this delay. */
+private const val LIBRARY_SCAN_STATUS_DELAY_MS = 350L
+
+/** Snackbar-style status strip — always visible while startup indexing runs. */
+@Composable
+private fun LibraryScanStatusBar() {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.inverseSurface,
+        shadowElevation = 6.dp,
+        tonalElevation = 0.dp,
+    ) {
+        Text(
+            text = "Updating library…",
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.inverseOnSurface,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 

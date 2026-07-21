@@ -60,6 +60,11 @@ class RoomMusicLibraryRepository(
         .map { rows -> rows.map { it.toDomain() } }
         .stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    override val homeLibraryPreview: StateFlow<List<Track>> =
+        trackDao.observeHomeLibraryPreview(limit = 12)
+            .map { rows -> rows.map { it.toDomain() } }
+            .stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     override val songCount: StateFlow<Int> = trackDao.observeSongCount()
         .stateIn(scope, SharingStarted.WhileSubscribed(5_000), 0)
 

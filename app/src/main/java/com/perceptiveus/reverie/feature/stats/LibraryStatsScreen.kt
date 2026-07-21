@@ -164,7 +164,7 @@ private fun StatsContent(
                 EmptyStatsHint("Play some music to see top artists here.")
             }
         } else {
-            itemsIndexed(stats.topArtists, key = { _, item -> "artist-${item.id}" }) { index, item ->
+            itemsIndexed(stats.topArtists, key = { index, item -> "artist-${item.id}-$index" }) { index, item ->
                 RankedStatRow(
                     rank = index + 1,
                     item = item,

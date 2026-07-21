@@ -82,12 +82,12 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
 ) {
     val recentlyPlayed by viewModel.recentlyPlayed.collectAsState()
-    val songs by viewModel.songs.collectAsState()
+    val homeLibraryPreview by viewModel.homeLibraryPreview.collectAsState()
     val playbackState by viewModel.playbackState.collectAsState()
     val availablePlaylists by viewModel.availablePlaylists.collectAsState()
     val showFirstRunWelcome by viewModel.showFirstRunWelcome.collectAsState()
     val isPremium = viewModel.isPremium()
-    val displayTracks = recentlyPlayed.ifEmpty { songs.take(12) }
+    val displayTracks = recentlyPlayed.ifEmpty { homeLibraryPreview }
     val snackbarHostState = remember { SnackbarHostState() }
     var showQueueSheet by remember { mutableStateOf(false) }
     var showPlaylistDialog by remember { mutableStateOf(false) }

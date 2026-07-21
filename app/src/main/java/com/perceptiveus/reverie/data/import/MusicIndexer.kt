@@ -10,6 +10,7 @@ import com.perceptiveus.reverie.data.storage.MusicLibraryStorage
 import com.perceptiveus.reverie.domain.model.LibraryScanResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.yield
 import java.io.File
 
 /**
@@ -52,7 +53,11 @@ class MusicIndexer(
 
         val toUpsert = ArrayList<TrackEntity>(filesToIndex.size)
 
-        for (file in filesToIndex) {
+        for ((index, file) in filesToIndex.withIndex()) {
+            if (index > 0 && index % 24 == 0) {
+                // Keep the UI thread responsive during large library walks.
+                yield()
+            }
             try {
                 val absolutePath = file.canonicalPath
                 val fileSize = file.length()

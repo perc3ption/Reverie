@@ -39,14 +39,16 @@ fun FolderWithCounts.toDomain(): MusicFolder = MusicFolder(
 )
 
 fun ArtistAggregate.toDomain(): Artist = Artist(
-    id = artist.lowercase(),
+    // Keep case-sensitive raw name so LazyColumn keys stay unique when the DB
+    // still has mixed-case variants; UI matching remains ignoreCase elsewhere.
+    id = artist,
     name = artist,
     albumCount = albumCount,
     trackCount = trackCount,
 )
 
 fun AlbumAggregate.toDomain(): Album = Album(
-    id = "${artist.lowercase()}::${album.lowercase()}",
+    id = "$artist::$album",
     title = album,
     artist = artist,
     trackCount = trackCount,

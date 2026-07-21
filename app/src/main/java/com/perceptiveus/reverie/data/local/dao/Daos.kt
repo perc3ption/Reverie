@@ -65,13 +65,13 @@ interface TrackDao {
     @Query("SELECT COUNT(*) FROM tracks")
     suspend fun countTracks(): Int
 
-    @Query("SELECT COUNT(DISTINCT artist) FROM tracks WHERE artist != ''")
+    @Query("SELECT COUNT(DISTINCT LOWER(artist)) FROM tracks WHERE artist != ''")
     suspend fun countDistinctArtists(): Int
 
     @Query(
         """
         SELECT COUNT(*) FROM (
-            SELECT album, artist FROM tracks GROUP BY album, artist
+            SELECT 1 FROM tracks GROUP BY LOWER(album), LOWER(artist)
         ) AS album_groups
         """,
     )
@@ -80,25 +80,30 @@ interface TrackDao {
     @Query("SELECT * FROM tracks ORDER BY title ASC")
     fun observeAllTracks(): Flow<List<TrackEntity>>
 
+    /** Small slice for Home when there is no play history yet — avoids loading the full library. */
+    @Query("SELECT * FROM tracks ORDER BY dateAdded DESC, title ASC LIMIT :limit")
+    fun observeHomeLibraryPreview(limit: Int = 12): Flow<List<TrackEntity>>
+
     @Query(
         """
-        SELECT artist,
+        SELECT MIN(artist) AS artist,
                COUNT(*) AS trackCount,
-               COUNT(DISTINCT album) AS albumCount
+               COUNT(DISTINCT LOWER(album)) AS albumCount
         FROM tracks
-        GROUP BY artist
-        ORDER BY artist ASC
+        GROUP BY LOWER(artist)
+        ORDER BY MIN(artist) COLLATE NOCASE ASC
         """,
     )
     fun observeArtists(): Flow<List<ArtistAggregate>>
 
     @Query(
         """
-        SELECT album, artist,
+        SELECT MIN(album) AS album,
+               MIN(artist) AS artist,
                COUNT(*) AS trackCount
         FROM tracks
-        GROUP BY album, artist
-        ORDER BY album ASC
+        GROUP BY LOWER(album), LOWER(artist)
+        ORDER BY MIN(album) COLLATE NOCASE ASC
         """,
     )
     fun observeAlbums(): Flow<List<AlbumAggregate>>
@@ -183,12 +188,12 @@ interface PlayHistoryDao {
 
     @Query(
         """
-        SELECT t.artist AS name, COUNT(h.id) AS playCount
+        SELECT MIN(t.artist) AS name, COUNT(h.id) AS playCount
         FROM play_history h
         INNER JOIN tracks t ON t.id = h.trackId
         WHERE t.artist != ''
-        GROUP BY t.artist
-        ORDER BY playCount DESC, t.artist ASC
+        GROUP BY LOWER(t.artist)
+        ORDER BY playCount DESC, MIN(t.artist) COLLATE NOCASE ASC
         LIMIT :limit
         """,
     )

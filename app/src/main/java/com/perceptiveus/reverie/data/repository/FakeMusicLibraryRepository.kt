@@ -59,6 +59,9 @@ class FakeMusicLibraryRepository : MusicLibraryRepository {
     private val _recentlyPlayed = MutableStateFlow(sampleTracks)
     override val recentlyPlayed: StateFlow<List<Track>> = _recentlyPlayed.asStateFlow()
 
+    private val _homeLibraryPreview = MutableStateFlow(sampleTracks.take(12))
+    override val homeLibraryPreview: StateFlow<List<Track>> = _homeLibraryPreview.asStateFlow()
+
     private val _songCount = MutableStateFlow(42)
     override val songCount: StateFlow<Int> = _songCount.asStateFlow()
 
