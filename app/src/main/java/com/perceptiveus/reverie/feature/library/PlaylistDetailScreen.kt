@@ -586,6 +586,7 @@ private fun PlaylistTrackRow(
                     artworkPath = track.artworkPath,
                     modifier = Modifier.size(40.dp),
                     contentDescription = track.title,
+                    listThumbnail = true,
                 )
             } else {
                 Icon(

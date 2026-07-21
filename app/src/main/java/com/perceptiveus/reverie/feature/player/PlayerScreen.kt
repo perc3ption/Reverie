@@ -2,6 +2,7 @@ package com.perceptiveus.reverie.feature.player
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -19,6 +20,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -58,6 +61,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -93,6 +97,7 @@ import kotlinx.coroutines.delay
 
 private val PlayerMediaHeight = 218.dp
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PlayerScreen(
     viewModel: PlayerViewModel,
@@ -103,7 +108,6 @@ fun PlayerScreen(
 ) {
     val playbackState by viewModel.playbackState.collectAsState()
     val lyrics by viewModel.lyrics.collectAsState()
-    val visualizerFrame by viewModel.visualizerFrame.collectAsState()
     val track = playbackState.currentTrack
     var showUpgradeDialog by remember { mutableStateOf(false) }
     var upgradeFeature by remember { mutableStateOf(AppFeature.ADVANCED_VISUALIZERS) }
@@ -112,6 +116,7 @@ fun PlayerScreen(
     var showLyrics by rememberSaveable { mutableStateOf(false) }
     var showQueueSheet by remember { mutableStateOf(false) }
     var showSleepTimerDialog by remember { mutableStateOf(false) }
+    val lyricsBringIntoView = remember { BringIntoViewRequester() }
     val sleepTimerEndMs by viewModel.sleepTimerEndMs.collectAsState()
     var sleepTimerNowMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
     val canAccessVisualizers = viewModel.canAccessAdvancedVisualizers()
@@ -145,6 +150,14 @@ fun PlayerScreen(
         while (sleepTimerEndMs != null) {
             sleepTimerNowMs = System.currentTimeMillis()
             delay(1_000)
+        }
+    }
+
+    // One-shot scroll when lyrics open — no ongoing cost while the panel stays visible.
+    LaunchedEffect(showLyrics) {
+        if (showLyrics) {
+            withFrameNanos { } // wait one frame so the panel is laid out
+            lyricsBringIntoView.bringIntoView()
         }
     }
 
@@ -216,7 +229,7 @@ fun PlayerScreen(
                     showVisualizer = showVisualizer,
                     artworkPath = track?.artworkPath,
                     trackTitle = track?.title,
-                    visualizerFrame = visualizerFrame,
+                    visualizerFrame = viewModel.visualizerFrame,
                     playerProgress = viewModel.playerProgress,
                     selectedStyle = selectedStyle,
                     canAccessVisualizers = canAccessVisualizers,
@@ -297,6 +310,7 @@ fun PlayerScreen(
                         },
                         onImportClick = { pickLyricsFile.launch(arrayOf("*/*")) },
                         onDismiss = { showLyrics = false },
+                        modifier = Modifier.bringIntoViewRequester(lyricsBringIntoView),
                     )
                 }
 
@@ -443,7 +457,7 @@ private fun PlayerMediaPane(
     showVisualizer: Boolean,
     artworkPath: String?,
     trackTitle: String?,
-    visualizerFrame: PlaybackAudioAnalyzer.Frame,
+    visualizerFrame: StateFlow<PlaybackAudioAnalyzer.Frame>,
     playerProgress: StateFlow<PlayerProgress>,
     selectedStyle: VisualizerStyle,
     canAccessVisualizers: Boolean,
@@ -461,10 +475,9 @@ private fun PlayerMediaPane(
         contentAlignment = Alignment.Center,
     ) {
         if (showVisualizer) {
-            val progress by playerProgress.collectAsState()
             MusicVisualizer(
-                frame = visualizerFrame,
-                isPlaying = progress.isPlaying,
+                frameFlow = visualizerFrame,
+                playerProgress = playerProgress,
                 selectedStyle = selectedStyle,
                 canAccessPremium = canAccessVisualizers,
                 onStyleSelected = onStyleSelected,
@@ -521,6 +534,7 @@ private fun PlayerAlbumArtContent(
                     modifier = Modifier.size(200.dp),
                     shape = ReverieArtShape,
                     emphasized = true,
+                    glow = true,
                 ) {
                     Column(
                         modifier = Modifier.fillMaxSize(),
@@ -846,6 +860,7 @@ private fun UpNextStrip(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
         emphasized = true,
+        glow = true,
     ) {
         Row(
             modifier = Modifier

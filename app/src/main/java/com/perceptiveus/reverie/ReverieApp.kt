@@ -143,12 +143,16 @@ private fun ReverieMiniPlayer(
             .map { it.currentTrack }
             .distinctUntilChanged(::sameMiniPlayerTrack)
     }.collectAsState(initial = playbackRepository.playbackState.value.currentTrack)
-    val progress by playbackRepository.playerProgress.collectAsState()
+    val isPlaying by remember(playbackRepository) {
+        playbackRepository.playerProgress
+            .map { it.isPlaying }
+            .distinctUntilChanged()
+    }.collectAsState(initial = playbackRepository.playerProgress.value.isPlaying)
 
     val current = track ?: return
     MiniPlayerBar(
         track = current,
-        isPlaying = progress.isPlaying,
+        isPlaying = isPlaying,
         onPlayPause = playbackRepository::togglePlayPause,
         onNext = playbackRepository::skipToNext,
         onPrevious = playbackRepository::skipToPrevious,

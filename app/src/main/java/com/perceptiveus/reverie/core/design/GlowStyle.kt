@@ -23,6 +23,9 @@ val ReverieArtShape = RoundedCornerShape(12.dp)
 /**
  * Soft purple outer glow + thin neon border — the mockup "fancy border".
  * Uses layered colored shadows (no blur RenderEffect dependency).
+ *
+ * Keep for hero surfaces only (Home now-playing card, Player chrome, mini player).
+ * Prefer [glassBorder] for list rows and dense UI.
  */
 fun Modifier.glowBorder(
     color: Color = ReverieGlowBorder,
@@ -44,6 +47,20 @@ fun Modifier.glowBorder(
         color = color.copy(alpha = borderAlpha),
         shape = shape,
     )
+
+/**
+ * Thin neon outline without the expensive shadow glow — for list rows and secondary panels.
+ */
+fun Modifier.glassBorder(
+    color: Color = ReverieGlowBorder,
+    shape: Shape = ReverieCardShape,
+    borderWidth: Dp = 1.dp,
+    borderAlpha: Float = 0.2f,
+): Modifier = this.border(
+    width = borderWidth,
+    color = color.copy(alpha = borderAlpha),
+    shape = shape,
+)
 
 /**
  * Subtle glass fill: slightly elevated dark surface with a soft top highlight.

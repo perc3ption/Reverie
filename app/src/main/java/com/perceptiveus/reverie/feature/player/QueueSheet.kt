@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
@@ -24,13 +25,11 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.LibraryMusic
-import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
@@ -43,12 +42,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.perceptiveus.reverie.core.design.ReveriePurple
+import com.perceptiveus.reverie.core.design.ReverieTileShape
 import com.perceptiveus.reverie.core.design.components.AlbumArt
-import com.perceptiveus.reverie.core.design.components.GlassSurface
 import com.perceptiveus.reverie.core.design.components.formatArtistAlbum
 import com.perceptiveus.reverie.domain.model.QueueSource
 import com.perceptiveus.reverie.domain.model.Track
@@ -68,9 +69,10 @@ fun QueueSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val listState = rememberLazyListState()
 
+    // Instant jump — animateScrollToItem walks/composes items and janks large queues.
     LaunchedEffect(currentIndex, queue.size) {
         if (currentIndex in queue.indices) {
-            listState.animateScrollToItem(currentIndex)
+            listState.scrollToItem(currentIndex)
         }
     }
 
@@ -106,9 +108,13 @@ fun QueueSheet(
                         .fillMaxWidth()
                         .heightIn(max = 480.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
-                    itemsIndexed(queue, key = { index, track -> "${track.id}-$index" }) { index, track ->
+                    itemsIndexed(
+                        items = queue,
+                        key = { index, track -> "${track.id}-$index" },
+                        contentType = { _, _ -> "queue-row" },
+                    ) { index, track ->
                         val isDisabled = track.id in disabledTrackIds
                         QueueSongRow(
                             track = track,
@@ -136,7 +142,9 @@ private fun QueueSheetHeader(
     queue: List<Track>,
     modifier: Modifier = Modifier,
 ) {
-    val presentation = queueHeaderPresentation(queueSource, queue)
+    val presentation = remember(queueSource, queue) {
+        queueHeaderPresentation(queueSource, queue)
+    }
 
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -187,6 +195,8 @@ private fun QueueHeaderArtwork(
             modifier = Modifier.size(64.dp),
             shape = MaterialTheme.shapes.medium,
             color = MaterialTheme.colorScheme.surfaceVariant,
+            tonalElevation = 0.dp,
+            shadowElevation = 0.dp,
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -311,80 +321,69 @@ private fun QueueSongRow(
     onMoveDown: () -> Unit,
 ) {
     val contentAlpha = if (isDisabled) 0.45f else 1f
-    GlassSurface(
+    val rowColor = when {
+        isCurrent && !isDisabled -> ReveriePurple.copy(alpha = 0.14f)
+        else -> MaterialTheme.colorScheme.surface
+    }
+
+    // Flat row — GlassSurface / IconButton chrome was too heavy for 100+ item queues.
+    Surface(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        highlighted = isCurrent && !isDisabled,
+        shape = ReverieTileShape,
+        color = rowColor,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
     ) {
         Row(
             modifier = Modifier
-                .padding(start = 4.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)
+                .padding(start = 2.dp, end = 4.dp, top = 6.dp, bottom = 6.dp)
                 .alpha(contentAlpha),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.width(36.dp),
+                modifier = Modifier.width(32.dp),
             ) {
-                IconButton(
-                    onClick = onMoveUp,
+                QueueRowIconAction(
+                    icon = Icons.Default.KeyboardArrowUp,
+                    contentDescription = "Move up",
                     enabled = canMoveUp,
-                    modifier = Modifier.size(28.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.KeyboardArrowUp,
-                        contentDescription = "Move up",
-                        modifier = Modifier.size(18.dp),
-                        tint = if (canMoveUp) {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-                        },
-                    )
-                }
+                    onClick = onMoveUp,
+                )
                 Text(
                     text = "${index + 1}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                IconButton(
-                    onClick = onMoveDown,
+                QueueRowIconAction(
+                    icon = Icons.Default.KeyboardArrowDown,
+                    contentDescription = "Move down",
                     enabled = canMoveDown,
-                    modifier = Modifier.size(28.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.KeyboardArrowDown,
-                        contentDescription = "Move down",
-                        modifier = Modifier.size(18.dp),
-                        tint = if (canMoveDown) {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
-                        },
-                    )
-                }
-            }
-            if (track.artworkPath.isNotBlank()) {
-                AlbumArt(
-                    artworkPath = track.artworkPath,
-                    modifier = Modifier.size(44.dp),
-                    contentDescription = track.title,
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.Default.MusicNote,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(36.dp),
+                    onClick = onMoveDown,
                 )
             }
+            AlbumArt(
+                artworkPath = track.artworkPath.takeIf { it.isNotBlank() },
+                modifier = Modifier.size(44.dp),
+                contentDescription = track.title,
+                listThumbnail = true,
+            )
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = track.title,
                     style = MaterialTheme.typography.titleSmall.copy(
-                        fontWeight = if (isCurrent && !isDisabled) FontWeight.SemiBold else FontWeight.Normal,
-                        textDecoration = if (isDisabled) TextDecoration.LineThrough else TextDecoration.None,
+                        fontWeight = if (isCurrent && !isDisabled) {
+                            FontWeight.SemiBold
+                        } else {
+                            FontWeight.Normal
+                        },
+                        textDecoration = if (isDisabled) {
+                            TextDecoration.LineThrough
+                        } else {
+                            TextDecoration.None
+                        },
                     ),
                     color = when {
                         isDisabled -> MaterialTheme.colorScheme.onSurfaceVariant
@@ -397,7 +396,11 @@ private fun QueueSongRow(
                 Text(
                     text = formatArtistAlbum(track.artist, track.album),
                     style = MaterialTheme.typography.bodySmall.copy(
-                        textDecoration = if (isDisabled) TextDecoration.LineThrough else TextDecoration.None,
+                        textDecoration = if (isDisabled) {
+                            TextDecoration.LineThrough
+                        } else {
+                            TextDecoration.None
+                        },
                     ),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -409,31 +412,48 @@ private fun QueueSongRow(
                     imageVector = Icons.Default.PlayArrow,
                     contentDescription = "Now playing",
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(22.dp),
+                    modifier = Modifier.size(20.dp),
                 )
             }
-            IconButton(
-                onClick = onToggleEnabled,
+            QueueRowIconAction(
+                icon = if (isDisabled) Icons.Default.Close else Icons.Default.Remove,
+                contentDescription = if (isDisabled) {
+                    "Include in queue"
+                } else {
+                    "Skip for this session"
+                },
                 enabled = isDisabled || canToggleOff,
-            ) {
-                Icon(
-                    imageVector = if (isDisabled) {
-                        Icons.Default.Close
-                    } else {
-                        Icons.Default.Remove
-                    },
-                    contentDescription = if (isDisabled) {
-                        "Include in queue"
-                    } else {
-                        "Skip for this session"
-                    },
-                    tint = if (isDisabled) {
-                        MaterialTheme.colorScheme.error
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                )
-            }
+                onClick = onToggleEnabled,
+                tint = if (isDisabled) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            )
         }
     }
+}
+
+@Composable
+private fun QueueRowIconAction(
+    icon: ImageVector,
+    contentDescription: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    tint: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurfaceVariant,
+) {
+    Icon(
+        imageVector = icon,
+        contentDescription = contentDescription,
+        modifier = Modifier
+            .size(28.dp)
+            .clickable(
+                enabled = enabled,
+                role = Role.Button,
+                onClick = onClick,
+            )
+            .padding(4.dp)
+            .size(20.dp),
+        tint = if (enabled) tint else tint.copy(alpha = 0.3f),
+    )
 }

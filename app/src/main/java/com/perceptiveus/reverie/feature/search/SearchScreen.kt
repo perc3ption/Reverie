@@ -252,6 +252,7 @@ private fun SearchSongRow(
                         artworkPath = track.artworkPath,
                         modifier = Modifier.size(40.dp),
                         contentDescription = track.title,
+                        listThumbnail = true,
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                 }

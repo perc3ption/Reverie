@@ -55,7 +55,7 @@ import com.perceptiveus.reverie.core.design.components.LockedFeatureCard
 import com.perceptiveus.reverie.core.design.components.QuickAccessCard
 import com.perceptiveus.reverie.core.design.components.RetroScreenTitle
 import com.perceptiveus.reverie.core.design.components.SectionHeader
-import com.perceptiveus.reverie.core.design.glowBorder
+import com.perceptiveus.reverie.core.design.glassBorder
 import com.perceptiveus.reverie.core.entitlement.AppFeature
 import com.perceptiveus.reverie.domain.model.Track
 import com.perceptiveus.reverie.feature.library.AddToPlaylistDialog
@@ -278,12 +278,14 @@ private fun HomeNowPlayingSection(
                     old?.durationMs == new?.durationMs
             }
     }.collectAsState(initial = viewModel.playbackState.value.currentTrack)
-    val progress by viewModel.playerProgress.collectAsState()
+    val isPlaying by remember(viewModel) {
+        viewModel.playerProgress.map { it.isPlaying }.distinctUntilChanged()
+    }.collectAsState(initial = viewModel.playerProgress.value.isPlaying)
 
     HomeNowPlayingCard(
         track = track,
-        isPlaying = progress.isPlaying,
-        positionMs = progress.positionMs,
+        isPlaying = isPlaying,
+        playerProgress = viewModel.playerProgress,
         onPlayPause = viewModel::togglePlayPause,
         onNext = viewModel::skipToNext,
         onPrevious = viewModel::skipToPrevious,
@@ -318,11 +320,9 @@ private fun HomeHeader(onSearchClick: () -> Unit) {
             color = ReverieGlass,
             modifier = Modifier
                 .size(44.dp)
-                .glowBorder(
+                .glassBorder(
                     shape = CircleShape,
-                    glowRadius = 4.dp,
                     borderAlpha = 0.35f,
-                    glowAlpha = 0.15f,
                 ),
         ) {
             Box(contentAlignment = Alignment.Center) {
@@ -491,11 +491,9 @@ private fun UnlockPremiumBanner(onLearnMore: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(16.dp)
-            .glowBorder(
+            .glassBorder(
                 shape = ReverieTileShape,
-                glowRadius = 6.dp,
                 borderAlpha = 0.45f,
-                glowAlpha = 0.22f,
             ),
         shape = ReverieTileShape,
         color = ReverieGlass,

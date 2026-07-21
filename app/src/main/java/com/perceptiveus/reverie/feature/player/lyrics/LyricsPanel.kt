@@ -90,6 +90,7 @@ fun LyricsPanel(
                 .height(220.dp),
             shape = ReverieTileShape,
             emphasized = true,
+            glow = true,
             content = content,
         )
     } else {
@@ -99,6 +100,7 @@ fun LyricsPanel(
                 .height(220.dp),
             shape = ReverieTileShape,
             emphasized = true,
+            glow = true,
             content = content,
         )
     }

@@ -28,6 +28,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -41,16 +42,23 @@ import com.perceptiveus.reverie.core.design.ReverieCardShape
 import com.perceptiveus.reverie.core.design.ReverieGlass
 import com.perceptiveus.reverie.core.design.glowBorder
 import com.perceptiveus.reverie.core.design.glowRing
+import com.perceptiveus.reverie.domain.model.PlayerProgress
 import com.perceptiveus.reverie.domain.model.Track
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 
 /**
  * Compact now-playing card for the Home screen (mockup: glowing glass card + transport).
+ *
+ * Seek position is collected inside [HomeSeekBar] so progress ticks do not recompose
+ * the glowing card chrome, album art, or transport buttons.
  */
 @Composable
 fun HomeNowPlayingCard(
     track: Track?,
     isPlaying: Boolean,
-    positionMs: Long,
+    playerProgress: StateFlow<PlayerProgress>,
     onPlayPause: () -> Unit,
     onNext: () -> Unit,
     onPrevious: () -> Unit,
@@ -162,7 +170,7 @@ fun HomeNowPlayingCard(
 
                     val durationMs = track?.durationMs?.coerceAtLeast(1L) ?: 1L
                     HomeSeekBar(
-                        positionMs = if (track != null) positionMs else 0L,
+                        playerProgress = playerProgress,
                         durationMs = if (track != null) durationMs else 1L,
                         enabled = track != null,
                         onSeek = onSeek,
@@ -224,11 +232,14 @@ fun HomeNowPlayingCard(
 
 @Composable
 private fun HomeSeekBar(
-    positionMs: Long,
+    playerProgress: StateFlow<PlayerProgress>,
     durationMs: Long,
     enabled: Boolean,
     onSeek: (Long) -> Unit,
 ) {
+    val positionMs by remember(playerProgress) {
+        playerProgress.map { it.positionMs }.distinctUntilChanged()
+    }.collectAsState(initial = playerProgress.value.positionMs)
     val safeDuration = durationMs.coerceAtLeast(1L)
     var sliderPosition by remember { mutableFloatStateOf(0f) }
     var isDragging by remember { mutableStateOf(false) }

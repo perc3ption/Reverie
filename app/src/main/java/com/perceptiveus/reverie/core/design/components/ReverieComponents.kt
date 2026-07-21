@@ -20,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,10 +36,10 @@ import com.perceptiveus.reverie.core.design.ReverieGlass
 import com.perceptiveus.reverie.core.design.ReveriePremiumGold
 import com.perceptiveus.reverie.core.design.ReveriePurple
 import com.perceptiveus.reverie.core.design.ReverieTileShape
+import com.perceptiveus.reverie.core.design.glassBorder
 import com.perceptiveus.reverie.core.design.glowBorder
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.Dp
 
 @Composable
 fun SectionHeader(
@@ -65,9 +66,10 @@ fun SectionHeader(
 /**
  * Shared glass panel used across Library, Settings, Player, etc.
  *
- * - [emphasized]: stronger glow (hero / featured cards)
+ * - [emphasized]: stronger fill emphasis for featured panels
  * - [highlighted]: purple-tinted fill (selected / All Songs)
- * - default: subtle list-row glass with soft border
+ * - [glow]: purple neon glow + border — Player / hero only
+ * - default: flat glass fill with no neon rim (list rows, queue, etc.)
  */
 @Composable
 fun GlassSurface(
@@ -77,22 +79,25 @@ fun GlassSurface(
     shape: Shape = ReverieTileShape,
     emphasized: Boolean = false,
     highlighted: Boolean = false,
+    glow: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    val glowRadius: Dp = if (emphasized) 8.dp else 2.dp
-    val borderAlpha = if (emphasized) 0.55f else 0.2f
-    val glowAlpha = if (emphasized) 0.28f else 0.08f
     val fill: Color = when {
         highlighted -> ReveriePurple.copy(alpha = 0.14f)
         else -> ReverieGlass
     }
-    val surfaceModifier = modifier.glowBorder(
-        color = ReveriePurple,
-        shape = shape,
-        glowRadius = glowRadius,
-        borderAlpha = borderAlpha,
-        glowAlpha = glowAlpha,
-    )
+    val surfaceModifier = if (glow) {
+        modifier.glowBorder(
+            color = ReveriePurple,
+            shape = shape,
+            glowRadius = if (emphasized) 8.dp else 4.dp,
+            borderAlpha = if (emphasized) 0.55f else 0.35f,
+            glowAlpha = if (emphasized) 0.28f else 0.12f,
+        )
+    } else {
+        // No purple rim — list rows must stay flat (shadow-free, neon-free).
+        modifier
+    }
 
     if (onClick != null) {
         Surface(
@@ -101,6 +106,8 @@ fun GlassSurface(
             modifier = surfaceModifier,
             shape = shape,
             color = fill,
+            tonalElevation = 0.dp,
+            shadowElevation = 0.dp,
         ) {
             content()
         }
@@ -109,6 +116,8 @@ fun GlassSurface(
             modifier = surfaceModifier,
             shape = shape,
             color = fill,
+            tonalElevation = 0.dp,
+            shadowElevation = 0.dp,
         ) {
             content()
         }
@@ -143,12 +152,10 @@ fun LockedFeatureCard(
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
-            .glowBorder(
+            .glassBorder(
                 color = MaterialTheme.colorScheme.outline,
                 shape = ReverieTileShape,
-                glowRadius = 0.dp,
                 borderAlpha = 0.45f,
-                glowAlpha = 0f,
             ),
         shape = ReverieTileShape,
         color = ReverieGlass.copy(alpha = 0.55f),
@@ -205,12 +212,10 @@ fun QuickAccessCard(
         modifier = modifier
             .fillMaxWidth()
             .height(108.dp)
-            .glowBorder(
+            .glassBorder(
                 color = MaterialTheme.colorScheme.primary,
                 shape = ReverieTileShape,
-                glowRadius = 4.dp,
                 borderAlpha = 0.22f,
-                glowAlpha = 0.12f,
             ),
         shape = ReverieTileShape,
         color = ReverieGlass,
@@ -266,37 +271,62 @@ fun AlbumArtPlaceholder(
 }
 
 /**
- * Loads cached album art when [artworkPath] is non-blank; otherwise shows [AlbumArtPlaceholder].
+ * Loads cached album art when [artworkPath] is non-blank; otherwise shows a compact placeholder.
  *
  * Trusts the stored path (no sync [java.io.File] I/O on the UI thread). Coil shows nothing on
- * miss and the placeholder underneath remains visible.
+ * miss and the background underneath remains visible.
+ *
+ * @param listThumbnail decode smaller, skip crossfade — use for Library / Queue rows.
  */
 @Composable
 fun AlbumArt(
     artworkPath: String?,
     modifier: Modifier = Modifier,
     contentDescription: String? = null,
+    listThumbnail: Boolean = false,
 ) {
-    Box(modifier = modifier) {
-        AlbumArtPlaceholder(modifier = Modifier.matchParentSize())
+    val context = LocalContext.current
+    val shape = ReverieArtShape
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment = Alignment.Center,
+    ) {
         if (!artworkPath.isNullOrBlank()) {
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
+            val request = remember(artworkPath, listThumbnail) {
+                ImageRequest.Builder(context)
                     .data(artworkPath)
-                    .memoryCacheKey(artworkPath)
+                    .memoryCacheKey(
+                        if (listThumbnail) "thumb-$artworkPath" else artworkPath,
+                    )
                     .diskCacheKey(artworkPath)
-                    .crossfade(true)
-                    .build(),
+                    .crossfade(!listThumbnail)
+                    .apply {
+                        if (listThumbnail) {
+                            // ~48dp @ xxxhdpi — keeps decode/scroll cheap for long lists.
+                            size(192)
+                        }
+                    }
+                    .build()
+            }
+            AsyncImage(
+                model = request,
                 contentDescription = contentDescription,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .matchParentSize()
-                    .clip(ReverieArtShape)
-                    .border(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
-                        shape = ReverieArtShape,
-                    ),
+                    .clip(shape),
+            )
+        } else {
+            Text(
+                text = "♪",
+                style = if (listThumbnail) {
+                    MaterialTheme.typography.titleMedium
+                } else {
+                    MaterialTheme.typography.displaySmall
+                },
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
             )
         }
     }

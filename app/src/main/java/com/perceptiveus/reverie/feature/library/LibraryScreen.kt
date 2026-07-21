@@ -47,6 +47,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -63,6 +64,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.perceptiveus.reverie.core.design.ReverieGlass
+import com.perceptiveus.reverie.core.design.ReverieTileShape
 import com.perceptiveus.reverie.core.design.components.AlbumArt
 import com.perceptiveus.reverie.core.design.components.GlassSurface
 import com.perceptiveus.reverie.core.design.components.LockedFeatureCard
@@ -970,28 +973,24 @@ private fun SongListItem(
             .padding(horizontal = 16.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        GlassSurface(
+        Surface(
             onClick = onClick,
             modifier = Modifier.weight(1f),
+            shape = ReverieTileShape,
+            color = ReverieGlass,
+            tonalElevation = 0.dp,
+            shadowElevation = 0.dp,
         ) {
             Row(
-                modifier = Modifier.padding(start = 12.dp, top = 12.dp, bottom = 12.dp, end = 8.dp),
+                modifier = Modifier.padding(start = 12.dp, top = 10.dp, bottom = 10.dp, end = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (track.artworkPath.isNotBlank()) {
-                    AlbumArt(
-                        artworkPath = track.artworkPath,
-                        modifier = Modifier.size(40.dp),
-                        contentDescription = track.title,
-                    )
-                } else {
-                    Icon(
-                        Icons.Default.MusicNote,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(32.dp),
-                    )
-                }
+                AlbumArt(
+                    artworkPath = track.artworkPath.takeIf { it.isNotBlank() },
+                    modifier = Modifier.size(40.dp),
+                    contentDescription = track.title,
+                    listThumbnail = true,
+                )
                 Column(
                     modifier = Modifier
                         .weight(1f)

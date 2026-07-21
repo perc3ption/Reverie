@@ -3,6 +3,12 @@ package com.perceptiveus.reverie.feature.player.visualizer
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -15,6 +21,13 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import com.perceptiveus.reverie.core.design.ReveriePurple
 import com.perceptiveus.reverie.core.design.ReveriePurpleGlow
+import com.perceptiveus.reverie.domain.model.PlayerProgress
+import com.perceptiveus.reverie.playback.PlaybackAudioAnalyzer
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.isActive
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.min
@@ -28,15 +41,67 @@ private val AmberLed = Color(0xFFFFB300)
 private val HotRed = Color(0xFFFF1744)
 private val SoftViolet = Color(0xFFB388FF)
 
+/**
+ * Owns frame buffers and a draw tick so only this Canvas invalidates at ~30fps —
+ * not the surrounding GlassSurface / style picker.
+ */
 @Composable
 fun VisualizerCanvas(
     style: VisualizerStyle,
-    spectrum: FloatArray,
-    peaks: FloatArray,
-    waveform: FloatArray,
+    frameFlow: StateFlow<PlaybackAudioAnalyzer.Frame>,
+    playerProgress: StateFlow<PlayerProgress>,
     modifier: Modifier = Modifier,
 ) {
+    val isPlaying by remember(playerProgress) {
+        playerProgress.map { it.isPlaying }.distinctUntilChanged()
+    }.collectAsState(initial = playerProgress.value.isPlaying)
+
+    val spectrum = remember {
+        FloatArray(PlaybackAudioAnalyzer.DEFAULT_BAR_COUNT)
+    }
+    val peaks = remember {
+        FloatArray(PlaybackAudioAnalyzer.DEFAULT_BAR_COUNT)
+    }
+    val waveform = remember {
+        FloatArray(PlaybackAudioAnalyzer.DEFAULT_WAVEFORM_POINTS)
+    }
+    var drawTick by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(frameFlow, isPlaying) {
+        if (isPlaying) {
+            frameFlow.collect { frame ->
+                frame.spectrum.copyInto(spectrum)
+                frame.peaks.copyInto(peaks)
+                frame.waveform.copyInto(waveform)
+                drawTick++
+            }
+        } else {
+            while (isActive) {
+                var any = false
+                for (i in spectrum.indices) {
+                    val v = spectrum[i] * 0.88f
+                    spectrum[i] = if (v < 0.01f) 0f else v
+                    if (spectrum[i] > 0.01f) any = true
+                }
+                for (i in peaks.indices) {
+                    val v = peaks[i] * 0.92f
+                    peaks[i] = if (v < 0.01f) 0f else v
+                    if (peaks[i] > 0.01f) any = true
+                }
+                for (i in waveform.indices) {
+                    waveform[i] *= 0.85f
+                }
+                drawTick++
+                if (!any) break
+                delay(33)
+            }
+        }
+    }
+
     Canvas(modifier = modifier.fillMaxSize()) {
+        // Establish read dependency so only this Canvas redraws on tick.
+        drawTick
+
         drawRect(CrtBlack)
         // Subtle CRT scanlines
         val lineStep = 3f

@@ -22,7 +22,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,9 +34,9 @@ import androidx.compose.ui.unit.dp
 import com.perceptiveus.reverie.core.design.ReveriePurple
 import com.perceptiveus.reverie.core.design.ReverieTileShape
 import com.perceptiveus.reverie.core.design.components.GlassSurface
+import com.perceptiveus.reverie.domain.model.PlayerProgress
 import com.perceptiveus.reverie.playback.PlaybackAudioAnalyzer
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
+import kotlinx.coroutines.flow.StateFlow
 
 /** Full media-area height when visualizer is the primary pane. */
 private val MediaAreaHeight = 220.dp
@@ -48,12 +47,15 @@ private val CompactVisualizerHeight = 112.dp
 /**
  * Early-2000s style music visualizer driven by decoded PCM from ExoPlayer.
  *
+ * Frame collection and canvas redraw stay inside [VisualizerCanvas] so the glass chrome
+ * (style picker, borders) does not recompose at ~30fps.
+ *
  * @param compact smaller tile under transport controls (always-visible spectrum).
  */
 @Composable
 fun MusicVisualizer(
-    frame: PlaybackAudioAnalyzer.Frame,
-    isPlaying: Boolean,
+    frameFlow: StateFlow<PlaybackAudioAnalyzer.Frame>,
+    playerProgress: StateFlow<PlayerProgress>,
     selectedStyle: VisualizerStyle,
     canAccessPremium: Boolean,
     onStyleSelected: (VisualizerStyle) -> Unit,
@@ -62,44 +64,6 @@ fun MusicVisualizer(
     areaHeight: Dp? = null,
     compact: Boolean = false,
 ) {
-    var spectrum by remember {
-        mutableStateOf(FloatArray(PlaybackAudioAnalyzer.DEFAULT_BAR_COUNT))
-    }
-    var peaks by remember {
-        mutableStateOf(FloatArray(PlaybackAudioAnalyzer.DEFAULT_BAR_COUNT))
-    }
-    var waveform by remember {
-        mutableStateOf(FloatArray(PlaybackAudioAnalyzer.DEFAULT_WAVEFORM_POINTS))
-    }
-
-    LaunchedEffect(frame, isPlaying) {
-        if (isPlaying) {
-            spectrum = frame.spectrum
-            peaks = frame.peaks
-            waveform = frame.waveform
-        } else {
-            while (isActive) {
-                var any = false
-                val nextSpectrum = FloatArray(spectrum.size) { i ->
-                    val v = spectrum[i] * 0.88f
-                    if (v > 0.01f) any = true
-                    if (v < 0.01f) 0f else v
-                }
-                val nextPeaks = FloatArray(peaks.size) { i ->
-                    val v = peaks[i] * 0.92f
-                    if (v > 0.01f) any = true
-                    if (v < 0.01f) 0f else v
-                }
-                val nextWave = FloatArray(waveform.size) { i -> waveform[i] * 0.85f }
-                spectrum = nextSpectrum
-                peaks = nextPeaks
-                waveform = nextWave
-                if (!any) break
-                delay(33)
-            }
-        }
-    }
-
     val tileHeight = areaHeight ?: if (compact) CompactVisualizerHeight else MediaAreaHeight
 
     GlassSurface(
@@ -108,6 +72,7 @@ fun MusicVisualizer(
             .height(tileHeight),
         shape = ReverieTileShape,
         emphasized = true,
+        glow = true,
     ) {
         Column(
             modifier = Modifier
@@ -167,9 +132,8 @@ fun MusicVisualizer(
 
             VisualizerCanvas(
                 style = selectedStyle,
-                spectrum = spectrum,
-                peaks = peaks,
-                waveform = waveform,
+                frameFlow = frameFlow,
+                playerProgress = playerProgress,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
