@@ -4,7 +4,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -48,8 +47,9 @@ import com.perceptiveus.reverie.feature.smartplaylist.SmartPlaylistEditorScreen
 import com.perceptiveus.reverie.feature.smartplaylist.SmartPlaylistEditorViewModel
 import com.perceptiveus.reverie.feature.smartplaylist.SmartPlaylistListScreen
 import com.perceptiveus.reverie.feature.smartplaylist.SmartPlaylistListViewModel
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
+
+private const val LIBRARY_TAB_KEY = "library_tab"
 
 @Composable
 fun ReverieNavGraph(
@@ -60,9 +60,6 @@ fun ReverieNavGraph(
     startDestination: String = ReverieDestination.Home.route,
 ) {
     val scope = rememberCoroutineScope()
-    val libraryTabRequests = remember {
-        MutableSharedFlow<LibraryTab>(extraBufferCapacity = 1)
-    }
 
     fun navigateToLibrary(tab: LibraryTab) {
         navController.navigate(ReverieDestination.Library.route) {
@@ -72,7 +69,9 @@ fun ReverieNavGraph(
             launchSingleTop = true
             restoreState = true
         }
-        scope.launch { libraryTabRequests.emit(tab) }
+        // Set after navigate so restoreState cannot overwrite the requested tab.
+        navController.getBackStackEntry(ReverieDestination.Library.route)
+            .savedStateHandle[LIBRARY_TAB_KEY] = tab.name
     }
 
     NavHost(
@@ -124,10 +123,19 @@ fun ReverieNavGraph(
             )
         }
 
-        composable(ReverieDestination.Library.route) {
+        composable(ReverieDestination.Library.route) { entry ->
             val viewModel: LibraryViewModel = viewModel(factory = factory)
+            val requestedTabName by entry.savedStateHandle
+                .getStateFlow<String?>(LIBRARY_TAB_KEY, null)
+                .collectAsState()
             LibraryScreen(
                 viewModel = viewModel,
+                requestedTab = requestedTabName?.let { name ->
+                    runCatching { LibraryTab.valueOf(name) }.getOrNull()
+                },
+                onRequestedTabConsumed = {
+                    entry.savedStateHandle.remove<String>(LIBRARY_TAB_KEY)
+                },
                 onPremiumFeatureClick = {
                     navController.navigate(ReverieDestination.PremiumFeatures.route)
                 },
@@ -136,6 +144,9 @@ fun ReverieNavGraph(
                 },
                 onPlaylistClick = { playlist ->
                     navController.navigate(ReverieDestination.PlaylistDetail.createRoute(playlist.id))
+                },
+                onSmartPlaylistClick = { smartPlaylistId ->
+                    navController.navigate(ReverieDestination.SmartPlaylistDetail.createRoute(smartPlaylistId))
                 },
                 onNavigateToPlayer = {
                     navController.navigate(ReverieDestination.Player.route) {
@@ -163,7 +174,6 @@ fun ReverieNavGraph(
                 onNavigateToAudioFx = {
                     navController.navigate(ReverieDestination.AudioFx.route)
                 },
-                tabRequests = libraryTabRequests,
             )
         }
 

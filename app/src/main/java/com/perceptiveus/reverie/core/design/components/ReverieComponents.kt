@@ -245,3 +245,35 @@ fun RetroScreenTitle(
         color = MaterialTheme.colorScheme.primary,
     )
 }
+
+/**
+ * Shared page header matching Library / Quick Access screens:
+ * same top padding and title size (no Material TopAppBar chrome).
+ */
+@Composable
+fun ReverieScreenHeader(
+    title: String,
+    modifier: Modifier = Modifier,
+    navigationIcon: @Composable (() -> Unit)? = null,
+    actions: @Composable (() -> Unit)? = null,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f),
+        ) {
+            if (navigationIcon != null) {
+                navigationIcon()
+                Spacer(modifier = Modifier.width(4.dp))
+            }
+            RetroScreenTitle(title = title)
+        }
+        actions?.invoke()
+    }
+}

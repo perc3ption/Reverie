@@ -67,16 +67,16 @@ import androidx.compose.ui.unit.dp
 import com.perceptiveus.reverie.core.design.components.AlbumArt
 import com.perceptiveus.reverie.core.design.components.LockedFeatureCard
 import com.perceptiveus.reverie.core.design.components.QuickAccessCard
-import com.perceptiveus.reverie.core.design.components.RetroScreenTitle
+import com.perceptiveus.reverie.core.design.components.ReverieScreenHeader
 import com.perceptiveus.reverie.core.design.components.SectionHeader
 import com.perceptiveus.reverie.core.entitlement.AppFeature
 import com.perceptiveus.reverie.domain.model.Album
 import com.perceptiveus.reverie.domain.model.Artist
 import com.perceptiveus.reverie.domain.model.MusicFolder
 import com.perceptiveus.reverie.domain.model.Playlist
+import com.perceptiveus.reverie.domain.model.SmartPlaylist
 import com.perceptiveus.reverie.domain.model.Track
 import com.perceptiveus.reverie.feature.premium.UpgradeDialog
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
 
 @Composable
@@ -85,13 +85,15 @@ fun LibraryScreen(
     onPremiumFeatureClick: () -> Unit,
     onSongDetailsClick: (Track) -> Unit,
     onPlaylistClick: (Playlist) -> Unit,
+    onSmartPlaylistClick: (String) -> Unit,
     onNavigateToPlayer: () -> Unit,
     onNavigateToSearch: () -> Unit,
     onNavigateToStats: () -> Unit,
     onNavigateToSmartPlaylists: () -> Unit,
     onNavigateToImport: () -> Unit,
     onNavigateToAudioFx: () -> Unit,
-    tabRequests: Flow<LibraryTab>? = null,
+    requestedTab: LibraryTab? = null,
+    onRequestedTabConsumed: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(LibraryTab.FOLDERS) }
@@ -99,14 +101,18 @@ fun LibraryScreen(
     var lockedFeature by remember { mutableStateOf<AppFeature?>(null) }
     var showCreatePlaylistDialog by remember { mutableStateOf(false) }
     var playlistPendingDelete by remember { mutableStateOf<Playlist?>(null) }
+    var smartPlaylistPendingDelete by remember { mutableStateOf<SmartPlaylist?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(tabRequests) {
-        tabRequests?.collect { selectedTab = it }
+    LaunchedEffect(requestedTab) {
+        val tab = requestedTab ?: return@LaunchedEffect
+        selectedTab = tab
+        onRequestedTabConsumed()
     }
 
     val songs by viewModel.songs.collectAsState()
     val playlists by viewModel.playlists.collectAsState()
+    val smartPlaylists by viewModel.smartPlaylists.collectAsState()
     val artists by viewModel.artists.collectAsState()
     val albums by viewModel.albums.collectAsState()
     val folderBrowser by viewModel.folderBrowser.collectAsState()
@@ -158,6 +164,19 @@ fun LibraryScreen(
             onConfirm = {
                 viewModel.deletePlaylist(playlist)
                 playlistPendingDelete = null
+            },
+        )
+    }
+
+    smartPlaylistPendingDelete?.let { playlist ->
+        ConfirmDeletePlaylistDialog(
+            playlistName = playlist.name,
+            title = "Delete smart playlist?",
+            body = "\"${playlist.name}\" will be permanently deleted. Songs in your library are not removed.",
+            onDismiss = { smartPlaylistPendingDelete = null },
+            onConfirm = {
+                viewModel.deleteSmartPlaylist(playlist)
+                smartPlaylistPendingDelete = null
             },
         )
     }
@@ -253,7 +272,7 @@ fun LibraryScreen(
                                     onCreateClick = { showCreatePlaylistDialog = true },
                                 )
                             }
-                            if (playlists.isEmpty()) {
+                            if (playlists.isEmpty() && smartPlaylists.isEmpty()) {
                                 item {
                                     Text(
                                         text = "No playlists yet. Tap + to create one.",
@@ -263,18 +282,51 @@ fun LibraryScreen(
                                     )
                                 }
                             } else {
-                                items(playlists, key = { it.id }) { playlist ->
-                                    PlaylistListItem(
-                                        playlist = playlist,
-                                        onClick = { onPlaylistClick(playlist) },
-                                        onPlayClick = {
-                                            viewModel.playPlaylist(playlist)
-                                            if (playlist.trackCount > 0) {
-                                                onNavigateToPlayer()
-                                            }
-                                        },
-                                        onDeleteClick = { playlistPendingDelete = playlist },
-                                    )
+                                if (playlists.isNotEmpty()) {
+                                    items(playlists, key = { it.id }) { playlist ->
+                                        PlaylistListItem(
+                                            playlist = playlist,
+                                            onClick = { onPlaylistClick(playlist) },
+                                            onPlayClick = {
+                                                viewModel.playPlaylist(playlist)
+                                                if (playlist.trackCount > 0) {
+                                                    onNavigateToPlayer()
+                                                }
+                                            },
+                                            onDeleteClick = { playlistPendingDelete = playlist },
+                                        )
+                                    }
+                                } else {
+                                    item {
+                                        Text(
+                                            text = "No manual playlists yet. Tap + to create one.",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                        )
+                                    }
+                                }
+                                if (smartPlaylists.isNotEmpty()) {
+                                    item {
+                                        Text(
+                                            text = "Smart Playlists",
+                                            style = MaterialTheme.typography.labelLarge,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                        )
+                                    }
+                                    items(smartPlaylists, key = { "smart-${it.id}" }) { smart ->
+                                        SmartPlaylistListItem(
+                                            playlist = smart,
+                                            onClick = { onSmartPlaylistClick(smart.id) },
+                                            onPlayClick = {
+                                                viewModel.playSmartPlaylist(smart) {
+                                                    onNavigateToPlayer()
+                                                }
+                                            },
+                                            onDeleteClick = { smartPlaylistPendingDelete = smart },
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -701,6 +753,74 @@ private fun PlaylistsSectionHeader(onCreateClick: () -> Unit) {
 }
 
 @Composable
+private fun SmartPlaylistListItem(
+    playlist: SmartPlaylist,
+    onClick: () -> Unit,
+    onPlayClick: () -> Unit,
+    onDeleteClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 2.dp),
+        color = MaterialTheme.colorScheme.surface,
+        shape = MaterialTheme.shapes.medium,
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 12.dp, top = 10.dp, bottom = 10.dp, end = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Default.AutoAwesome,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(40.dp),
+            )
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 12.dp),
+            ) {
+                Text(
+                    playlist.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    when (playlist.ruleCount) {
+                        1 -> "Smart · 1 rule"
+                        else -> "Smart · ${playlist.ruleCount} rules"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            IconButton(onClick = onPlayClick) {
+                Icon(
+                    Icons.Default.PlayArrow,
+                    contentDescription = "Play smart playlist",
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+            IconButton(onClick = onDeleteClick) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = "Delete smart playlist",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
 private fun PlaylistListItem(
     playlist: Playlist,
     onClick: () -> Unit,
@@ -818,12 +938,14 @@ private fun ConfirmDeletePlaylistDialog(
     playlistName: String,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
+    title: String = "Delete playlist?",
+    body: String = "\"$playlistName\" will be permanently deleted. Songs in your library are not removed.",
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Delete playlist?") },
+        title = { Text(title) },
         text = {
-            Text("\"$playlistName\" will be permanently deleted. Songs in your library are not removed.")
+            Text(body)
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {
@@ -930,23 +1052,19 @@ private fun SongListItem(
 
 @Composable
 private fun LibraryTopBar(onSearchClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        RetroScreenTitle(title = "Library")
-        Row {
-            IconButton(onClick = onSearchClick) {
-                Icon(Icons.Default.Search, contentDescription = "Search")
+    ReverieScreenHeader(
+        title = "Library",
+        actions = {
+            Row {
+                IconButton(onClick = onSearchClick) {
+                    Icon(Icons.Default.Search, contentDescription = "Search")
+                }
+                IconButton(onClick = { }) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "More")
+                }
             }
-            IconButton(onClick = { }) {
-                Icon(Icons.Default.MoreVert, contentDescription = "More")
-            }
-        }
-    }
+        },
+    )
 }
 
 @Composable

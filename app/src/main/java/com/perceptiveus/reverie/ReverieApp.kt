@@ -54,40 +54,25 @@ fun ReverieApp(container: AppContainer) {
         }
 
         val showBottomBar = currentRoute in ReverieDestination.bottomBarVisibleRoutes
-        val miniPlayerAllowed = showBottomBar &&
-            currentRoute != ReverieDestination.Player.route &&
-            currentRoute != ReverieDestination.SongDetail.route &&
-            currentRoute != ReverieDestination.PlaylistDetail.route &&
-            currentRoute != ReverieDestination.LibraryStats.route &&
-            currentRoute != ReverieDestination.AudioFx.route &&
-            currentRoute != ReverieDestination.Tutorial.route &&
-            currentRoute != ReverieDestination.TutorialChapter.route &&
-            currentRoute != ReverieDestination.SmartPlaylists.route &&
-            currentRoute != ReverieDestination.SmartPlaylistDetail.route &&
-            currentRoute != ReverieDestination.SmartPlaylistEditor.route
+        // Mini player on every screen except the full Player (which has its own transport).
+        val miniPlayerAllowed = currentRoute != null &&
+            currentRoute != ReverieDestination.Player.route
 
-        // Keep a tab highlighted on detail screens so the bottom bar never sits in an
-        // "nothing selected" state (which can mis-fire navigation back to Home).
+        // Keep a tab highlighted on detail / Quick Access screens so the bottom bar
+        // never sits in an "nothing selected" state.
         val selectedTabRoute = when (currentRoute) {
-            ReverieDestination.SongDetail.route,
-            ReverieDestination.PlaylistDetail.route,
-            ReverieDestination.LibraryStats.route,
-            ReverieDestination.AudioFx.route,
-            ReverieDestination.Tutorial.route,
-            ReverieDestination.TutorialChapter.route,
-            ReverieDestination.SmartPlaylists.route,
-            ReverieDestination.SmartPlaylistDetail.route,
-            ReverieDestination.SmartPlaylistEditor.route,
-            -> {
+            ReverieDestination.Home.route,
+            ReverieDestination.Library.route,
+            ReverieDestination.Player.route,
+            ReverieDestination.Settings.route,
+            -> currentRoute
+            else -> {
                 val previous = navController.previousBackStackEntry?.destination?.route
-                when (previous) {
-                    ReverieDestination.Player.route -> ReverieDestination.Player.route
-                    ReverieDestination.Library.route -> ReverieDestination.Library.route
-                    ReverieDestination.Home.route -> ReverieDestination.Home.route
-                    else -> ReverieDestination.Library.route
+                when {
+                    ReverieDestination.isMainTabRoute(previous) -> previous
+                    else -> ReverieDestination.Home.route
                 }
             }
-            else -> currentRoute
         }
 
         Scaffold(
@@ -113,6 +98,8 @@ fun ReverieApp(container: AppContainer) {
                         ReverieBottomBar(
                             selectedRoute = selectedTabRoute,
                             onNavigate = { destination ->
+                                // Always navigate — even when the tab looks selected while a
+                                // Quick Access overlay (Import, Audio FX, etc.) is on top.
                                 navController.navigate(destination.route) {
                                     popUpTo(navController.graph.findStartDestination().id) {
                                         saveState = true

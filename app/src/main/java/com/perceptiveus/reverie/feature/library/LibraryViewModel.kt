@@ -8,11 +8,13 @@ import com.perceptiveus.reverie.data.repository.MusicLibraryRepository
 import com.perceptiveus.reverie.data.repository.PlaybackRepository
 import com.perceptiveus.reverie.data.repository.PlaylistLimitException
 import com.perceptiveus.reverie.data.repository.PlaylistRepository
+import com.perceptiveus.reverie.data.repository.SmartPlaylistRepository
 import com.perceptiveus.reverie.domain.model.Album
 import com.perceptiveus.reverie.domain.model.Artist
 import com.perceptiveus.reverie.domain.model.MusicFolder
 import com.perceptiveus.reverie.domain.model.Playlist
 import com.perceptiveus.reverie.domain.model.QueueSource
+import com.perceptiveus.reverie.domain.model.SmartPlaylist
 import com.perceptiveus.reverie.domain.model.Track
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -61,6 +63,7 @@ class LibraryViewModel(
     private val playlistRepository: PlaylistRepository,
     private val playbackRepository: PlaybackRepository,
     private val featureAccessChecker: FeatureAccessChecker,
+    private val smartPlaylistRepository: SmartPlaylistRepository,
 ) : ViewModel() {
 
     val songs: StateFlow<List<Track>> = musicLibraryRepository.songs
@@ -77,6 +80,10 @@ class LibraryViewModel(
 
     val playlists: StateFlow<List<Playlist>> = playlistRepository.playlists
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val smartPlaylists: StateFlow<List<SmartPlaylist>> =
+        smartPlaylistRepository.playlists
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val _folderPath = MutableStateFlow("")
     val folderBrowser: StateFlow<FolderBrowserState> = combine(
@@ -170,6 +177,39 @@ class LibraryViewModel(
                     coverPath = playlist.coverPath,
                 ),
             )
+        }
+    }
+
+    fun playSmartPlaylist(playlist: SmartPlaylist, onStarted: () -> Unit = {}) {
+        viewModelScope.launch {
+            val tracks = runCatching {
+                smartPlaylistRepository.evaluateTracks(playlist.id)
+            }.getOrElse {
+                _userMessages.emit("Could not play smart playlist.")
+                return@launch
+            }
+            if (tracks.isEmpty()) {
+                _userMessages.emit("No matching songs.")
+                return@launch
+            }
+            playbackRepository.play(
+                tracks,
+                0,
+                QueueSource.SmartPlaylist(name = playlist.name),
+            )
+            onStarted()
+        }
+    }
+
+    fun deleteSmartPlaylist(playlist: SmartPlaylist) {
+        viewModelScope.launch {
+            runCatching {
+                smartPlaylistRepository.deletePlaylist(playlist.id)
+            }.onSuccess {
+                _userMessages.emit("Deleted \"${playlist.name}\".")
+            }.onFailure {
+                _userMessages.emit("Could not delete smart playlist.")
+            }
         }
     }
 

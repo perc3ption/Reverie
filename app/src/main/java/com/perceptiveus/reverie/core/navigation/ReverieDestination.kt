@@ -154,6 +154,8 @@ sealed class ReverieDestination(
             Player.route,
             Settings.route,
             Search.route,
+            ImportMusic.route,
+            PremiumFeatures.route,
             LibraryStats.route,
             AudioFx.route,
             Tutorial.route,
@@ -164,5 +166,11 @@ sealed class ReverieDestination(
             SongDetail.route,
             PlaylistDetail.route,
         )
+
+        fun isMainTabRoute(route: String?): Boolean =
+            route == Home.route ||
+                route == Library.route ||
+                route == Player.route ||
+                route == Settings.route
     }
 }
