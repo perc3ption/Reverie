@@ -1,6 +1,7 @@
 package com.perceptiveus.reverie.data.storage
 
 import android.content.Context
+import com.perceptiveus.reverie.data.import.SupportedAudioFormats
 import java.io.File
 import java.io.IOException
 
@@ -712,7 +713,8 @@ class MusicLibraryStorage(
             - Use Import Music to copy or move files from elsewhere on your device
               into this folder.
 
-            Supported formats include common audio types (MP3, FLAC, AAC, WAV, OGG, etc.).
+            Supported formats: ${SupportedAudioFormats.IMPORT_FORMATS_LINE}.
+            ${SupportedAudioFormats.WMA_PLAYBACK_NOTE}
             """.trimIndent() + "\n",
         )
     }

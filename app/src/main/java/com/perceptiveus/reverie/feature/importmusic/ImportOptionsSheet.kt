@@ -18,6 +18,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.perceptiveus.reverie.data.import.SupportedAudioFormats
 import com.perceptiveus.reverie.data.storage.ImportMode
 import com.perceptiveus.reverie.data.storage.MusicLibraryStorage
 
@@ -56,6 +57,11 @@ fun ImportOptionsSheet(
             Text(
                 text = "Choose what to import, then copy or move it into your Reverie library.",
                 style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = SupportedAudioFormats.IMPORT_SUPPORT_SUMMARY,
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 

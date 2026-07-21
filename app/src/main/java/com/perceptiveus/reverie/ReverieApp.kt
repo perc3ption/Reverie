@@ -9,6 +9,8 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -28,6 +30,7 @@ import com.perceptiveus.reverie.data.repository.PlaybackRepository
 import com.perceptiveus.reverie.domain.model.Track
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.collectLatest
 
 @Composable
 fun ReverieApp(container: AppContainer) {
@@ -42,6 +45,13 @@ fun ReverieApp(container: AppContainer) {
         val factory = remember { ReverieViewModelFactory(container) }
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute = navBackStackEntry?.destination?.route
+        val playbackSnackbarHostState = remember { SnackbarHostState() }
+
+        LaunchedEffect(container.playbackRepository) {
+            container.playbackRepository.userMessages.collectLatest { message ->
+                playbackSnackbarHostState.showSnackbar(message)
+            }
+        }
 
         val showBottomBar = currentRoute in ReverieDestination.bottomBarVisibleRoutes
         val miniPlayerAllowed = showBottomBar &&
@@ -82,6 +92,7 @@ fun ReverieApp(container: AppContainer) {
 
         Scaffold(
             containerColor = MaterialTheme.colorScheme.background,
+            snackbarHost = { SnackbarHost(playbackSnackbarHostState) },
             bottomBar = {
                 if (showBottomBar) {
                     Column {

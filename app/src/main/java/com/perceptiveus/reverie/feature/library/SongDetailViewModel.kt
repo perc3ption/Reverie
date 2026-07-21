@@ -112,9 +112,10 @@ class SongDetailViewModel(
 
     fun addToQueue() {
         val current = track.value ?: return
-        playbackRepository.addToQueue(listOf(current))
-        viewModelScope.launch {
-            _userMessages.emit("Added to queue")
+        if (playbackRepository.addToQueue(listOf(current)) > 0) {
+            viewModelScope.launch {
+                _userMessages.emit("Added to queue")
+            }
         }
     }
 

@@ -1,5 +1,7 @@
 package com.perceptiveus.reverie.feature.tutorial
 
+import com.perceptiveus.reverie.data.import.SupportedAudioFormats
+
 /**
  * Static catalog for Discover Reverie.
  * Screenshots can be wired later via [TutorialChapter.imageDrawableRes].
@@ -54,7 +56,8 @@ object TutorialCatalog {
                 "Use Import Music from Home or Library Quick Access.",
                 "Choose individual files or an entire folder.",
                 "Files are stored under the app’s Reverie media folder on your device.",
-                "Supported formats include MP3, FLAC, M4A, AAC, OGG, Opus, WAV, and more.",
+                "Supported imports: ${SupportedAudioFormats.IMPORT_FORMATS_LINE}.",
+                SupportedAudioFormats.WMA_PLAYBACK_NOTE,
             ),
             tryIt = TutorialTryIt.IMPORT,
             tryItLabel = "Open Import",

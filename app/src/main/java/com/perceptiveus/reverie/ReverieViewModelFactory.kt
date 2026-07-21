@@ -31,7 +31,7 @@ class ReverieViewModelFactory(
                 container.musicLibraryRepository,
                 container.musicImportRepository,
                 container.musicLibraryStorage,
-                container.featureAccessChecker,
+                container.entitlementRepository,
             )
             modelClass.isAssignableFrom(LibraryViewModel::class.java) -> LibraryViewModel(
                 container.musicLibraryRepository,

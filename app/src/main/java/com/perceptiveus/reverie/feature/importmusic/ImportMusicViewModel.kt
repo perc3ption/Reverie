@@ -3,7 +3,7 @@ package com.perceptiveus.reverie.feature.importmusic
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.perceptiveus.reverie.core.entitlement.FeatureAccessChecker
+import com.perceptiveus.reverie.core.entitlement.EntitlementRepository
 import com.perceptiveus.reverie.data.import.MusicImportRepository
 import com.perceptiveus.reverie.data.repository.MusicLibraryRepository
 import com.perceptiveus.reverie.data.storage.ImportMode
@@ -13,6 +13,7 @@ import com.perceptiveus.reverie.domain.model.LibraryScanResult
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -20,11 +21,15 @@ class ImportMusicViewModel(
     private val musicLibraryRepository: MusicLibraryRepository,
     private val musicImportRepository: MusicImportRepository,
     private val musicLibraryStorage: MusicLibraryStorage,
-    private val featureAccessChecker: FeatureAccessChecker,
+    entitlementRepository: EntitlementRepository,
 ) : ViewModel() {
 
     val songCount: StateFlow<Int> = musicLibraryRepository.songCount
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    val isPremium: StateFlow<Boolean> = entitlementRepository.entitlements
+        .map { it.isPremium }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     private val _isBusy = MutableStateFlow(false)
     val isBusy: StateFlow<Boolean> = _isBusy
@@ -48,8 +53,6 @@ class ImportMusicViewModel(
     val showDestinationPicker: StateFlow<Boolean> = _showDestinationPicker
 
     val storage: MusicLibraryStorage get() = musicLibraryStorage
-
-    fun isPremium(): Boolean = featureAccessChecker.isPremium()
 
     fun openImportOptions() {
         _showImportOptions.value = true

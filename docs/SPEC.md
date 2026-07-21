@@ -56,9 +56,9 @@ Gated via `AppFeature` / `FeatureAccessChecker`. Entitlements are currently a **
 
 ## Supported audio formats
 
-Import accepts these extensions (see `MusicIndexer.AUDIO_EXTENSIONS`):
+Source of truth: `SupportedAudioFormats` (also used by Import UI, in-app tutorial, and library README).
 
-`mp3`, `flac`, `m4a`, `aac`, `ogg`, `opus`, `wav`, `wma`, `alac`, `aiff`, `aif`
+**Import / scan:** `mp3`, `flac`, `m4a`, `aac`, `ogg`, `opus`, `wav`, `wma`, `alac`, `aiff`, `aif`
 
 Playback uses Media3 ExoPlayer. Practical support:
 
@@ -71,7 +71,7 @@ Playback uses Media3 ExoPlayer. Practical support:
 | WAV | Yes | |
 | AIFF / AIF | Usually | |
 | ALAC | Usually | Best as `.m4a`; bare `.alac` is less reliable |
-| WMA | No | Imported/indexed, but ExoPlayer has no default decoder |
+| WMA | No | Imported/indexed, but ExoPlayer has no default decoder; filtered before queue |
 
 To play WMA (and expand codec coverage), we’d need something like Media3’s FFmpeg extension later.
 
@@ -119,5 +119,5 @@ Premium-gated via `AppFeature.LYRICS`.
 ## Keep in sync
 
 - Premium list ↔ `AppFeature` and the Premium screen
-- Codec list ↔ `MusicIndexer.AUDIO_EXTENSIONS` and Media3 capabilities
+- Codec list ↔ `SupportedAudioFormats` (Import UI, tutorial, README, playback filter)
 - Free limits ↔ `FeatureAccessChecker.FREE_MAX_SONGS` / `FREE_MAX_PLAYLISTS`

@@ -195,8 +195,6 @@ class MusicIndexer(
     companion object {
         private const val README_FILE_NAME = "README.txt"
 
-        val AUDIO_EXTENSIONS = setOf(
-            "mp3", "flac", "m4a", "aac", "ogg", "opus", "wav", "wma", "alac", "aiff", "aif",
-        )
+        val AUDIO_EXTENSIONS = SupportedAudioFormats.IMPORTABLE_EXTENSIONS
     }
 }

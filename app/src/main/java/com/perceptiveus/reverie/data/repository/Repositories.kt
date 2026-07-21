@@ -11,6 +11,7 @@ import com.perceptiveus.reverie.domain.model.RepeatMode
 import com.perceptiveus.reverie.domain.model.Track
 import com.perceptiveus.reverie.domain.model.LibraryScanResult
 import com.perceptiveus.reverie.playback.PlaybackAudioAnalyzer
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /** Library data sourced from Room. */
@@ -56,6 +57,8 @@ interface PlaybackRepository {
     val playerProgress: StateFlow<PlayerProgress>
     /** Live spectrum/waveform from decoded PCM (no mic permission). */
     val visualizerFrame: StateFlow<PlaybackAudioAnalyzer.Frame>
+    /** One-shot notices (e.g. skipped WMA / missing files) for snackbars. */
+    val userMessages: SharedFlow<String>
 
     fun play(
         tracks: List<Track>,
@@ -69,8 +72,8 @@ interface PlaybackRepository {
      * Does not change playlists or library membership.
      */
     fun toggleQueueTrackEnabled(trackId: String)
-    /** Append tracks to the end of the queue without interrupting playback. */
-    fun addToQueue(tracks: List<Track>)
+    /** Append tracks to the end of the queue without interrupting playback. @return how many were queued */
+    fun addToQueue(tracks: List<Track>): Int
     /** Reorder an item within the active queue; keeps the current track playing. */
     fun moveQueueItem(fromIndex: Int, toIndex: Int)
     /**

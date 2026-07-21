@@ -4,6 +4,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -24,6 +27,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -33,9 +37,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.perceptiveus.reverie.core.design.components.RetroScreenTitle
 import com.perceptiveus.reverie.core.entitlement.FeatureAccessChecker
+import com.perceptiveus.reverie.data.import.SupportedAudioFormats
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,7 +57,7 @@ fun ImportMusicScreen(
     val showImportOptions by viewModel.showImportOptions.collectAsState()
     val pickerType by viewModel.pickerType.collectAsState()
     val showDestinationPicker by viewModel.showDestinationPicker.collectAsState()
-    val isPremium = viewModel.isPremium()
+    val isPremium by viewModel.isPremium.collectAsState()
     val context = LocalContext.current
 
     val openSongPicker = rememberLauncherForActivityResult(
@@ -150,6 +156,7 @@ fun ImportMusicScreen(
                     "We never scan your entire device.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
@@ -161,6 +168,9 @@ fun ImportMusicScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.primary,
             )
+
+            Spacer(modifier = Modifier.height(20.dp))
+            SupportedFormatsPanel(modifier = Modifier.fillMaxWidth())
 
             Spacer(modifier = Modifier.height(24.dp))
             Button(
@@ -177,6 +187,7 @@ fun ImportMusicScreen(
                 text = "Choose files or a folder, then copy or move into your Reverie library.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -201,6 +212,7 @@ fun ImportMusicScreen(
                 text = "After copying music into the Reverie folder via USB, tap Scan Library.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
             )
 
             statusMessage?.let { message ->
@@ -209,8 +221,62 @@ fun ImportMusicScreen(
                     text = message,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.Center,
                 )
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SupportedFormatsPanel(modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                text = "Supported formats",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                SupportedAudioFormats.IMPORT_FORMAT_LABELS.forEach { label ->
+                    val limited = label.equals("WMA", ignoreCase = true)
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (limited) {
+                            MaterialTheme.colorScheme.outline.copy(alpha = 0.18f)
+                        } else {
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
+                        },
+                    ) {
+                        Text(
+                            text = label,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (limited) {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            } else {
+                                MaterialTheme.colorScheme.primary
+                            },
+                        )
+                    }
+                }
+            }
+            Text(
+                text = SupportedAudioFormats.WMA_PLAYBACK_NOTE,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

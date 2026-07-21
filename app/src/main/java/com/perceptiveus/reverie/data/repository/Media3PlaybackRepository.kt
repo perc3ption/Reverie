@@ -20,14 +20,18 @@ import com.perceptiveus.reverie.domain.model.PlayerProgress
 import com.perceptiveus.reverie.domain.model.QueueSource
 import com.perceptiveus.reverie.domain.model.RepeatMode
 import com.perceptiveus.reverie.domain.model.Track
+import com.perceptiveus.reverie.playback.AudioPlaybackSupport
 import com.perceptiveus.reverie.playback.PlaybackAudioAnalyzer
 import com.perceptiveus.reverie.playback.PlaybackService
 import com.perceptiveus.reverie.playback.audiofx.AudioFxSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
@@ -56,6 +60,9 @@ class Media3PlaybackRepository(
 
     override val visualizerFrame: StateFlow<PlaybackAudioAnalyzer.Frame> =
         PlaybackAudioAnalyzer.frame
+
+    private val _userMessages = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    override val userMessages: SharedFlow<String> = _userMessages.asSharedFlow()
 
     @Volatile
     private var controller: MediaController? = null
@@ -177,14 +184,17 @@ class Media3PlaybackRepository(
         source: QueueSource,
     ) {
         val intended = tracks.getOrNull(startIndex.coerceIn(0, tracks.lastIndex.coerceAtLeast(0)))
-        val playable = tracks.filterPlayable()
+        val filtered = tracks.filterForPlayback(forQueueAppend = false)
+        val playable = filtered.playable
         if (playable.isEmpty()) {
-            Log.w(TAG, "play() ignored — no playable files (missing on disk?)")
-            _playbackState.update {
-                it.copy(errorMessage = "Couldn't play — file missing or unreadable.")
-            }
+            Log.w(TAG, "play() ignored — ${filtered.notice ?: "no playable files"}")
+            val message = filtered.notice
+                ?: "Couldn't play — no playable files in this selection."
+            _playbackState.update { it.copy(errorMessage = message) }
+            emitUserMessage(message)
             return
         }
+        filtered.notice?.let(::emitUserMessage)
         val index = intended?.let { target ->
             playable.indexOfFirst { it.id == target.id }
         }?.takeIf { it >= 0 } ?: 0
@@ -261,9 +271,14 @@ class Media3PlaybackRepository(
         }
     }
 
-    override fun addToQueue(tracks: List<Track>) {
-        val playable = tracks.filterPlayable()
-        if (playable.isEmpty()) return
+    override fun addToQueue(tracks: List<Track>): Int {
+        val filtered = tracks.filterForPlayback(forQueueAppend = true)
+        val playable = filtered.playable
+        if (playable.isEmpty()) {
+            filtered.notice?.let(::emitUserMessage)
+            return 0
+        }
+        filtered.notice?.let(::emitUserMessage)
         runWhenReady {
             val player = controller ?: return@runWhenReady
             if (queue.isEmpty() || player.mediaItemCount == 0) {
@@ -274,6 +289,7 @@ class Media3PlaybackRepository(
             queue = queue + playable
             syncFromPlayer(player)
         }
+        return playable.size
     }
 
     override fun moveQueueItem(fromIndex: Int, toIndex: Int) {
@@ -745,8 +761,66 @@ class Media3PlaybackRepository(
             .build()
     }
 
-    private fun List<Track>.filterPlayable(): List<Track> =
-        filter { it.filePath.isNotBlank() && File(it.filePath).exists() }
+    private fun emitUserMessage(message: String) {
+        _userMessages.tryEmit(message)
+    }
+
+    /**
+     * Drops missing files and codecs ExoPlayer cannot decode (notably WMA).
+     * [PlaybackFilterResult.notice] is set when the user should see why something was skipped.
+     */
+    private fun List<Track>.filterForPlayback(forQueueAppend: Boolean): PlaybackFilterResult {
+        if (isEmpty()) {
+            return PlaybackFilterResult(
+                playable = emptyList(),
+                notice = if (forQueueAppend) null else "Couldn't play — no songs selected.",
+            )
+        }
+        val playable = ArrayList<Track>(size)
+        var missing = 0
+        var unsupported = 0
+        var wma = 0
+        for (track in this) {
+            val path = track.filePath
+            when {
+                path.isBlank() || !File(path).exists() -> missing++
+                AudioPlaybackSupport.isUnsupportedCodec(path) -> {
+                    unsupported++
+                    if (AudioPlaybackSupport.extensionOf(path) == "wma") wma++
+                }
+                !AudioPlaybackSupport.isExtensionPlayable(path) -> unsupported++
+                else -> playable.add(track)
+            }
+        }
+        val skipped = size - playable.size
+        val notice = when {
+            playable.isEmpty() && wma > 0 && wma == unsupported && missing == 0 ->
+                "Can't play WMA files — that format isn't supported yet."
+            playable.isEmpty() && unsupported > 0 && missing == 0 ->
+                "Can't play these files — format isn't supported."
+            playable.isEmpty() && missing == size ->
+                "Couldn't play — file missing or unreadable."
+            playable.isEmpty() ->
+                "Couldn't play — no playable files in this selection."
+            skipped == 0 -> null
+            wma > 0 && unsupported == wma && missing == 0 ->
+                "Skipped $wma WMA file${plural(wma)} — not supported yet."
+            unsupported > 0 && missing == 0 ->
+                "Skipped $unsupported unsupported file${plural(unsupported)}."
+            missing > 0 && unsupported == 0 ->
+                "Skipped $missing missing file${plural(missing)}."
+            else ->
+                "Skipped $skipped unplayable file${plural(skipped)}."
+        }
+        return PlaybackFilterResult(playable = playable, notice = notice)
+    }
+
+    private fun plural(count: Int): String = if (count == 1) "" else "s"
+
+    private data class PlaybackFilterResult(
+        val playable: List<Track>,
+        val notice: String?,
+    )
 
     private fun MediaItem.toTrackFallback(): Track {
         val meta = mediaMetadata

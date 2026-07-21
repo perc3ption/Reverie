@@ -249,9 +249,10 @@ class LibraryViewModel(
     }
 
     fun addToQueue(track: Track) {
-        playbackRepository.addToQueue(listOf(track))
-        viewModelScope.launch {
-            _userMessages.emit("Added to queue")
+        if (playbackRepository.addToQueue(listOf(track)) > 0) {
+            viewModelScope.launch {
+                _userMessages.emit("Added to queue")
+            }
         }
     }
 

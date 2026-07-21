@@ -18,9 +18,11 @@ Reverie only imports what you pick — it does not scan your whole device.
 
 ### Supported audio types
 
-`mp3`, `flac`, `m4a`, `aac`, `ogg`, `opus`, `wav`, `wma`, `alac`, `aiff`, `aif`
+**Import / scan:** MP3, FLAC, M4A, AAC, OGG, Opus, WAV, WMA, ALAC, AIFF (also `.aif`)
 
-Note: **WMA** can be imported/indexed but does not play yet (ExoPlayer has no default WMA decoder).
+**Playback:** MP3, FLAC, M4A, AAC, OGG, Opus, WAV, ALAC, AIFF
+
+**WMA** can be imported into your library but isn’t playable yet (ExoPlayer has no default WMA decoder).
 
 ### Free tier
 
