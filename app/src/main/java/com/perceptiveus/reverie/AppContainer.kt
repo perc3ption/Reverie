@@ -73,6 +73,7 @@ class AppContainer(context: Context) {
 
     private val musicIndexer: MusicIndexer = MusicIndexer(
         storage = musicLibraryStorage,
+        database = database,
         folderDao = database.musicFolderDao(),
         trackDao = database.trackDao(),
         playHistoryDao = database.playHistoryDao(),

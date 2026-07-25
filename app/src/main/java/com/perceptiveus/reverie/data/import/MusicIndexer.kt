@@ -1,6 +1,8 @@
 package com.perceptiveus.reverie.data.import
 
+import androidx.room.withTransaction
 import com.perceptiveus.reverie.core.entitlement.FeatureAccessChecker
+import com.perceptiveus.reverie.data.local.ReverieDatabase
 import com.perceptiveus.reverie.data.local.dao.MusicFolderDao
 import com.perceptiveus.reverie.data.local.dao.PlayHistoryDao
 import com.perceptiveus.reverie.data.local.dao.TrackDao
@@ -17,11 +19,12 @@ import java.io.File
  * Walks the Reverie on-disk library and syncs folders/tracks into Room.
  * Removes database rows for files that no longer exist under the library root.
  *
- * Incremental: files whose size + lastModified match the stored fingerprint are
- * left untouched (no MediaMetadataRetriever / art work).
+ * Incremental: files whose size + lastModified match the stored fingerprint skip
+ * metadata re-reads, but every scan re-stamps folderId from the on-disk path.
  */
 class MusicIndexer(
     private val storage: MusicLibraryStorage,
+    private val database: ReverieDatabase,
     private val folderDao: MusicFolderDao,
     private val trackDao: TrackDao,
     private val playHistoryDao: PlayHistoryDao,
@@ -46,7 +49,9 @@ class MusicIndexer(
         var skippedUnreadable = 0
         var tracksUnchanged = 0
 
-        // One DB read instead of N getByFilePath lookups.
+        // path → folderId derived from disk layout (source of truth for placement).
+        val folderIdByPath = LinkedHashMap<String, String>(filesToIndex.size)
+
         val existingByPath = trackDao.getAllTracks()
             .filter { it.filePath.isNotBlank() }
             .associateBy { it.filePath }
@@ -55,7 +60,6 @@ class MusicIndexer(
 
         for ((index, file) in filesToIndex.withIndex()) {
             if (index > 0 && index % 24 == 0) {
-                // Keep the UI thread responsive during large library walks.
                 yield()
             }
             try {
@@ -65,13 +69,10 @@ class MusicIndexer(
                 val existing = existingByPath[absolutePath]
                 val relativeFolderPath = parentRelativePath(file, libraryRoot)
                 val folderId = LibraryIds.folderId(relativeFolderPath)
+                folderIdByPath[absolutePath] = folderId
 
                 if (existing != null && isUnchanged(existing, fileSize, fileModified)) {
                     tracksUnchanged++
-                    // Folder moves are rare with stable absolute paths; still fix folderId if needed.
-                    if (existing.folderId != folderId) {
-                        toUpsert += existing.copy(folderId = folderId)
-                    }
                     continue
                 }
 
@@ -111,28 +112,46 @@ class MusicIndexer(
             }
         }
 
-        folderDao.insertAll(folderEntities)
-        if (toUpsert.isNotEmpty()) {
-            trackDao.insertAll(toUpsert)
-        }
-
-        val scannedPaths = filesToIndex.map { it.canonicalPath }.toSet()
+        val scannedPaths = folderIdByPath.keys
         val libraryRootPath = libraryRoot.canonicalPath
-        val existingTracks = trackDao.getAllTracks()
-        val removedTracks = existingTracks.filter { track ->
+        val indexedFolderIds = folderEntities.map { it.id }.toSet()
+
+        val tracksToRemove = trackDao.getAllTracks().filter { track ->
             track.filePath.isBlank() ||
                 (track.filePath.startsWith(libraryRootPath) && track.filePath !in scannedPaths)
         }
-        if (removedTracks.isNotEmpty()) {
-            val removedIds = removedTracks.map { it.id }
-            trackDao.deleteByIds(removedIds)
-            playHistoryDao.deleteByTrackIds(removedIds)
-        }
 
-        val indexedFolderIds = folderEntities.map { it.id }.toSet()
-        val staleFolders = folderDao.getAllFolders().filter { it.id !in indexedFolderIds }
-        if (staleFolders.isNotEmpty()) {
-            folderDao.deleteByIds(staleFolders.map { it.id })
+        database.withTransaction {
+            // Upsert folders in place — never REPLACE (REPLACE deletes + SET NULL).
+            folderDao.insertAll(folderEntities)
+
+            if (toUpsert.isNotEmpty()) {
+                trackDao.insertAll(toUpsert)
+            }
+
+            if (tracksToRemove.isNotEmpty()) {
+                val removedIds = tracksToRemove.map { it.id }
+                trackDao.deleteByIds(removedIds)
+                playHistoryDao.deleteByTrackIds(removedIds)
+            }
+
+            // Always re-stamp folderId from disk path after all writes/deletes.
+            // Heals null folderIds left by older builds and keeps assignments stable.
+            for ((path, folderId) in folderIdByPath) {
+                trackDao.updateFolderIdByFilePath(path, folderId)
+            }
+
+            val staleFolders = folderDao.getAllFolders().filter { it.id !in indexedFolderIds }
+            if (staleFolders.isNotEmpty()) {
+                val staleIds = staleFolders.map { it.id }
+                // NO_ACTION FK: clear any leftover refs before deleting folders.
+                trackDao.clearFolderIds(staleIds)
+                folderDao.deleteByIds(staleIds)
+                // Restore assignments for files that are still on disk.
+                for ((path, folderId) in folderIdByPath) {
+                    trackDao.updateFolderIdByFilePath(path, folderId)
+                }
+            }
         }
 
         albumArtCache.deleteOrphans(
@@ -142,7 +161,7 @@ class MusicIndexer(
         LibraryScanResult(
             tracksFound = audioFiles.size,
             tracksIndexed = toUpsert.size + tracksUnchanged,
-            tracksRemoved = removedTracks.size,
+            tracksRemoved = tracksToRemove.size,
             foldersIndexed = folderEntities.size,
             truncatedBySongLimit = truncated,
             skippedUnreadable = skippedUnreadable,
@@ -151,7 +170,6 @@ class MusicIndexer(
     }
 
     private fun isUnchanged(existing: TrackEntity, fileSize: Long, fileModified: Long): Boolean {
-        // Migrated rows start at 0/0 — force one full re-index to stamp fingerprints.
         if (existing.fileSizeBytes <= 0L || existing.fileModifiedAt <= 0L) return false
         return existing.fileSizeBytes == fileSize && existing.fileModifiedAt == fileModified
     }
@@ -192,9 +210,12 @@ class MusicIndexer(
     private fun parentRelativePath(file: File, libraryRoot: File): String {
         val parent = file.parentFile?.canonicalFile ?: return ""
         val root = libraryRoot.canonicalFile
-        if (parent.path == root.path) return ""
-        return parent.path.removePrefix(root.path).trimStart(File.separatorChar)
-            .replace('\\', '/')
+        val parentPath = parent.path
+        val rootPath = root.path
+        if (parentPath == rootPath) return ""
+        val prefix = rootPath.trimEnd(File.separatorChar) + File.separator
+        if (!parentPath.startsWith(prefix)) return ""
+        return parentPath.removePrefix(prefix).replace('\\', '/')
     }
 
     companion object {

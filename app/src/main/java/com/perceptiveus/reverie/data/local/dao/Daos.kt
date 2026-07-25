@@ -43,7 +43,9 @@ interface MusicFolderDao {
     )
     fun observeFoldersWithCounts(): Flow<List<FolderWithCounts>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    // Upsert (not REPLACE): REPLACE deletes then inserts, which fires
+    // tracks.folderId ON DELETE SET NULL and empties folders on every rescan.
+    @Upsert
     suspend fun insertAll(folders: List<MusicFolderEntity>)
 
     @Query("SELECT * FROM music_folders")
@@ -142,6 +144,12 @@ interface TrackDao {
 
     @Query("UPDATE tracks SET rating = :rating WHERE id = :trackId")
     suspend fun updateRating(trackId: String, rating: Int)
+
+    @Query("UPDATE tracks SET folderId = :folderId WHERE filePath = :filePath")
+    suspend fun updateFolderIdByFilePath(filePath: String, folderId: String)
+
+    @Query("UPDATE tracks SET folderId = NULL WHERE folderId IN (:folderIds)")
+    suspend fun clearFolderIds(folderIds: List<String>)
 
     @Query("UPDATE tracks SET artworkPath = :artworkPath WHERE id = :trackId")
     suspend fun updateArtworkPath(trackId: String, artworkPath: String)

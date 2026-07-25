@@ -26,7 +26,9 @@ data class MusicFolderEntity(
             entity = MusicFolderEntity::class,
             parentColumns = ["id"],
             childColumns = ["folderId"],
-            onDelete = ForeignKey.SET_NULL,
+            // NO_ACTION: SET_NULL combined with folder delete/replace was wiping
+            // folder assignments on every rescan (folders appeared to "trade" songs).
+            onDelete = ForeignKey.NO_ACTION,
         ),
     ],
     indices = [Index("folderId"), Index("artist"), Index("album"), Index("filePath")],

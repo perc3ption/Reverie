@@ -217,3 +217,53 @@ val MIGRATION_11_12 = object : Migration(11, 12) {
         )
     }
 }
+
+/**
+ * Drop ON DELETE SET NULL on tracks.folderId. Folder replace/delete was nulling
+ * assignments and making folders appear to trade songs on every rescan.
+ */
+val MIGRATION_12_13 = object : Migration(12, 13) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("PRAGMA foreign_keys=OFF")
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS tracks_new (
+                id TEXT NOT NULL PRIMARY KEY,
+                title TEXT NOT NULL,
+                artist TEXT NOT NULL,
+                album TEXT NOT NULL,
+                durationMs INTEGER NOT NULL,
+                filePath TEXT NOT NULL,
+                artworkPath TEXT NOT NULL,
+                year INTEGER NOT NULL,
+                genre TEXT NOT NULL,
+                folderId TEXT,
+                dateAdded INTEGER NOT NULL,
+                rating INTEGER NOT NULL,
+                fileSizeBytes INTEGER NOT NULL,
+                fileModifiedAt INTEGER NOT NULL,
+                FOREIGN KEY(folderId) REFERENCES music_folders(id) ON DELETE NO ACTION
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            """
+            INSERT INTO tracks_new (
+                id, title, artist, album, durationMs, filePath, artworkPath,
+                year, genre, folderId, dateAdded, rating, fileSizeBytes, fileModifiedAt
+            )
+            SELECT
+                id, title, artist, album, durationMs, filePath, artworkPath,
+                year, genre, folderId, dateAdded, rating, fileSizeBytes, fileModifiedAt
+            FROM tracks
+            """.trimIndent(),
+        )
+        db.execSQL("DROP TABLE tracks")
+        db.execSQL("ALTER TABLE tracks_new RENAME TO tracks")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_tracks_folderId ON tracks(folderId)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_tracks_artist ON tracks(artist)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_tracks_album ON tracks(album)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_tracks_filePath ON tracks(filePath)")
+        db.execSQL("PRAGMA foreign_keys=ON")
+    }
+}
