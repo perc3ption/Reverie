@@ -381,6 +381,134 @@ class LibraryViewModel(
         return true
     }
 
+    data class MoveDestination(
+        val relativePath: String,
+        val label: String,
+    )
+
+    /** Existing library folders (including root), excluding invalid move targets. */
+    fun moveDestinations(): List<MoveDestination> {
+        val movingFolders = _selectedFolderPaths.value.filter { it.isNotEmpty() }.toSet()
+        val paths = folders.value.map { it.relativePath }.toMutableSet()
+        paths += ""
+        return paths
+            .filter { dest -> isValidMoveDestination(dest, movingFolders) }
+            .sortedWith(compareBy({ it.count { ch -> ch == '/' } }, { it.lowercase() }))
+            .map { relative ->
+                MoveDestination(
+                    relativePath = relative,
+                    label = if (relative.isEmpty()) {
+                        "Reverie"
+                    } else {
+                        "Reverie/$relative"
+                    },
+                )
+            }
+    }
+
+    /**
+     * Moves selected songs/folders into [destinationRelativePath] (empty = library root).
+     * @return true if a move was started
+     */
+    fun moveSelectedLibraryItems(destinationRelativePath: String): Boolean {
+        val folderPaths = _selectedFolderPaths.value.filter { it.isNotEmpty() }.toSet()
+        val selectedTracks = _selectedTrackIds.value
+        if (selectedTracks.isEmpty() && folderPaths.isEmpty()) return false
+        if (!isValidMoveDestination(destinationRelativePath, folderPaths)) {
+            viewModelScope.launch {
+                _userMessages.emit("Can't move a folder into itself or one of its subfolders.")
+            }
+            return false
+        }
+
+        // Tracks covered by a selected folder move with that folder.
+        val folderById = folders.value.associateBy { it.id }
+        val trackIdsToMove = selectedTracks.filter { trackId ->
+            val track = songs.value.firstOrNull { it.id == trackId } ?: return@filter true
+            val parentPath = folderById[track.folderId]?.relativePath.orEmpty()
+            folderPaths.none { parentPath == it || parentPath.startsWith("$it/") }
+        }
+
+        viewModelScope.launch {
+            _bulkDeleteInProgress.value = true
+            try {
+                musicLibraryRepository.moveTracksAndFolders(
+                    trackIds = trackIdsToMove,
+                    folderRelativePaths = folderPaths,
+                    destinationRelativePath = destinationRelativePath,
+                ).fold(
+                    onSuccess = { moved ->
+                        clearFolderSelection()
+                        val destLabel = if (destinationRelativePath.isEmpty()) {
+                            "Reverie"
+                        } else {
+                            "Reverie/$destinationRelativePath"
+                        }
+                        val message = when (moved) {
+                            0 -> "Nothing to move."
+                            1 -> "Moved 1 item to $destLabel."
+                            else -> "Moved $moved items to $destLabel."
+                        }
+                        _userMessages.emit(message)
+                    },
+                    onFailure = { error ->
+                        _userMessages.emit(error.message ?: "Could not move selected items.")
+                    },
+                )
+            } finally {
+                _bulkDeleteInProgress.value = false
+            }
+        }
+        return true
+    }
+
+    private fun isValidMoveDestination(
+        destinationRelativePath: String,
+        movingFolders: Set<String>,
+    ): Boolean {
+        val dest = destinationRelativePath.trim().trim('/')
+        for (folder in movingFolders) {
+            if (dest == folder) return false
+            if (dest.startsWith("$folder/")) return false
+        }
+        return true
+    }
+
+    /** Creates a new folder under the current Folders browser location. */
+    fun createFolderInCurrentLocation(name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) {
+            viewModelScope.launch { _userMessages.emit("Enter a folder name.") }
+            return
+        }
+        val safeName = trimmed
+            .replace('\\', '_')
+            .replace('/', '_')
+            .trim()
+            .trim('.')
+        if (safeName.isEmpty()) {
+            viewModelScope.launch { _userMessages.emit("Invalid folder name.") }
+            return
+        }
+        val parent = _folderPath.value
+        val relativePath = if (parent.isEmpty()) safeName else "$parent/$safeName"
+        viewModelScope.launch {
+            _bulkDeleteInProgress.value = true
+            try {
+                musicLibraryRepository.createLibraryFolder(relativePath).fold(
+                    onSuccess = {
+                        _userMessages.emit("Created \"$safeName\".")
+                    },
+                    onFailure = { error ->
+                        _userMessages.emit(error.message ?: "Could not create folder.")
+                    },
+                )
+            } finally {
+                _bulkDeleteInProgress.value = false
+            }
+        }
+    }
+
     fun openArtist(artistName: String) {
         _selectedArtistName.value = artistName
     }

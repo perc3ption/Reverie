@@ -145,4 +145,29 @@ class FakeMusicLibraryRepository : MusicLibraryRepository {
         }
         return Result.success(removed)
     }
+
+    override suspend fun moveTracksAndFolders(
+        trackIds: Collection<String>,
+        folderRelativePaths: Collection<String>,
+        destinationRelativePath: String,
+    ): Result<Int> {
+        // In-memory fake: just report success without reshuffling sample paths.
+        return Result.success(trackIds.distinct().size)
+    }
+
+    override suspend fun createLibraryFolder(relativePath: String): Result<Unit> {
+        val name = relativePath.substringAfterLast('/').ifBlank { relativePath }
+        if (name.isBlank()) return Result.failure(IllegalArgumentException("Folder name is required."))
+        if (_folders.value.any { it.relativePath.equals(relativePath, ignoreCase = true) }) {
+            return Result.failure(IllegalArgumentException("Folder already exists."))
+        }
+        _folders.value = _folders.value + MusicFolder(
+            id = "fake-$relativePath",
+            name = name,
+            songCount = 0,
+            albumCount = 0,
+            relativePath = relativePath,
+        )
+        return Result.success(Unit)
+    }
 }

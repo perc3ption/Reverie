@@ -197,6 +197,8 @@ class MusicIndexer(
                 path = if ('/' in path) path.substringBeforeLast('/') else ""
             }
         }
+        // Include empty folders created on disk (e.g. via Create Folder).
+        relativePaths.addAll(storage.listAllSubdirectoryPaths())
 
         return relativePaths.sorted().map { relativePath ->
             MusicFolderEntity(

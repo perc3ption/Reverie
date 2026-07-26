@@ -63,6 +63,24 @@ interface MusicLibraryRepository {
         trackIds: Collection<String>,
         folderRelativePaths: Collection<String> = emptyList(),
     ): Result<Int>
+
+    /**
+     * Moves [trackIds] into [destinationRelativePath] (library-relative; empty = root).
+     * Moves each folder in [folderRelativePaths] into that destination as a named subfolder.
+     * Tracks that live inside a selected folder are moved with that folder (not twice).
+     * Runs a library scan afterward. @return number of audio files relocated
+     */
+    suspend fun moveTracksAndFolders(
+        trackIds: Collection<String>,
+        folderRelativePaths: Collection<String> = emptyList(),
+        destinationRelativePath: String,
+    ): Result<Int>
+
+    /**
+     * Creates an empty subdirectory under the library (and any missing parents),
+     * then refreshes folder rows so it appears in the Folders browser.
+     */
+    suspend fun createLibraryFolder(relativePath: String): Result<Unit>
 }
 
 /** Playback state backed by Media3 ExoPlayer via [com.perceptiveus.reverie.playback.PlaybackService]. */

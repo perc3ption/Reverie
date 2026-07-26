@@ -25,8 +25,11 @@ import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DisabledByDefault
+import androidx.compose.material.icons.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOpen
@@ -111,6 +114,8 @@ fun LibraryScreen(
     var playlistPendingDelete by remember { mutableStateOf<Playlist?>(null) }
     var smartPlaylistPendingDelete by remember { mutableStateOf<SmartPlaylist?>(null) }
     var showBulkDeleteConfirm by remember { mutableStateOf(false) }
+    var showMoveDestinationDialog by remember { mutableStateOf(false) }
+    var showCreateFolderDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -222,6 +227,27 @@ fun LibraryScreen(
             onConfirm = {
                 showBulkDeleteConfirm = false
                 viewModel.deleteSelectedLibraryItems()
+            },
+        )
+    }
+
+    if (showMoveDestinationDialog) {
+        MoveDestinationDialog(
+            destinations = viewModel.moveDestinations(),
+            onDismiss = { showMoveDestinationDialog = false },
+            onConfirm = { destination ->
+                showMoveDestinationDialog = false
+                viewModel.moveSelectedLibraryItems(destination)
+            },
+        )
+    }
+
+    if (showCreateFolderDialog) {
+        CreateFolderDialog(
+            onDismiss = { showCreateFolderDialog = false },
+            onConfirm = { name ->
+                showCreateFolderDialog = false
+                viewModel.createFolderInCurrentLocation(name)
             },
         )
     }
@@ -384,9 +410,7 @@ fun LibraryScreen(
                                 subtreeSongCount = folderBrowser.subtreeSongs.size,
                                 selectionMode = selectionMode,
                                 selectionCount = selectionCount,
-                                actionsEnabled = !bulkDeleteInProgress &&
-                                    (folderBrowser.childFolders.isNotEmpty() ||
-                                        folderBrowser.songs.isNotEmpty()),
+                                actionsEnabled = !bulkDeleteInProgress,
                                 hasSelection = selectionCount > 0,
                                 onNavigateUp = viewModel::navigateFolderUp,
                                 onPlayAll = {
@@ -409,11 +433,18 @@ fun LibraryScreen(
                                     }
                                 },
                                 onMoveClick = {
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar("Move is coming soon.")
+                                    if (selectionCount == 0) {
+                                        viewModel.enterFolderSelectionMode()
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar(
+                                                "Select songs or folders, then choose Move again.",
+                                            )
+                                        }
+                                    } else {
+                                        showMoveDestinationDialog = true
                                     }
                                 },
-                                moveEnabled = selectionCount > 0,
+                                onCreateFolderClick = { showCreateFolderDialog = true },
                             )
                         }
                     if (folderBrowser.childFolders.isEmpty() && folderBrowser.songs.isEmpty()) {
@@ -1023,6 +1054,41 @@ private fun CreatePlaylistDialog(
 }
 
 @Composable
+private fun CreateFolderDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit,
+) {
+    var name by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("New folder") },
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Folder name") },
+                placeholder = { Text("e.g. Favorites") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(name) },
+                enabled = name.trim().isNotEmpty(),
+            ) {
+                Text("Create")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+    )
+}
+
+@Composable
 private fun ConfirmDeletePlaylistDialog(
     playlistName: String,
     onDismiss: () -> Unit,
@@ -1219,7 +1285,7 @@ private fun FolderBrowserHeader(
     onClearSelection: () -> Unit,
     onDeleteClick: () -> Unit,
     onMoveClick: () -> Unit,
-    moveEnabled: Boolean,
+    onCreateFolderClick: () -> Unit,
 ) {
     var actionsExpanded by remember { mutableStateOf(false) }
     Column(
@@ -1296,6 +1362,9 @@ private fun FolderBrowserHeader(
                     if (selectionMode) {
                         DropdownMenuItem(
                             text = { Text("Select all") },
+                            leadingIcon = {
+                                Icon(Icons.Default.CheckBox, contentDescription = null)
+                            },
                             onClick = {
                                 actionsExpanded = false
                                 onSelectAll()
@@ -1303,12 +1372,25 @@ private fun FolderBrowserHeader(
                         )
                         DropdownMenuItem(
                             text = { Text("Cancel selection") },
+                            leadingIcon = {
+                                Icon(Icons.Default.DisabledByDefault, contentDescription = null)
+                            },
                             onClick = {
                                 actionsExpanded = false
                                 onClearSelection()
                             },
                         )
                     }
+                    DropdownMenuItem(
+                        text = { Text("Create folder") },
+                        leadingIcon = {
+                            Icon(Icons.Default.FolderOpen, contentDescription = null)
+                        },
+                        onClick = {
+                            actionsExpanded = false
+                            onCreateFolderClick()
+                        },
+                    )
                     DropdownMenuItem(
                         text = { Text("Delete") },
                         leadingIcon = {
@@ -1322,7 +1404,10 @@ private fun FolderBrowserHeader(
                     )
                     DropdownMenuItem(
                         text = { Text("Move") },
-                        enabled = moveEnabled,
+                        leadingIcon = {
+                            Icon(Icons.Default.DriveFileMove, contentDescription = null)
+                        },
+                        enabled = !selectionMode || hasSelection,
                         onClick = {
                             actionsExpanded = false
                             onMoveClick()
