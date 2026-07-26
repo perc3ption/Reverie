@@ -52,6 +52,17 @@ interface MusicLibraryRepository {
      * Playlist membership, tags, and play history for the track are cleared via Room cascades.
      */
     suspend fun deleteTrack(trackId: String): Result<Unit>
+
+    /**
+     * Bulk-deletes [trackIds] from disk + index, then removes [folderRelativePaths] directories
+     * under the library root (never the root itself). Runs a library scan afterward so folder
+     * rows stay in sync.
+     * @return number of tracks removed from the index
+     */
+    suspend fun deleteTracksAndFolders(
+        trackIds: Collection<String>,
+        folderRelativePaths: Collection<String> = emptyList(),
+    ): Result<Int>
 }
 
 /** Playback state backed by Media3 ExoPlayer via [com.perceptiveus.reverie.playback.PlaybackService]. */

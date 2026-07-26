@@ -146,31 +146,92 @@ class RoomMusicLibraryRepository(
         }
     }
 
-    override suspend fun deleteTrack(trackId: String): Result<Unit> = withContext(Dispatchers.IO) {
+    override suspend fun deleteTrack(trackId: String): Result<Unit> =
+        deleteTracksAndFolders(trackIds = listOf(trackId)).map { Unit }
+
+    override suspend fun deleteTracksAndFolders(
+        trackIds: Collection<String>,
+        folderRelativePaths: Collection<String>,
+    ): Result<Int> = withContext(Dispatchers.IO) {
         runCatching {
-            val existing = trackDao.getById(trackId)
-                ?: error("Track not found.")
-            val file = File(existing.filePath)
+            val distinctIds = trackIds.distinct()
             val rootPath = storage.libraryRoot.canonicalPath.trimEnd(File.separatorChar)
-            if (existing.filePath.isNotBlank()) {
-                val canonical = runCatching { file.canonicalPath }.getOrDefault(existing.filePath)
-                    .trimEnd(File.separatorChar)
-                val underLibrary = canonical == rootPath ||
-                    canonical.startsWith(rootPath + File.separator)
-                if (!underLibrary) {
-                    error("Can only delete files inside the Reverie library folder.")
+            val deletedIds = ArrayList<String>(distinctIds.size)
+            val touchedParents = LinkedHashSet<File>()
+
+            for (trackId in distinctIds) {
+                val existing = trackDao.getById(trackId) ?: continue
+                if (existing.filePath.isNotBlank()) {
+                    val file = File(existing.filePath)
+                    val canonical = runCatching { file.canonicalPath }.getOrDefault(existing.filePath)
+                        .trimEnd(File.separatorChar)
+                    val underLibrary = canonical == rootPath ||
+                        canonical.startsWith(rootPath + File.separator)
+                    if (!underLibrary) {
+                        error("Can only delete files inside the Reverie library folder.")
+                    }
+                    if (file.exists() && !file.delete()) {
+                        error("Could not delete \"${file.name}\".")
+                    }
+                    deleteSidecarLyrics(file)
+                    file.parentFile?.let { touchedParents += it }
                 }
-                if (file.exists()) {
-                    if (!file.delete()) {
-                        error("Could not delete the audio file.")
+                deletedIds += trackId
+            }
+
+            if (deletedIds.isNotEmpty()) {
+                trackDao.deleteByIds(deletedIds)
+            }
+
+            val foldersToRemove = folderRelativePaths
+                .map { it.trim().trim('/') }
+                .filter { it.isNotEmpty() }
+                .distinct()
+                .sortedByDescending { it.count { ch -> ch == '/' } }
+
+            for (relativePath in foldersToRemove) {
+                val dir = storage.resolveFile(relativePath)
+                val canonical = dir.canonicalPath.trimEnd(File.separatorChar)
+                val underLibrary = canonical != rootPath &&
+                    canonical.startsWith(rootPath + File.separator)
+                if (!underLibrary) continue
+                if (dir.exists()) {
+                    if (!dir.deleteRecursively()) {
+                        error("Could not delete folder \"$relativePath\".")
                     }
                 }
-                deleteSidecarLyrics(file)
             }
-            trackDao.deleteByIds(listOf(trackId))
+
+            pruneEmptyAncestors(touchedParents, rootPath)
+
             albumArtCache.deleteOrphans(
                 keepPaths = trackDao.getAllTracks().map { it.artworkPath }.toSet(),
             )
+
+            // Sync folder rows / counts after disk changes.
+            if (deletedIds.isNotEmpty() || foldersToRemove.isNotEmpty()) {
+                musicIndexer.scanLibrary()
+            }
+
+            deletedIds.size
+        }
+    }
+
+    /** Removes empty directories up toward (but not including) the library root. */
+    private fun pruneEmptyAncestors(starts: Set<File>, rootPath: String) {
+        val queue = ArrayDeque(starts)
+        while (queue.isNotEmpty()) {
+            val dir = queue.removeFirst()
+            val canonical = runCatching { dir.canonicalPath }.getOrNull()
+                ?.trimEnd(File.separatorChar)
+                ?: continue
+            if (canonical == rootPath || !canonical.startsWith(rootPath + File.separator)) continue
+            if (!dir.isDirectory) continue
+            val children = dir.listFiles().orEmpty()
+            if (children.isNotEmpty()) continue
+            if (dir.delete()) {
+                dir.parentFile?.let { queue += it }
+            }
         }
     }
 

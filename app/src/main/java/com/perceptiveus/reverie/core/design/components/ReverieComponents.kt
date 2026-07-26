@@ -2,6 +2,7 @@ package com.perceptiveus.reverie.core.design.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -75,6 +76,7 @@ fun SectionHeader(
 fun GlassSurface(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
     enabled: Boolean = true,
     shape: Shape = ReverieTileShape,
     emphasized: Boolean = false,
@@ -99,27 +101,45 @@ fun GlassSurface(
         modifier
     }
 
-    if (onClick != null) {
-        Surface(
-            onClick = onClick,
-            enabled = enabled,
-            modifier = surfaceModifier,
-            shape = shape,
-            color = fill,
-            tonalElevation = 0.dp,
-            shadowElevation = 0.dp,
-        ) {
-            content()
+    when {
+        onClick != null && onLongClick != null -> {
+            Surface(
+                modifier = surfaceModifier.combinedClickable(
+                    enabled = enabled,
+                    onClick = onClick,
+                    onLongClick = onLongClick,
+                ),
+                shape = shape,
+                color = fill,
+                tonalElevation = 0.dp,
+                shadowElevation = 0.dp,
+            ) {
+                content()
+            }
         }
-    } else {
-        Surface(
-            modifier = surfaceModifier,
-            shape = shape,
-            color = fill,
-            tonalElevation = 0.dp,
-            shadowElevation = 0.dp,
-        ) {
-            content()
+        onClick != null -> {
+            Surface(
+                onClick = onClick,
+                enabled = enabled,
+                modifier = surfaceModifier,
+                shape = shape,
+                color = fill,
+                tonalElevation = 0.dp,
+                shadowElevation = 0.dp,
+            ) {
+                content()
+            }
+        }
+        else -> {
+            Surface(
+                modifier = surfaceModifier,
+                shape = shape,
+                color = fill,
+                tonalElevation = 0.dp,
+                shadowElevation = 0.dp,
+            ) {
+                content()
+            }
         }
     }
 }

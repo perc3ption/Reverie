@@ -128,4 +128,21 @@ class FakeMusicLibraryRepository : MusicLibraryRepository {
         _songCount.value = (_songCount.value - 1).coerceAtLeast(0)
         return Result.success(Unit)
     }
+
+    override suspend fun deleteTracksAndFolders(
+        trackIds: Collection<String>,
+        folderRelativePaths: Collection<String>,
+    ): Result<Int> {
+        val idSet = trackIds.toSet()
+        val before = _songs.value.size
+        _songs.value = _songs.value.filterNot { it.id in idSet }
+        _recentlyPlayed.value = _recentlyPlayed.value.filterNot { it.id in idSet }
+        val removed = before - _songs.value.size
+        _songCount.value = (_songCount.value - removed).coerceAtLeast(0)
+        if (folderRelativePaths.isNotEmpty()) {
+            val removePaths = folderRelativePaths.toSet()
+            _folders.value = _folders.value.filterNot { it.relativePath in removePaths }
+        }
+        return Result.success(removed)
+    }
 }

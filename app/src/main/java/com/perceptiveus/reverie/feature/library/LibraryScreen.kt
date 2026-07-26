@@ -1,6 +1,7 @@
 package com.perceptiveus.reverie.feature.library
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,11 +39,13 @@ import androidx.compose.material.icons.filled.QueryStats
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -58,6 +61,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -81,6 +85,7 @@ import com.perceptiveus.reverie.domain.model.SmartPlaylist
 import com.perceptiveus.reverie.domain.model.Track
 import com.perceptiveus.reverie.feature.premium.UpgradeDialog
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
 @Composable
 fun LibraryScreen(
@@ -105,7 +110,9 @@ fun LibraryScreen(
     var showCreatePlaylistDialog by remember { mutableStateOf(false) }
     var playlistPendingDelete by remember { mutableStateOf<Playlist?>(null) }
     var smartPlaylistPendingDelete by remember { mutableStateOf<SmartPlaylist?>(null) }
+    var showBulkDeleteConfirm by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(requestedTab) {
         val tab = requestedTab ?: return@LaunchedEffect
@@ -122,15 +129,27 @@ fun LibraryScreen(
     val artistBrowser by viewModel.artistBrowser.collectAsState()
     val albumBrowser by viewModel.albumBrowser.collectAsState()
     val showAllSongs by viewModel.showAllSongs.collectAsState()
+    val selectionMode by viewModel.selectionMode.collectAsState()
+    val selectedTrackIds by viewModel.selectedTrackIds.collectAsState()
+    val selectedFolderPaths by viewModel.selectedFolderPaths.collectAsState()
+    val selectionCount by viewModel.selectionCount.collectAsState()
+    val bulkDeleteInProgress by viewModel.bulkDeleteInProgress.collectAsState()
     val isPremium = viewModel.isPremium()
 
-    val libraryCanGoBack = showAllSongs ||
+    val libraryCanGoBack = selectionMode ||
+        showAllSongs ||
         artistBrowser.selectedArtist != null ||
         albumBrowser.selectedAlbum != null ||
         folderBrowser.canNavigateUp
 
     BackHandler(enabled = libraryCanGoBack) {
         viewModel.handleLibraryBack()
+    }
+
+    LaunchedEffect(selectedTab) {
+        if (selectedTab != LibraryTab.FOLDERS) {
+            viewModel.clearFolderSelection()
+        }
     }
 
     LaunchedEffect(viewModel) {
@@ -180,6 +199,29 @@ fun LibraryScreen(
             onConfirm = {
                 viewModel.deleteSmartPlaylist(playlist)
                 smartPlaylistPendingDelete = null
+            },
+        )
+    }
+
+    if (showBulkDeleteConfirm) {
+        val folderCount = selectedFolderPaths.size
+        val songCount = selectedTrackIds.size
+        val summary = buildString {
+            if (songCount > 0) append(if (songCount == 1) "1 song" else "$songCount songs")
+            if (songCount > 0 && folderCount > 0) append(" and ")
+            if (folderCount > 0) {
+                append(if (folderCount == 1) "1 folder" else "$folderCount folders")
+                append(" (including songs inside)")
+            }
+        }
+        ConfirmDeletePlaylistDialog(
+            playlistName = summary,
+            title = "Delete from library?",
+            body = "$summary will be permanently removed from your Reverie library folder and cannot be undone.",
+            onDismiss = { showBulkDeleteConfirm = false },
+            onConfirm = {
+                showBulkDeleteConfirm = false
+                viewModel.deleteSelectedLibraryItems()
             },
         )
     }
@@ -340,12 +382,38 @@ fun LibraryScreen(
                                 breadcrumb = folderBrowser.breadcrumb,
                                 canNavigateUp = folderBrowser.canNavigateUp,
                                 subtreeSongCount = folderBrowser.subtreeSongs.size,
+                                selectionMode = selectionMode,
+                                selectionCount = selectionCount,
+                                actionsEnabled = !bulkDeleteInProgress &&
+                                    (folderBrowser.childFolders.isNotEmpty() ||
+                                        folderBrowser.songs.isNotEmpty()),
+                                hasSelection = selectionCount > 0,
                                 onNavigateUp = viewModel::navigateFolderUp,
                                 onPlayAll = {
                                     if (viewModel.playAllInCurrentFolder()) {
                                         onNavigateToPlayer()
                                     }
                                 },
+                                onSelectAll = viewModel::selectAllInCurrentFolder,
+                                onClearSelection = viewModel::clearFolderSelection,
+                                onDeleteClick = {
+                                    if (selectionCount == 0) {
+                                        viewModel.enterFolderSelectionMode()
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar(
+                                                "Select songs or folders, then choose Delete again.",
+                                            )
+                                        }
+                                    } else {
+                                        showBulkDeleteConfirm = true
+                                    }
+                                },
+                                onMoveClick = {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar("Move is coming soon.")
+                                    }
+                                },
+                                moveEnabled = selectionCount > 0,
                             )
                         }
                     if (folderBrowser.childFolders.isEmpty() && folderBrowser.songs.isEmpty()) {
@@ -368,7 +436,18 @@ fun LibraryScreen(
                         ) { folder ->
                             FolderListItem(
                                 folder = folder,
-                                onClick = { viewModel.openFolder(folder.relativePath) },
+                                selected = folder.relativePath in selectedFolderPaths,
+                                selectionMode = selectionMode,
+                                onClick = {
+                                    if (selectionMode) {
+                                        viewModel.toggleFolderSelected(folder.relativePath)
+                                    } else {
+                                        viewModel.openFolder(folder.relativePath)
+                                    }
+                                },
+                                onLongClick = {
+                                    viewModel.toggleFolderSelected(folder.relativePath)
+                                },
                             )
                         }
                         items(
@@ -377,7 +456,18 @@ fun LibraryScreen(
                         ) { track ->
                             SongListItem(
                                 track = track,
-                                onClick = { viewModel.playSongInFolder(track) },
+                                selected = track.id in selectedTrackIds,
+                                selectionMode = selectionMode,
+                                onClick = {
+                                    if (selectionMode) {
+                                        viewModel.toggleTrackSelected(track.id)
+                                    } else {
+                                        viewModel.playSongInFolder(track)
+                                    }
+                                },
+                                onLongClick = {
+                                    viewModel.toggleTrackSelected(track.id)
+                                },
                                 onDetailsClick = { onSongDetailsClick(track) },
                                 onAddToQueue = { viewModel.addToQueue(track) },
                             )
@@ -965,285 +1055,132 @@ private fun SongListItem(
     onClick: () -> Unit,
     onDetailsClick: () -> Unit,
     onAddToQueue: () -> Unit,
+    selected: Boolean = false,
+    selectionMode: Boolean = false,
+    onLongClick: (() -> Unit)? = null,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
+    val fill = if (selected) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+    } else {
+        ReverieGlass
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        Surface(
-            onClick = onClick,
-            modifier = Modifier.weight(1f),
-            shape = ReverieTileShape,
-            color = ReverieGlass,
-            tonalElevation = 0.dp,
-            shadowElevation = 0.dp,
-        ) {
-            Row(
-                modifier = Modifier.padding(start = 12.dp, top = 10.dp, bottom = 10.dp, end = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+        if (onLongClick != null) {
+            Surface(
+                modifier = Modifier
+                    .weight(1f)
+                    .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+                shape = ReverieTileShape,
+                color = fill,
+                tonalElevation = 0.dp,
+                shadowElevation = 0.dp,
             ) {
-                AlbumArt(
-                    artworkPath = track.artworkPath.takeIf { it.isNotBlank() },
-                    modifier = Modifier.size(40.dp),
-                    contentDescription = track.title,
-                    listThumbnail = true,
+                SongListItemContent(
+                    track = track,
+                    selectionMode = selectionMode,
+                    selected = selected,
                 )
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 12.dp),
-                ) {
-                    Text(
-                        track.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+            }
+        } else {
+            Surface(
+                onClick = onClick,
+                modifier = Modifier.weight(1f),
+                shape = ReverieTileShape,
+                color = fill,
+                tonalElevation = 0.dp,
+                shadowElevation = 0.dp,
+            ) {
+                SongListItemContent(
+                    track = track,
+                    selectionMode = selectionMode,
+                    selected = selected,
+                )
+            }
+        }
+        if (!selectionMode) {
+            Box {
+                IconButton(onClick = { menuExpanded = true }) {
+                    Icon(
+                        Icons.Default.MoreVert,
+                        contentDescription = "Song options",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Text(
-                        "${track.artist} · ${track.album}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                }
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Song details") },
+                        onClick = {
+                            menuExpanded = false
+                            onDetailsClick()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Add to queue") },
+                        onClick = {
+                            menuExpanded = false
+                            onAddToQueue()
+                        },
                     )
                 }
             }
         }
-        Box {
-            IconButton(onClick = { menuExpanded = true }) {
-                Icon(
-                    Icons.Default.MoreVert,
-                    contentDescription = "Song options",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            DropdownMenu(
-                expanded = menuExpanded,
-                onDismissRequest = { menuExpanded = false },
-            ) {
-                DropdownMenuItem(
-                    text = { Text("Song details") },
-                    onClick = {
-                        menuExpanded = false
-                        onDetailsClick()
-                    },
-                )
-                DropdownMenuItem(
-                    text = { Text("Add to queue") },
-                    onClick = {
-                        menuExpanded = false
-                        onAddToQueue()
-                    },
-                )
-            }
+    }
+}
+
+@Composable
+private fun SongListItemContent(
+    track: Track,
+    selectionMode: Boolean,
+    selected: Boolean,
+) {
+    Row(
+        modifier = Modifier.padding(start = 12.dp, top = 10.dp, bottom = 10.dp, end = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (selectionMode) {
+            Checkbox(
+                checked = selected,
+                onCheckedChange = null,
+                modifier = Modifier.padding(end = 4.dp),
+            )
+        }
+        AlbumArt(
+            artworkPath = track.artworkPath.takeIf { it.isNotBlank() },
+            modifier = Modifier.size(40.dp),
+            contentDescription = track.title,
+            listThumbnail = true,
+        )
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 12.dp),
+        ) {
+            Text(
+                track.title,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                "${track.artist} · ${track.album}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
+
 
 @Composable
 private fun LibraryTopBar(onSearchClick: () -> Unit) {
@@ -1272,9 +1209,19 @@ private fun FolderBrowserHeader(
     breadcrumb: String,
     canNavigateUp: Boolean,
     subtreeSongCount: Int,
+    selectionMode: Boolean,
+    selectionCount: Int,
+    actionsEnabled: Boolean,
+    hasSelection: Boolean,
     onNavigateUp: () -> Unit,
     onPlayAll: () -> Unit,
+    onSelectAll: () -> Unit,
+    onClearSelection: () -> Unit,
+    onDeleteClick: () -> Unit,
+    onMoveClick: () -> Unit,
+    moveEnabled: Boolean,
 ) {
+    var actionsExpanded by remember { mutableStateOf(false) }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1304,9 +1251,12 @@ private fun FolderBrowserHeader(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = when (subtreeSongCount) {
-                        0 -> "No songs in this folder"
-                        1 -> "1 song in this folder & subfolders"
+                    text = when {
+                        selectionMode && selectionCount > 0 ->
+                            if (selectionCount == 1) "1 selected" else "$selectionCount selected"
+                        selectionMode -> "Select songs or folders"
+                        subtreeSongCount == 0 -> "No songs in this folder"
+                        subtreeSongCount == 1 -> "1 song in this folder & subfolders"
                         else -> "$subtreeSongCount songs in this folder & subfolders"
                     },
                     style = MaterialTheme.typography.bodySmall,
@@ -1315,18 +1265,71 @@ private fun FolderBrowserHeader(
             }
         }
         Spacer(modifier = Modifier.height(8.dp))
-        Button(
-            onClick = onPlayAll,
-            enabled = subtreeSongCount > 0,
+        Row(
             modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Icon(
-                Icons.Default.PlayArrow,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Play All")
+            Button(
+                onClick = onPlayAll,
+                enabled = subtreeSongCount > 0 && !selectionMode,
+                modifier = Modifier.weight(1f),
+            ) {
+                Icon(
+                    Icons.Default.PlayArrow,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Play All")
+            }
+            Box {
+                OutlinedButton(
+                    onClick = { actionsExpanded = true },
+                    enabled = actionsEnabled,
+                ) {
+                    Text("Actions")
+                }
+                DropdownMenu(
+                    expanded = actionsExpanded,
+                    onDismissRequest = { actionsExpanded = false },
+                ) {
+                    if (selectionMode) {
+                        DropdownMenuItem(
+                            text = { Text("Select all") },
+                            onClick = {
+                                actionsExpanded = false
+                                onSelectAll()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Cancel selection") },
+                            onClick = {
+                                actionsExpanded = false
+                                onClearSelection()
+                            },
+                        )
+                    }
+                    DropdownMenuItem(
+                        text = { Text("Delete") },
+                        leadingIcon = {
+                            Icon(Icons.Default.Delete, contentDescription = null)
+                        },
+                        enabled = !selectionMode || hasSelection,
+                        onClick = {
+                            actionsExpanded = false
+                            onDeleteClick()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Move") },
+                        enabled = moveEnabled,
+                        onClick = {
+                            actionsExpanded = false
+                            onMoveClick()
+                        },
+                    )
+                }
+            }
         }
     }
 }
@@ -1335,9 +1338,14 @@ private fun FolderBrowserHeader(
 private fun FolderListItem(
     folder: MusicFolder,
     onClick: () -> Unit,
+    selected: Boolean = false,
+    selectionMode: Boolean = false,
+    onLongClick: (() -> Unit)? = null,
 ) {
     GlassSurface(
         onClick = onClick,
+        onLongClick = onLongClick,
+        highlighted = selected,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 2.dp),
@@ -1346,6 +1354,13 @@ private fun FolderListItem(
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            if (selectionMode) {
+                Checkbox(
+                    checked = selected,
+                    onCheckedChange = null,
+                    modifier = Modifier.padding(end = 4.dp),
+                )
+            }
             Icon(
                 Icons.Default.Folder,
                 contentDescription = null,
@@ -1367,11 +1382,13 @@ private fun FolderListItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = "Open folder",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            if (!selectionMode) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = "Open folder",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }

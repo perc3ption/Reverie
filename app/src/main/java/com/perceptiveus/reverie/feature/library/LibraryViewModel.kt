@@ -59,7 +59,7 @@ data class AlbumBrowserState(
 )
 
 class LibraryViewModel(
-    musicLibraryRepository: MusicLibraryRepository,
+    private val musicLibraryRepository: MusicLibraryRepository,
     private val playlistRepository: PlaylistRepository,
     private val playbackRepository: PlaybackRepository,
     private val featureAccessChecker: FeatureAccessChecker,
@@ -96,6 +96,23 @@ class LibraryViewModel(
         .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FolderBrowserState())
 
+    private val _selectionMode = MutableStateFlow(false)
+    val selectionMode: StateFlow<Boolean> = _selectionMode.asStateFlow()
+
+    private val _selectedTrackIds = MutableStateFlow<Set<String>>(emptySet())
+    val selectedTrackIds: StateFlow<Set<String>> = _selectedTrackIds.asStateFlow()
+
+    private val _selectedFolderPaths = MutableStateFlow<Set<String>>(emptySet())
+    val selectedFolderPaths: StateFlow<Set<String>> = _selectedFolderPaths.asStateFlow()
+
+    private val _bulkDeleteInProgress = MutableStateFlow(false)
+    val bulkDeleteInProgress: StateFlow<Boolean> = _bulkDeleteInProgress.asStateFlow()
+
+    val selectionCount: StateFlow<Int> = combine(
+        _selectedTrackIds,
+        _selectedFolderPaths,
+    ) { tracks, folderPaths -> tracks.size + folderPaths.size }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
     private val _selectedArtistName = MutableStateFlow<String?>(null)
 
     val artistBrowser: StateFlow<ArtistBrowserState> = combine(
@@ -215,6 +232,10 @@ class LibraryViewModel(
 
     /** Handles system / edge back for in-Library drill-downs. Returns true if consumed. */
     fun handleLibraryBack(): Boolean {
+        if (_selectionMode.value) {
+            clearFolderSelection()
+            return true
+        }
         if (_showAllSongs.value) {
             _showAllSongs.value = false
             return true
@@ -258,12 +279,106 @@ class LibraryViewModel(
     }
 
     fun openFolder(relativePath: String) {
+        clearFolderSelection()
         _folderPath.value = relativePath
     }
 
     fun navigateFolderUp() {
+        clearFolderSelection()
         val path = _folderPath.value
         _folderPath.value = if ('/' in path) path.substringBeforeLast('/') else ""
+    }
+
+    fun enterFolderSelectionMode(trackId: String? = null, folderPath: String? = null) {
+        _selectionMode.value = true
+        if (trackId != null) {
+            _selectedTrackIds.value = setOf(trackId)
+        }
+        if (folderPath != null) {
+            _selectedFolderPaths.value = setOf(folderPath)
+        }
+    }
+
+    fun toggleTrackSelected(trackId: String) {
+        if (!_selectionMode.value) {
+            enterFolderSelectionMode(trackId = trackId)
+            return
+        }
+        val current = _selectedTrackIds.value
+        _selectedTrackIds.value = if (trackId in current) current - trackId else current + trackId
+        if (_selectedTrackIds.value.isEmpty() && _selectedFolderPaths.value.isEmpty()) {
+            _selectionMode.value = false
+        }
+    }
+
+    fun toggleFolderSelected(relativePath: String) {
+        if (relativePath.isEmpty()) return
+        if (!_selectionMode.value) {
+            enterFolderSelectionMode(folderPath = relativePath)
+            return
+        }
+        val current = _selectedFolderPaths.value
+        _selectedFolderPaths.value =
+            if (relativePath in current) current - relativePath else current + relativePath
+        if (_selectedTrackIds.value.isEmpty() && _selectedFolderPaths.value.isEmpty()) {
+            _selectionMode.value = false
+        }
+    }
+
+    fun clearFolderSelection() {
+        _selectionMode.value = false
+        _selectedTrackIds.value = emptySet()
+        _selectedFolderPaths.value = emptySet()
+    }
+
+    fun selectAllInCurrentFolder() {
+        val browser = folderBrowser.value
+        _selectionMode.value = true
+        _selectedTrackIds.value = browser.songs.map { it.id }.toSet()
+        _selectedFolderPaths.value = browser.childFolders.map { it.relativePath }.toSet()
+    }
+
+    /**
+     * Deletes selected songs and folders (including all songs under selected folders).
+     * @return true if a delete was started
+     */
+    fun deleteSelectedLibraryItems(): Boolean {
+        val trackIds = LinkedHashSet(_selectedTrackIds.value)
+        val folderPaths = _selectedFolderPaths.value.filter { it.isNotEmpty() }.toSet()
+        if (trackIds.isEmpty() && folderPaths.isEmpty()) return false
+
+        val allFolders = folders.value
+        for (folderPath in folderPaths) {
+            trackIds += collectSubtreeSongs(folderPath, allFolders, songs.value.groupBy { effectiveFolderId(it) })
+                .map { it.id }
+        }
+
+        viewModelScope.launch {
+            _bulkDeleteInProgress.value = true
+            try {
+                musicLibraryRepository.deleteTracksAndFolders(
+                    trackIds = trackIds,
+                    folderRelativePaths = folderPaths,
+                ).fold(
+                    onSuccess = { deleted ->
+                        clearFolderSelection()
+                        val message = when {
+                            deleted == 0 && folderPaths.isNotEmpty() ->
+                                "Deleted ${folderPaths.size} folder(s)."
+                            deleted == 1 -> "Deleted 1 song."
+                            else -> "Deleted $deleted songs."
+                        }
+                        _userMessages.emit(message)
+                    },
+                    onFailure = { error ->
+                        _userMessages.emit(error.message ?: "Could not delete selected items.")
+                    },
+                )
+            } finally {
+                _bulkDeleteInProgress.value = false
+            }
+        }
+        return true
     }
 
     fun openArtist(artistName: String) {
