@@ -1,5 +1,6 @@
 package com.perceptiveus.reverie.core.design.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
@@ -72,6 +73,7 @@ fun SectionHeader(
  * - [glow]: purple neon glow + border — Player / hero only
  * - default: flat glass fill with no neon rim (list rows, queue, etc.)
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun GlassSurface(
     modifier: Modifier = Modifier,

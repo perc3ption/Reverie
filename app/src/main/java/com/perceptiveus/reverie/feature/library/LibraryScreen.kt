@@ -1,6 +1,7 @@
 package com.perceptiveus.reverie.feature.library
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -1126,6 +1127,7 @@ private fun ConfirmDeletePlaylistDialog(
     )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SongListItem(
     track: Track,
