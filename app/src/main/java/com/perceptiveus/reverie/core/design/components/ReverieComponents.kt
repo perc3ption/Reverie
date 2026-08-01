@@ -33,12 +33,12 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.perceptiveus.reverie.core.design.ReverieArtShape
-import com.perceptiveus.reverie.core.design.ReverieGlass
 import com.perceptiveus.reverie.core.design.ReveriePremiumGold
 import com.perceptiveus.reverie.core.design.ReveriePurple
 import com.perceptiveus.reverie.core.design.ReverieTileShape
 import com.perceptiveus.reverie.core.design.glassBorder
 import com.perceptiveus.reverie.core.design.glowBorder
+import com.perceptiveus.reverie.core.design.reverieGlassColor
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.Color
 
@@ -85,8 +85,8 @@ fun GlassSurface(
     content: @Composable () -> Unit,
 ) {
     val fill: Color = when {
-        highlighted -> ReveriePurple.copy(alpha = 0.14f)
-        else -> ReverieGlass
+        highlighted -> MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+        else -> reverieGlassColor()
     }
     val surfaceModifier = if (glow) {
         modifier.glowBorder(
@@ -178,7 +178,7 @@ fun LockedFeatureCard(
                 borderAlpha = 0.45f,
             ),
         shape = ReverieTileShape,
-        color = ReverieGlass.copy(alpha = 0.55f),
+        color = reverieGlassColor().copy(alpha = 0.55f),
     ) {
         Box {
             Column(
@@ -238,7 +238,7 @@ fun QuickAccessCard(
                 borderAlpha = 0.22f,
             ),
         shape = ReverieTileShape,
-        color = ReverieGlass,
+        color = reverieGlassColor(),
     ) {
         Column(
             modifier = Modifier.padding(16.dp),

@@ -71,7 +71,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.perceptiveus.reverie.core.design.ReverieGlass
+import com.perceptiveus.reverie.core.design.reverieGlassColor
 import com.perceptiveus.reverie.core.design.ReverieTileShape
 import com.perceptiveus.reverie.core.design.components.AlbumArt
 import com.perceptiveus.reverie.core.design.components.GlassSurface
@@ -1140,7 +1140,7 @@ private fun SongListItem(
     val fill = if (selected) {
         MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
     } else {
-        ReverieGlass
+        reverieGlassColor()
     }
     Row(
         modifier = Modifier

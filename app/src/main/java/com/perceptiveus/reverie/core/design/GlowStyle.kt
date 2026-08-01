@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
@@ -13,6 +14,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -63,32 +65,37 @@ fun Modifier.glassBorder(
 )
 
 /**
- * Subtle glass fill: slightly elevated dark surface with a soft top highlight.
+ * Subtle glass fill: elevated surface with a soft top highlight.
+ * Defaults to [reverieGlassColor] so light/dark themes both stay readable.
  */
 fun Modifier.glassBackground(
     shape: Shape = ReverieCardShape,
-    fill: Color = ReverieGlass,
-): Modifier = this
-    .clip(shape)
-    .background(fill, shape)
-    .drawBehind {
-        val highlight = Brush.verticalGradient(
-            colors = listOf(
-                Color.White.copy(alpha = 0.06f),
-                Color.Transparent,
-            ),
-            startY = 0f,
-            endY = size.height * 0.45f,
-        )
-        val cornerPx = when (shape) {
-            is RoundedCornerShape -> 20.dp.toPx()
-            else -> 16.dp.toPx()
+    fill: Color? = null,
+): Modifier = composed {
+    val resolvedFill = fill ?: reverieGlassColor()
+    val highlightAlpha = if (resolvedFill.luminance() > 0.5f) 0.35f else 0.06f
+    this
+        .clip(shape)
+        .background(resolvedFill, shape)
+        .drawBehind {
+            val highlight = Brush.verticalGradient(
+                colors = listOf(
+                    Color.White.copy(alpha = highlightAlpha),
+                    Color.Transparent,
+                ),
+                startY = 0f,
+                endY = size.height * 0.45f,
+            )
+            val cornerPx = when (shape) {
+                is RoundedCornerShape -> 20.dp.toPx()
+                else -> 16.dp.toPx()
+            }
+            drawRoundRect(
+                brush = highlight,
+                cornerRadius = CornerRadius(cornerPx, cornerPx),
+            )
         }
-        drawRoundRect(
-            brush = highlight,
-            cornerRadius = CornerRadius(cornerPx, cornerPx),
-        )
-    }
+}
 
 /**
  * Soft under-glow wash for selected nav icons (drawn behind the icon).

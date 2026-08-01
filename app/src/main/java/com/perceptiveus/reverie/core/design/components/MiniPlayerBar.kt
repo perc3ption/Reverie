@@ -23,7 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.perceptiveus.reverie.core.design.ReverieGlass
+import com.perceptiveus.reverie.core.design.reverieGlassColor
 import com.perceptiveus.reverie.core.design.glowBorder
 import com.perceptiveus.reverie.domain.model.Track
 
@@ -52,7 +52,7 @@ fun MiniPlayerBar(
                 glowAlpha = 0.2f,
             ),
         shape = MiniPlayerShape,
-        color = ReverieGlass,
+        color = reverieGlassColor(),
     ) {
         Row(
             modifier = Modifier

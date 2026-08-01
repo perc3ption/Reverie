@@ -39,7 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.perceptiveus.reverie.core.design.ReverieCardShape
-import com.perceptiveus.reverie.core.design.ReverieGlass
+import com.perceptiveus.reverie.core.design.reverieGlassColor
 import com.perceptiveus.reverie.core.design.glowBorder
 import com.perceptiveus.reverie.core.design.glowRing
 import com.perceptiveus.reverie.domain.model.PlayerProgress
@@ -78,7 +78,7 @@ fun HomeNowPlayingCard(
             .padding(horizontal = 16.dp)
             .glowBorder(shape = ReverieCardShape),
         shape = ReverieCardShape,
-        color = ReverieGlass,
+        color = reverieGlassColor(),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(

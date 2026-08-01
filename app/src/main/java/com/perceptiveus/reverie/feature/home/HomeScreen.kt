@@ -47,7 +47,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.perceptiveus.reverie.core.design.ReverieGlass
+import com.perceptiveus.reverie.core.design.reverieGlassColor
 import com.perceptiveus.reverie.core.design.ReverieTileShape
 import com.perceptiveus.reverie.core.design.components.AlbumArt
 import com.perceptiveus.reverie.core.design.components.HomeNowPlayingCard
@@ -317,7 +317,7 @@ private fun HomeHeader(onSearchClick: () -> Unit) {
         Surface(
             onClick = onSearchClick,
             shape = CircleShape,
-            color = ReverieGlass,
+            color = reverieGlassColor(),
             modifier = Modifier
                 .size(44.dp)
                 .glassBorder(
@@ -496,7 +496,7 @@ private fun UnlockPremiumBanner(onLearnMore: () -> Unit) {
                 borderAlpha = 0.45f,
             ),
         shape = ReverieTileShape,
-        color = ReverieGlass,
+        color = reverieGlassColor(),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),

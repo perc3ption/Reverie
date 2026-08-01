@@ -73,7 +73,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import com.perceptiveus.reverie.core.design.ReverieArtShape
-import com.perceptiveus.reverie.core.design.ReverieGlass
+import com.perceptiveus.reverie.core.design.reverieGlassColor
 import com.perceptiveus.reverie.core.design.components.AlbumArt
 import com.perceptiveus.reverie.core.design.components.GlassSurface
 import com.perceptiveus.reverie.core.design.components.PremiumBadge
@@ -518,7 +518,7 @@ private fun PlayerAlbumArtContent(
                     .offset(x = 10.dp)
                     .size(184.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFF1A1A1E))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
                     .glowBorder(
                         shape = CircleShape,
                         glowRadius = 8.dp,
@@ -649,7 +649,7 @@ private fun PlayerActionButton(
             color = if (selected) {
                 MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
             } else {
-                ReverieGlass
+                reverieGlassColor()
             },
             modifier = Modifier
                 .size(52.dp)

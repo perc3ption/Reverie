@@ -5,7 +5,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import com.perceptiveus.reverie.core.settings.AppThemePreference
 
 private val ReverieDarkColorScheme = darkColorScheme(
@@ -39,6 +41,17 @@ private val ReverieLightColorScheme = lightColorScheme(
     onSurfaceVariant = Color(0xFF5C5670),
     outline = Color(0xFFC8BFE0),
 )
+
+/** Theme-aware glass panel fill — dark charcoal in dark mode, white cards in light. */
+@Composable
+@ReadOnlyComposable
+fun reverieGlassColor(): Color {
+    return if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
+        ReverieLightGlass
+    } else {
+        ReverieGlass
+    }
+}
 
 @Composable
 fun ReverieTheme(
