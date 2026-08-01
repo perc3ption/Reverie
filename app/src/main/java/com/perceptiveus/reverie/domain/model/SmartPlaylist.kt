@@ -6,6 +6,8 @@ data class SmartPlaylist(
     val sortOrder: SmartPlaylistSort = SmartPlaylistSort.TITLE,
     val trackLimit: Int = 100,
     val ruleCount: Int = 0,
+    /** Songs currently matched (after track limit). Computed at read time. */
+    val matchCount: Int = 0,
     val createdAt: Long = 0L,
     val updatedAt: Long = 0L,
 )

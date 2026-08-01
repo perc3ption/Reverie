@@ -176,6 +176,9 @@ interface PlayHistoryDao {
     suspend fun deleteOlderThan(cutoff: Long)
 
     @Query("SELECT COUNT(*) FROM play_history")
+    fun observeCount(): Flow<Int>
+
+    @Query("SELECT COUNT(*) FROM play_history")
     suspend fun countAll(): Int
 
     @Query("SELECT COUNT(*) FROM play_history WHERE playedAt >= :sinceMs")
@@ -285,7 +288,9 @@ interface PlaylistDao {
     @Query("SELECT COUNT(*) FROM playlists")
     fun observePlaylistCount(): Flow<Int>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    // Upsert (not REPLACE): REPLACE deletes then inserts, which fires
+    // playlist_tracks ON DELETE CASCADE and wipes songs on metadata edits.
+    @Upsert
     suspend fun insert(playlist: PlaylistEntity)
 
     @Query("SELECT COALESCE(MAX(position), -1) FROM playlist_tracks WHERE playlistId = :playlistId")
@@ -334,6 +339,9 @@ interface SongTagDao {
     @Query("SELECT * FROM track_tags")
     suspend fun getAllTrackTags(): List<TrackTagCrossRef>
 
+    @Query("SELECT COUNT(*) FROM track_tags")
+    fun observeTrackTagCount(): Flow<Int>
+
     @Query("SELECT * FROM tags WHERE name = :name COLLATE NOCASE LIMIT 1")
     suspend fun getByName(name: String): TagEntity?
 
@@ -361,6 +369,14 @@ interface SmartPlaylistDao {
         """,
     )
     fun observeAllWithRuleCounts(): Flow<List<SmartPlaylistWithRuleCount>>
+
+    @Query(
+        """
+        SELECT * FROM smart_playlist_rules
+        ORDER BY playlistId ASC, position ASC, id ASC
+        """,
+    )
+    fun observeAllRules(): Flow<List<SmartPlaylistRuleEntity>>
 
     @Query("SELECT * FROM smart_playlists WHERE id = :id LIMIT 1")
     fun observeById(id: String): Flow<SmartPlaylistEntity?>

@@ -54,6 +54,28 @@ object SmartPlaylistEvaluator {
         return sorted.take(limit)
     }
 
+    /**
+     * Counts matches without sorting — for list badges.
+     * Stops early once [trackLimit] is reached (same cap as [evaluate]).
+     */
+    fun countMatches(
+        tracks: List<Track>,
+        rules: List<SmartPlaylistRule>,
+        trackLimit: Int,
+        context: Context,
+    ): Int {
+        if (rules.isEmpty()) return 0
+        val limit = trackLimit.coerceIn(1, 500)
+        var count = 0
+        for (track in tracks) {
+            if (rules.all { rule -> matches(track, rule, context) }) {
+                count++
+                if (count >= limit) return count
+            }
+        }
+        return count
+    }
+
     private fun matches(
         track: Track,
         rule: SmartPlaylistRule,

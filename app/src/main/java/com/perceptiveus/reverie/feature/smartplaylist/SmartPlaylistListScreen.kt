@@ -194,9 +194,20 @@ private fun SmartPlaylistListRow(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = when (playlist.ruleCount) {
-                        1 -> "1 rule"
-                        else -> "${playlist.ruleCount} rules"
+                    text = buildString {
+                        append(
+                            when (playlist.matchCount) {
+                                1 -> "1 song"
+                                else -> "${playlist.matchCount} songs"
+                            },
+                        )
+                        append(" · ")
+                        append(
+                            when (playlist.ruleCount) {
+                                1 -> "1 rule"
+                                else -> "${playlist.ruleCount} rules"
+                            },
+                        )
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,

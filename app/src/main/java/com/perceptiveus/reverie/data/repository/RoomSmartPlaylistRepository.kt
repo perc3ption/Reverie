@@ -17,11 +17,14 @@ import com.perceptiveus.reverie.domain.model.SmartPlaylistOperator
 import com.perceptiveus.reverie.domain.model.SmartPlaylistRule
 import com.perceptiveus.reverie.domain.model.SmartPlaylistSort
 import com.perceptiveus.reverie.domain.model.Track
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
 import java.util.UUID
 
 class SmartPlaylistAccessException : Exception("Smart Playlists are a Premium feature.")
@@ -35,18 +38,102 @@ class RoomSmartPlaylistRepository(
     private val featureAccessChecker: FeatureAccessChecker,
 ) : SmartPlaylistRepository {
 
-    override val playlists: Flow<List<SmartPlaylist>> =
-        smartPlaylistDao.observeAllWithRuleCounts().map { rows ->
-            rows.map { it.toDomain() }
+    /**
+     * Smart playlists with live [SmartPlaylist.matchCount].
+     *
+     * Performance: tracks + play/tag context are loaded once per change, then each
+     * playlist is counted in memory on [Dispatchers.Default] (no per-row DB work,
+     * no sort — only filter + early exit at trackLimit).
+     */
+    override val playlists: Flow<List<SmartPlaylist>> = combine(
+        smartPlaylistDao.observeAllWithRuleCounts(),
+        smartPlaylistDao.observeAllRules(),
+        trackDao.observeAllTracks(),
+        playHistoryDao.observeCount(),
+        songTagDao.observeTrackTagCount(),
+    ) { playlists, rules, tracks, _, _ ->
+        Triple(playlists, rules, tracks)
+    }.mapLatest { (playlists, rules, trackEntities) ->
+        if (playlists.isEmpty()) return@mapLatest emptyList()
+
+        val domainTracks = trackEntities.map { it.toDomain() }
+        val rulesByPlaylist = rules.groupBy { it.playlistId }
+        val needsPlayContext = rules.any { rule ->
+            rule.field == SmartPlaylistField.PLAY_COUNT.name ||
+                rule.field == SmartPlaylistField.RECENTLY_PLAYED.name
         }
+        val needsTagContext = rules.any { rule ->
+            rule.field == SmartPlaylistField.TAG.name
+        }
+
+        val playCounts = if (needsPlayContext) {
+            playHistoryDao.playCountsByTrack().associate { it.trackId to it.playCount }
+        } else {
+            emptyMap()
+        }
+        val lastPlayed = if (needsPlayContext) {
+            playHistoryDao.lastPlayedAtByTrack().associate { it.trackId to it.timestamp }
+        } else {
+            emptyMap()
+        }
+        val context = if (needsTagContext || needsPlayContext) {
+            buildContext(playCounts, lastPlayed, includeTags = needsTagContext)
+        } else {
+            SmartPlaylistEvaluator.Context(nowMs = System.currentTimeMillis())
+        }
+
+        playlists.map { row ->
+            val playlistRules = rulesByPlaylist[row.id].orEmpty().map { it.toDomain() }
+            val matchCount = SmartPlaylistEvaluator.countMatches(
+                tracks = domainTracks,
+                rules = playlistRules,
+                trackLimit = row.trackLimit,
+                context = context,
+            )
+            row.toDomain(matchCount = matchCount)
+        }
+    }.flowOn(Dispatchers.Default)
 
     override fun observePlaylist(id: String): Flow<SmartPlaylist?> =
         combine(
             smartPlaylistDao.observeById(id),
             smartPlaylistDao.observeRules(id),
-        ) { entity, rules ->
-            entity?.toDomain(rules.size)
-        }.distinctUntilChanged()
+            trackDao.observeAllTracks(),
+            playHistoryDao.observeCount(),
+            songTagDao.observeTrackTagCount(),
+        ) { entity, rules, tracks, _, _ ->
+            Triple(entity, rules, tracks)
+        }.mapLatest { (entity, rules, trackEntities) ->
+            entity ?: return@mapLatest null
+            val playlistRules = rules.map { it.toDomain() }
+            val needsPlayContext = playlistRules.any {
+                it.field == SmartPlaylistField.PLAY_COUNT ||
+                    it.field == SmartPlaylistField.RECENTLY_PLAYED
+            }
+            val needsTagContext = playlistRules.any { it.field == SmartPlaylistField.TAG }
+            val playCounts = if (needsPlayContext) {
+                playHistoryDao.playCountsByTrack().associate { it.trackId to it.playCount }
+            } else {
+                emptyMap()
+            }
+            val lastPlayed = if (needsPlayContext) {
+                playHistoryDao.lastPlayedAtByTrack().associate { it.trackId to it.timestamp }
+            } else {
+                emptyMap()
+            }
+            val context = if (needsTagContext || needsPlayContext) {
+                buildContext(playCounts, lastPlayed, includeTags = needsTagContext)
+            } else {
+                SmartPlaylistEvaluator.Context(nowMs = System.currentTimeMillis())
+            }
+            val matchCount = SmartPlaylistEvaluator.countMatches(
+                tracks = trackEntities.map { it.toDomain() },
+                rules = playlistRules,
+                trackLimit = entity.trackLimit,
+                context = context,
+            )
+            entity.toDomain(ruleCount = playlistRules.size, matchCount = matchCount)
+        }.flowOn(Dispatchers.Default).distinctUntilChanged()
 
     override fun observeRules(playlistId: String): Flow<List<SmartPlaylistRule>> =
         smartPlaylistDao.observeRules(playlistId).map { rows -> rows.map { it.toDomain() } }
@@ -86,14 +173,22 @@ class RoomSmartPlaylistRepository(
             rules = rules,
             sortOrder = sortOrder,
             trackLimit = trackLimit,
-            context = buildContext(playCounts, lastPlayed),
+            context = buildContext(playCounts, lastPlayed, includeTags = true),
         )
     }
 
     private suspend fun buildContext(
         playCounts: Map<String, Int>,
         lastPlayed: Map<String, Long>,
+        includeTags: Boolean,
     ): SmartPlaylistEvaluator.Context {
+        if (!includeTags) {
+            return SmartPlaylistEvaluator.Context(
+                playCounts = playCounts,
+                lastPlayedAt = lastPlayed,
+                nowMs = System.currentTimeMillis(),
+            )
+        }
         val allTags = songTagDao.getAllTags()
         val tagNameById = allTags.associate { it.id to it.name }
         val refs = songTagDao.getAllTrackTags()
@@ -107,6 +202,7 @@ class RoomSmartPlaylistRepository(
             lastPlayedAt = lastPlayed,
             tagIdsByTrack = tagIdsByTrack,
             tagNamesByTrack = tagNamesByTrack,
+            nowMs = System.currentTimeMillis(),
         )
     }
 
@@ -173,22 +269,25 @@ class RoomSmartPlaylistRepository(
     }
 }
 
-private fun SmartPlaylistEntity.toDomain(ruleCount: Int): SmartPlaylist = SmartPlaylist(
-    id = id,
-    name = name,
-    sortOrder = sortOrder.toSort(),
-    trackLimit = trackLimit,
-    ruleCount = ruleCount,
-    createdAt = createdAt,
-    updatedAt = updatedAt,
-)
+private fun SmartPlaylistEntity.toDomain(ruleCount: Int, matchCount: Int = 0): SmartPlaylist =
+    SmartPlaylist(
+        id = id,
+        name = name,
+        sortOrder = sortOrder.toSort(),
+        trackLimit = trackLimit,
+        ruleCount = ruleCount,
+        matchCount = matchCount,
+        createdAt = createdAt,
+        updatedAt = updatedAt,
+    )
 
-private fun SmartPlaylistWithRuleCount.toDomain(): SmartPlaylist = SmartPlaylist(
+private fun SmartPlaylistWithRuleCount.toDomain(matchCount: Int = 0): SmartPlaylist = SmartPlaylist(
     id = id,
     name = name,
     sortOrder = sortOrder.toSort(),
     trackLimit = trackLimit,
     ruleCount = ruleCount,
+    matchCount = matchCount,
     createdAt = createdAt,
     updatedAt = updatedAt,
 )
